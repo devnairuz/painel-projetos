@@ -1,0 +1,43 @@
+const mongoose = require("mongoose");
+
+// Documento de projeto. Mantemos um `id` string próprio (o mesmo usado no
+// frontend) como chave de negócio, e deixamos as estruturas aninhadas
+// (phases, history, finalization, nps) flexíveis via Mixed — o domínio é
+// controlado pelas operações puras em domain/ops.js.
+const projectSchema = new mongoose.Schema(
+  {
+    id: { type: String, required: true, unique: true, index: true },
+    code: { type: String, index: true },
+    clientName: String,
+    organizationId: String,
+    platform: String,
+    type: String,
+    product: String,
+    status: { type: String, index: true },
+    currentPhaseId: String,
+    startDate: String,
+    goLiveDate: String,
+    progress: Number,
+    risk: String,
+    nextAction: String,
+    updatedAt: String,
+    owners: mongoose.Schema.Types.Mixed,
+    phases: mongoose.Schema.Types.Mixed,
+    clientEmails: { type: [String], default: [], index: true },
+    history: mongoose.Schema.Types.Mixed,
+    nps: mongoose.Schema.Types.Mixed,
+    supportHours: mongoose.Schema.Types.Mixed,
+    finalization: mongoose.Schema.Types.Mixed
+  },
+  { timestamps: true, minimize: false }
+);
+
+projectSchema.set("toJSON", {
+  transform: (_doc, ret) => {
+    delete ret._id;
+    delete ret.__v;
+    return ret;
+  }
+});
+
+module.exports = mongoose.model("Project", projectSchema);

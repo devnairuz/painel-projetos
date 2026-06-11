@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+/*
+  Nairuz Portal — design tokens (identidade oficial).
+  Paleta: navy #00175d, navy-2 #034c8c, mint #52d09e / #61dcab, Poppins.
+  Espelha o repositório suporte-nairuz.
+*/
+@theme {
+  /* Marca / mint */
+  --color-brand-50: #eafaf3;
+  --color-brand-100: #d2f4e5;
+  --color-brand-200: #a8e9cd;
+  --color-brand-300: #7fdfb5;
+  --color-brand-400: #61dcab;
+  --color-brand-500: #52d09e;
+  --color-brand-600: #2bb583;
+  --color-brand-700: #1d9e74;
+
+  /* Azul institucional (sidebar / acentos) */
+  --color-navy-700: #034c8c;
+  --color-navy-800: #022a6b;
+  --color-navy-900: #00175d;
+  --color-navy-950: #000f3d;
+
+  --color-accent-500: #034c8c;
+  --color-accent-600: #00175d;
+
+  /* Superfícies */
+  --color-surface: #f1f4f8;
+  --color-card: #ffffff;
+
+  /* Tipografia */
+  --font-sans: 'Poppins', system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at top, #ffffff 0%, #f1f4f8 50%, #e8ecf3 100%);
+  background-attachment: fixed;
+  color: #1b2331;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar discreta */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd3df transparent;
+}
