@@ -22,6 +22,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { NpsGate } from '@/components/cliente/NpsGate'
 import { FinalizationUpsell } from '@/components/cliente/FinalizationUpsell'
+import { HoursBreakdown } from '@/components/cliente/HoursBreakdown'
 import { CommentThread } from '@/components/ui/CommentThread'
 import { PLATFORM_META, STATUS_META } from '@/constants'
 import type { Phase } from '@/types'
@@ -127,6 +128,13 @@ export function ClientProjectDetailPage() {
       >
         <ArrowLeft className="size-4" /> Seus projetos
       </Link>
+
+      {/* Carteira de horas (pontos → horas), só no projeto encerrado */}
+      {isClosed && (
+        <div className="mb-5">
+          <HoursBreakdown project={project} earnedPoints={earnedPoints} />
+        </div>
+      )}
 
       {/* Finalização: NPS obrigatório → depois a tela de upsell */}
       {isClosed && !project.nps && (
