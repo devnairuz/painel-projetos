@@ -174,20 +174,40 @@ async function addChecklistItem(id, phaseId, label) {
   return mutateProject(id, (p) => {
     const ph = p.phases.find((x) => x.id === phaseId);
     if (!ph) return;
-    ph.checklist.push({ id: uid("chk"), label: clean, done: false });
+    ph.checklist.push({ id: uid("chk"), label: clean, done: false, clientResponsibility: false, comments: [] });
     syncPhaseStatus(ph);
     recompute(p);
   });
 }
 
-async function renameChecklistItem(id, phaseId, itemId, label) {
-  const clean = String(label || "").trim();
-  if (!clean) return getProject(id);
+/** Atualiza uma subtarefa: rótulo e/ou responsabilidade do cliente. */
+async function updateChecklistItem(id, phaseId, itemId, patch = {}) {
   return mutateProject(id, (p) => {
     const ph = p.phases.find((x) => x.id === phaseId);
     const item = ph && ph.checklist.find((c) => c.id === itemId);
     if (!item) return;
-    item.label = clean;
+    if (typeof patch.label === "string" && patch.label.trim()) item.label = patch.label.trim();
+    if (typeof patch.clientResponsibility === "boolean") item.clientResponsibility = patch.clientResponsibility;
+    p.updatedAt = new Date().toISOString();
+  });
+}
+
+/** Adiciona um comentário a uma subtarefa (Nairuz ou cliente). */
+async function addChecklistComment(id, phaseId, itemId, { authorType, authorName, body } = {}) {
+  const text = String(body || "").trim();
+  if (!text) return getProject(id);
+  return mutateProject(id, (p) => {
+    const ph = p.phases.find((x) => x.id === phaseId);
+    const item = ph && ph.checklist.find((c) => c.id === itemId);
+    if (!item) return;
+    if (!Array.isArray(item.comments)) item.comments = [];
+    item.comments.push({
+      id: uid("cmt"),
+      authorType: authorType === "cliente" ? "cliente" : "nairuz",
+      authorName: String(authorName || "").trim() || (authorType === "cliente" ? "Cliente" : "Nairuz"),
+      body: text,
+      createdAt: new Date().toISOString()
+    });
     p.updatedAt = new Date().toISOString();
   });
 }
@@ -271,7 +291,8 @@ module.exports = {
   removePhase,
   toggleChecklistItem,
   addChecklistItem,
-  renameChecklistItem,
+  updateChecklistItem,
+  addChecklistComment,
   removeChecklistItem,
   approvePhase,
   grantClientAccess,

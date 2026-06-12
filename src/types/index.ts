@@ -87,11 +87,24 @@ export interface ClientUser {
   organizationId?: string
 }
 
+/** Comentário numa subtarefa — canal de tratativa entre Nairuz e cliente. */
+export interface ChecklistComment {
+  id: string
+  authorType: 'nairuz' | 'cliente'
+  authorName: string
+  body: string
+  createdAt: string
+}
+
 export interface ChecklistItem {
   id: string
   label: string
   done: boolean
   doneAt?: string
+  /** Marca a subtarefa como responsabilidade do cliente (aparece no portal dele). */
+  clientResponsibility?: boolean
+  /** Thread de comentários da subtarefa. */
+  comments?: ChecklistComment[]
 }
 
 export interface Phase {

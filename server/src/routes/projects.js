@@ -58,7 +58,12 @@ router.post("/:id/phases/:phaseId/items", h(async (req, res) => {
 }));
 
 router.patch("/:id/phases/:phaseId/items/:itemId", h(async (req, res) => {
-  const p = await svc.renameChecklistItem(req.params.id, req.params.phaseId, req.params.itemId, req.body.label);
+  const p = await svc.updateChecklistItem(req.params.id, req.params.phaseId, req.params.itemId, req.body);
+  return p ? res.json(p) : notFound(res);
+}));
+
+router.post("/:id/phases/:phaseId/items/:itemId/comments", h(async (req, res) => {
+  const p = await svc.addChecklistComment(req.params.id, req.params.phaseId, req.params.itemId, req.body);
   return p ? res.json(p) : notFound(res);
 }));
 

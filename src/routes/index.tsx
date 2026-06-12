@@ -5,7 +5,7 @@ import { ClientAuthProvider } from '@/hooks/useClientAuth'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { ProjetosPage } from '@/pages/ProjetosPage'
 import { ProjetoDetalhePage } from '@/pages/ProjetoDetalhePage'
-import { ChamadosPage, CobrancasPage, AprovacoesPage, RelatoriosPage } from '@/pages/stubs'
+import { RelatoriosPage } from '@/pages/stubs'
 import { OrganizacoesPage } from '@/pages/OrganizacoesPage'
 import { ClientLoginPage } from '@/pages/cliente/ClientLoginPage'
 import { ClientProjectsPage } from '@/pages/cliente/ClientProjectsPage'
@@ -29,9 +29,6 @@ export const router = createBrowserRouter([
       { index: true, element: <DashboardPage /> },
       { path: 'projetos', element: <ProjetosPage /> },
       { path: 'projetos/:id', element: <ProjetoDetalhePage /> },
-      { path: 'chamados', element: <ChamadosPage /> },
-      { path: 'cobrancas', element: <CobrancasPage /> },
-      { path: 'aprovacoes', element: <AprovacoesPage /> },
       { path: 'organizacoes', element: <OrganizacoesPage /> },
       { path: 'relatorios', element: <RelatoriosPage /> },
     ],

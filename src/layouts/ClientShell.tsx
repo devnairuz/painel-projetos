@@ -78,7 +78,7 @@ export function ClientShell() {
         </main>
 
         <footer className="mx-auto max-w-5xl px-6 pb-8 text-center text-xs text-slate-400">
-          Portal do cliente · Nairuz Sustentação &amp; Evolução
+          Portal do cliente · Nairuz Marketing &amp; Tecnologia
         </footer>
       </div>
     </ToastProvider>

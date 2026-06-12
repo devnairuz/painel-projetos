@@ -377,6 +377,49 @@ export async function renameChecklistItem(
   )
 }
 
+/** Marca/desmarca a subtarefa como responsabilidade do cliente. */
+export async function setChecklistResponsibility(
+  id: string,
+  phaseId: string,
+  itemId: string,
+  clientResponsibility: boolean,
+): Promise<Project> {
+  return mutate(
+    () => api.patch<Project>(`${p(id)}/phases/${phaseId}/items/${itemId}`, { clientResponsibility }),
+    () =>
+      updateLocalProject(id, (project) => {
+        findLocalChecklistItem(findLocalPhase(project, phaseId), itemId).clientResponsibility =
+          clientResponsibility
+        return project
+      }),
+  )
+}
+
+/** Adiciona um comentário a uma subtarefa (autor Nairuz ou cliente). */
+export async function addChecklistComment(
+  id: string,
+  phaseId: string,
+  itemId: string,
+  input: { authorType: 'nairuz' | 'cliente'; authorName: string; body: string },
+): Promise<Project> {
+  return mutate(
+    () => api.post<Project>(`${p(id)}/phases/${phaseId}/items/${itemId}/comments`, input),
+    () =>
+      updateLocalProject(id, (project) => {
+        const item = findLocalChecklistItem(findLocalPhase(project, phaseId), itemId)
+        if (!Array.isArray(item.comments)) item.comments = []
+        item.comments.push({
+          id: uid('cmt'),
+          authorType: input.authorType,
+          authorName: input.authorName || (input.authorType === 'cliente' ? 'Cliente' : 'Nairuz'),
+          body: input.body,
+          createdAt: new Date().toISOString(),
+        })
+        return project
+      }),
+  )
+}
+
 export async function removeChecklistItem(
   id: string,
   phaseId: string,

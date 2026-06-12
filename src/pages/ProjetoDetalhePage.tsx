@@ -19,6 +19,7 @@ import { PLATFORM_META, STATUS_META, TYPE_META, RISK_META, ROLE_META } from '@/c
 import { PRODUCT_META } from '@/constants/templates'
 import type { Platform, ProjectStatus, ProjectType, ProjectOwners } from '@/types'
 import {
+  addChecklistComment,
   addChecklistItem,
   addPhase,
   approvePhase,
@@ -26,6 +27,7 @@ import {
   removePhase,
   renameChecklistItem,
   renamePhase,
+  setChecklistResponsibility,
   toggleChecklistItem,
   updatePhaseSettings,
   updateProjectOwners,
@@ -126,6 +128,20 @@ export function ProjetoDetalhePage() {
 
   async function handleUpdatePhaseSettings(phaseId: string, patch: PhaseSettingsPatch) {
     await updatePhaseSettings(project!.id, phaseId, patch)
+    reload()
+  }
+
+  async function handleToggleResponsibility(phaseId: string, itemId: string, value: boolean) {
+    await setChecklistResponsibility(project!.id, phaseId, itemId, value)
+    reload()
+  }
+
+  async function handleAddComment(phaseId: string, itemId: string, body: string) {
+    await addChecklistComment(project!.id, phaseId, itemId, {
+      authorType: 'nairuz',
+      authorName: 'Equipe Nairuz',
+      body,
+    })
     reload()
   }
 
@@ -254,6 +270,8 @@ export function ProjetoDetalhePage() {
                       defaultOpen={phase.id === phaseNow?.id}
                       onToggleItem={handleToggle}
                       onApprove={handleApprove}
+                      onToggleResponsibility={handleToggleResponsibility}
+                      onAddComment={handleAddComment}
                     />
                   ))}
               </div>

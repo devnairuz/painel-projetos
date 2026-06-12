@@ -22,13 +22,14 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { NpsGate } from '@/components/cliente/NpsGate'
 import { FinalizationUpsell } from '@/components/cliente/FinalizationUpsell'
+import { CommentThread } from '@/components/ui/CommentThread'
 import { PLATFORM_META, STATUS_META } from '@/constants'
 import type { Phase } from '@/types'
-import { approvePhase } from '@/services/projectsService'
+import { approvePhase, addChecklistComment } from '@/services/projectsService'
 import { phaseProgress } from '@/utils/projects'
 import { formatDate, relativeDeadlineLabel } from '@/utils/dates'
 import { cn } from '@/utils/cn'
-import { History } from 'lucide-react'
+import { History, ClipboardList, Check as CheckIcon } from 'lucide-react'
 
 /** Visível ao cliente (default true). */
 function isVisible(phase: Phase): boolean {
@@ -93,6 +94,15 @@ export function ClientProjectDetailPage() {
     reload()
   }
 
+  async function handleAddClientComment(phaseId: string, itemId: string, body: string) {
+    await addChecklistComment(project!.id, phaseId, itemId, {
+      authorType: 'cliente',
+      authorName: user?.name ?? 'Cliente',
+      body,
+    })
+    reload()
+  }
+
   // Cliente só vê etapas marcadas como visíveis.
   const orderedPhases = [...project.phases]
     .filter(isVisible)
@@ -101,6 +111,13 @@ export function ClientProjectDetailPage() {
   const earnedPoints = project.phases
     .filter((ph) => isVisible(ph) && ph.status === 'concluida')
     .reduce((sum, ph) => sum + (ph.points ?? 0), 0)
+
+  // Subtarefas que são responsabilidade do cliente (em etapas visíveis).
+  const clientTasks = orderedPhases.flatMap((ph) =>
+    ph.checklist
+      .filter((item) => item.clientResponsibility)
+      .map((item) => ({ phaseId: ph.id, phaseName: ph.name, item })),
+  )
 
   return (
     <>
@@ -175,6 +192,51 @@ export function ClientProjectDetailPage() {
           </div>
         )}
       </Card>
+
+      {/* Suas tarefas (responsabilidade do cliente, com comentários) */}
+      {clientTasks.length > 0 && (
+        <Card className="mb-5 overflow-hidden">
+          <div className="border-b border-slate-100 p-5">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+              <ClipboardList className="size-5 text-brand-600" />
+              Suas tarefas
+            </h2>
+            <p className="mt-0.5 text-sm text-slate-500">
+              Itens sob sua responsabilidade. Responda por aqui — a Nairuz acompanha em tempo real.
+            </p>
+          </div>
+          <ul className="divide-y divide-slate-50">
+            {clientTasks.map(({ phaseId, phaseName, item }) => (
+              <li key={item.id} className="p-5">
+                <div className="mb-2 flex items-start gap-2">
+                  <span
+                    className={cn(
+                      'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border',
+                      item.done ? 'border-brand-500 bg-brand-500 text-white' : 'border-slate-300 bg-white',
+                    )}
+                  >
+                    {item.done && <CheckIcon className="size-3.5" />}
+                  </span>
+                  <div className="min-w-0">
+                    <div className={cn('font-medium', item.done ? 'text-slate-400 line-through' : 'text-slate-800')}>
+                      {item.label}
+                    </div>
+                    <div className="text-xs text-slate-400">{phaseName}</div>
+                  </div>
+                </div>
+                <div className="pl-7">
+                  <CommentThread
+                    comments={item.comments ?? []}
+                    onAdd={(body) => handleAddClientComment(phaseId, item.id, body)}
+                    side="cliente"
+                    placeholder="Responder / comentar…"
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {/* Precisa de você */}
       <Card className="mb-5 overflow-hidden">
