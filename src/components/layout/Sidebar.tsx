@@ -41,7 +41,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* Navegação */}
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.filter((item) => !item.adminOnly || user?.role === 'admin').map((item) => {
           const Icon = item.icon
           const badgeValue = item.badge === 'projects' ? projectCount : undefined
           return (

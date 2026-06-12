@@ -1,0 +1,20 @@
+# Deploy da API (Express) no Render. Conecte o repositório e o Render lê este arquivo.
+# As variáveis com sync:false você preenche no painel do Render (não vão no git).
+services:
+  - type: web
+    name: nairuz-portal-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false

@@ -3,6 +3,7 @@ const Project = require("../models/Project");
 const Organization = require("../models/Organization");
 const User = require("../models/User");
 const { seedProjects, ORGANIZATIONS } = require("../data/seed");
+const { config } = require("../config");
 
 function toPlain(doc) {
   if (!doc) return null;
@@ -13,6 +14,8 @@ function toPlain(doc) {
 const mongoRepo = {
   kind: "mongo",
   async init() {
+    // Em produção/Mongo, só semeia dados de exemplo se SEED_DEMO=true.
+    if (!config.seedDemo) return;
     if ((await Project.countDocuments()) === 0) {
       await Project.insertMany(seedProjects());
     }

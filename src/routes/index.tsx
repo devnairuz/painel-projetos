@@ -9,6 +9,7 @@ import { ProjetosPage } from '@/pages/ProjetosPage'
 import { ProjetoDetalhePage } from '@/pages/ProjetoDetalhePage'
 import { RelatoriosPage } from '@/pages/stubs'
 import { OrganizacoesPage } from '@/pages/OrganizacoesPage'
+import { UsuariosPage } from '@/pages/UsuariosPage'
 import { ClientLoginPage } from '@/pages/cliente/ClientLoginPage'
 import { ClientProjectsPage } from '@/pages/cliente/ClientProjectsPage'
 import { ClientProjectDetailPage } from '@/pages/cliente/ClientProjectDetailPage'
@@ -52,6 +53,7 @@ export const router = createBrowserRouter([
           { path: 'projetos', element: <ProjetosPage /> },
           { path: 'projetos/:id', element: <ProjetoDetalhePage /> },
           { path: 'organizacoes', element: <OrganizacoesPage /> },
+          { path: 'usuarios', element: <UsuariosPage /> },
           { path: 'relatorios', element: <RelatoriosPage /> },
         ],
       },
