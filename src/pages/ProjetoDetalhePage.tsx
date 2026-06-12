@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, FolderKanban, Flag, Pencil, Check, Trash2, CalendarRange } from 'lucide-react'
 import { useProject } from '@/hooks/useProjects'
@@ -20,7 +20,7 @@ import { OwnersCard } from '@/components/projects/OwnersCard'
 import { FinalizationConfigCard } from '@/components/projects/FinalizationConfigCard'
 import { PLATFORM_META, STATUS_META, TYPE_META, RISK_META } from '@/constants'
 import { PRODUCT_META } from '@/constants/templates'
-import type { Platform, ProjectStatus, ProjectType, ProjectOwners } from '@/types'
+import type { Platform, Project, ProjectStatus, ProjectType, ProjectOwners } from '@/types'
 import {
   addChecklistComment,
   addChecklistItem,
@@ -38,7 +38,7 @@ import {
   updateProjectStatus,
   type PhaseSettingsPatch,
 } from '@/services/projectsService'
-import { currentPhase } from '@/utils/projects'
+import { currentPhase, syncPhaseStatus, computeProgress } from '@/utils/projects'
 import { formatDate, relativeDeadlineLabel } from '@/utils/dates'
 
 const STATUS_OPTIONS = Object.entries(STATUS_META).map(([value, m]) => ({ value, label: m.label }))
@@ -46,23 +46,28 @@ const STATUS_OPTIONS = Object.entries(STATUS_META).map(([value, m]) => ({ value,
 export function ProjetoDetalhePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { data: project, loading, reload } = useProject(id)
+  const { data: fetched, loading, reload } = useProject(id)
   const { getMember, team } = useLookups()
   const { notify } = useToast()
+  // Cópia local: aplica updates na hora (otimista) e reconcilia com o servidor.
+  const [project, setProject] = useState<Project | undefined>(undefined)
   const [editPhases, setEditPhases] = useState(false)
   const [ganttOpen, setGanttOpen] = useState(false)
 
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-40 w-full" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    )
-  }
+  useEffect(() => {
+    if (fetched) setProject(fetched)
+  }, [fetched])
 
   if (!project) {
+    if (loading || fetched) {
+      return (
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      )
+    }
     return (
       <Card>
         <EmptyState
@@ -81,87 +86,97 @@ export function ProjetoDetalhePage() {
 
   const phaseNow = currentPhase(project.phases)
 
+  /** Aplica o toggle localmente (preserva refs das fases não alteradas). */
+  function toggleLocally(p: Project, phaseId: string, itemId: string): Project {
+    const phases = p.phases.map((ph) => {
+      if (ph.id !== phaseId) return ph
+      const checklist = ph.checklist.map((it) =>
+        it.id === itemId
+          ? { ...it, done: !it.done, doneAt: !it.done ? new Date().toISOString() : undefined }
+          : it,
+      )
+      const np = { ...ph, checklist }
+      syncPhaseStatus(np)
+      return np
+    })
+    return { ...p, phases, progress: computeProgress(phases) }
+  }
+
   async function handleToggle(phaseId: string, itemId: string) {
-    await toggleChecklistItem(project!.id, phaseId, itemId)
-    reload()
+    setProject((prev) => (prev ? toggleLocally(prev, phaseId, itemId) : prev)) // instantâneo
+    try {
+      const updated = await toggleChecklistItem(project!.id, phaseId, itemId)
+      setProject(updated) // reconcilia com o servidor
+    } catch {
+      reload()
+    }
   }
 
   async function handleApprove(phaseId: string) {
-    await approvePhase(project!.id, phaseId)
+    setProject(await approvePhase(project!.id, phaseId))
     notify('Aprovação do cliente registrada com sucesso.')
-    reload()
   }
 
   async function handleStatusChange(status: ProjectStatus) {
-    await updateProjectStatus(project!.id, status)
+    setProject(await updateProjectStatus(project!.id, status))
     notify(`Status atualizado para "${STATUS_META[status].label}".`)
-    reload()
   }
 
   async function handleAddPhase(name: string) {
-    await addPhase(project!.id, name)
+    setProject(await addPhase(project!.id, name))
     notify('Etapa adicionada.')
-    reload()
   }
 
   async function handleRenamePhase(phaseId: string, name: string) {
-    await renamePhase(project!.id, phaseId, name)
+    setProject(await renamePhase(project!.id, phaseId, name))
     notify('Etapa renomeada.')
-    reload()
   }
 
   async function handleRemovePhase(phaseId: string) {
-    await removePhase(project!.id, phaseId)
+    setProject(await removePhase(project!.id, phaseId))
     notify('Etapa removida.', 'info')
-    reload()
   }
 
   async function handleAddItem(phaseId: string, label: string) {
-    await addChecklistItem(project!.id, phaseId, label)
-    reload()
+    setProject(await addChecklistItem(project!.id, phaseId, label))
   }
 
   async function handleRenameItem(phaseId: string, itemId: string, label: string) {
-    await renameChecklistItem(project!.id, phaseId, itemId, label)
-    reload()
+    setProject(await renameChecklistItem(project!.id, phaseId, itemId, label))
   }
 
   async function handleRemoveItem(phaseId: string, itemId: string) {
-    await removeChecklistItem(project!.id, phaseId, itemId)
-    reload()
+    setProject(await removeChecklistItem(project!.id, phaseId, itemId))
   }
 
   async function handleUpdatePhaseSettings(phaseId: string, patch: PhaseSettingsPatch) {
-    await updatePhaseSettings(project!.id, phaseId, patch)
-    reload()
+    setProject(await updatePhaseSettings(project!.id, phaseId, patch))
   }
 
   async function handleToggleResponsibility(phaseId: string, itemId: string, value: boolean) {
-    await setChecklistResponsibility(project!.id, phaseId, itemId, value)
-    reload()
+    setProject(await setChecklistResponsibility(project!.id, phaseId, itemId, value))
   }
 
   async function handleAddComment(phaseId: string, itemId: string, body: string) {
-    await addChecklistComment(project!.id, phaseId, itemId, {
-      authorType: 'nairuz',
-      authorName: 'Equipe Nairuz',
-      body,
-    })
-    reload()
+    setProject(
+      await addChecklistComment(project!.id, phaseId, itemId, {
+        authorType: 'nairuz',
+        authorName: 'Equipe Nairuz',
+        body,
+      }),
+    )
   }
 
   async function handleUpdateDates(
     phaseId: string,
     patch: { startDate?: string; dueDate?: string; finishedDate?: string },
   ) {
-    await updatePhaseSettings(project!.id, phaseId, patch)
-    reload()
+    setProject(await updatePhaseSettings(project!.id, phaseId, patch))
   }
 
   async function handleUpdateOwners(owners: Partial<ProjectOwners>) {
-    await updateProjectOwners(project!.id, owners)
+    setProject(await updateProjectOwners(project!.id, owners))
     notify('Responsáveis atualizados.')
-    reload()
   }
 
   async function handleDelete() {
@@ -317,7 +332,7 @@ export function ProjetoDetalhePage() {
           <OwnersCard owners={project.owners} getMember={getMember} onChange={handleUpdateOwners} />
 
           <ClientAccessCard
-            projectId={project.id}
+            projectId={project!.id}
             emails={project.clientEmails}
             onChanged={reload}
           />

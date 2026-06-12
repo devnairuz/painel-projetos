@@ -1,29 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
-import { X, CalendarRange, ChevronLeft, ChevronRight } from 'lucide-react'
+import { X, CalendarRange } from 'lucide-react'
 import {
   parseISO,
   isValid,
   differenceInCalendarDays,
-  format,
-  getQuarter,
-  startOfWeek,
-  endOfWeek,
-  addWeeks,
   startOfMonth,
   endOfMonth,
-  addMonths,
-  startOfQuarter,
-  endOfQuarter,
-  addQuarters,
-  startOfYear,
-  endOfYear,
-  addYears,
-  eachDayOfInterval,
-  eachWeekOfInterval,
   eachMonthOfInterval,
+  eachDayOfInterval,
+  addDays,
+  format,
   max as maxDate,
   min as minDate,
-  addDays,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import type { Phase, Project } from '@/types'
@@ -39,9 +27,11 @@ interface GanttModalProps {
 }
 
 const LABEL_W = 220
-const WEEK = { weekStartsOn: 1 as const }
 
 type Scale = 'semana' | 'mes' | 'trimestre' | 'ano'
+
+/** Pixels por dia (zoom). "Semana" é a proporção mais ampla. */
+const PX_PER_DAY: Record<Scale, number> = { semana: 34, mes: 11, trimestre: 4.5, ano: 1.8 }
 
 function toDate(v?: string): Date | null {
   if (!v) return null
@@ -51,72 +41,15 @@ function toDate(v?: string): Date | null {
   return y >= 2000 && y <= 2100 ? d : null
 }
 
-/** Janela [start, end] do período escolhido, deslocada por `offset` períodos. */
-function getWindow(scale: Scale, anchor: Date, offset: number): { start: Date; end: Date } {
-  switch (scale) {
-    case 'semana': {
-      const start = startOfWeek(addWeeks(startOfWeek(anchor, WEEK), offset), WEEK)
-      return { start, end: endOfWeek(start, WEEK) }
-    }
-    case 'mes': {
-      const start = startOfMonth(addMonths(startOfMonth(anchor), offset))
-      return { start, end: endOfMonth(start) }
-    }
-    case 'trimestre': {
-      const start = startOfQuarter(addQuarters(startOfQuarter(anchor), offset))
-      return { start, end: endOfQuarter(start) }
-    }
-    case 'ano': {
-      const start = startOfYear(addYears(startOfYear(anchor), offset))
-      return { start, end: endOfYear(start) }
-    }
-  }
-}
-
-function windowLabel(scale: Scale, start: Date, end: Date): string {
-  if (scale === 'semana') return `${format(start, 'dd')} – ${format(end, 'dd MMM yyyy', { locale: ptBR })}`
-  if (scale === 'mes') {
-    const s = format(start, 'MMMM yyyy', { locale: ptBR })
-    return s.charAt(0).toUpperCase() + s.slice(1)
-  }
-  if (scale === 'trimestre') {
-    return `T${getQuarter(start)} ${format(start, 'yyyy')} · ${format(start, 'MMM', { locale: ptBR })}–${format(end, 'MMM', { locale: ptBR })}`
-  }
-  return format(start, 'yyyy')
-}
-
 interface Tick {
   date: Date
   label: string
 }
 
-function buildTicks(scale: Scale, start: Date, end: Date): { ticks: Tick[]; grid: Date[] } {
-  if (scale === 'semana') {
-    const days = eachDayOfInterval({ start, end })
-    return { ticks: days.map((d) => ({ date: d, label: format(d, 'eee dd', { locale: ptBR }) })), grid: days }
-  }
-  if (scale === 'mes') {
-    const days = eachDayOfInterval({ start, end })
-    return {
-      ticks: days.map((d) => ({ date: d, label: String(d.getDate()) })),
-      grid: eachWeekOfInterval({ start, end }, WEEK),
-    }
-  }
-  if (scale === 'trimestre') {
-    return {
-      ticks: eachMonthOfInterval({ start, end }).map((d) => ({ date: d, label: format(d, 'MMMM', { locale: ptBR }) })),
-      grid: eachWeekOfInterval({ start, end }, WEEK),
-    }
-  }
-  const months = eachMonthOfInterval({ start, end })
-  return { ticks: months.map((d) => ({ date: d, label: format(d, 'MMM', { locale: ptBR }) })), grid: months }
-}
-
 export function GanttModal({ project, onClose }: GanttModalProps) {
-  const [scale, setScale] = useState<Scale>('mes')
-  const [offset, setOffset] = useState(0)
+  const [scale, setScale] = useState<Scale>('semana')
 
-  // Atualiza os dados ao abrir o painel.
+  // Atualiza ao abrir.
   useEffect(() => {
     notifyChange()
   }, [])
@@ -129,34 +62,37 @@ export function GanttModal({ project, onClose }: GanttModalProps) {
 
   const phases = useMemo(() => [...project.phases].sort((a, b) => a.order - b.order), [project.phases])
 
-  // Âncora: hoje se estiver dentro do projeto, senão a 1ª data conhecida.
-  const anchor = useMemo(() => {
-    const dates: Date[] = []
-    for (const p of phases) [p.startDate, p.dueDate, p.finishedDate].forEach((v) => {
-      const d = toDate(v)
-      if (d) dates.push(d)
-    })
-    const ps = toDate(project.startDate)
-    if (ps) dates.push(ps)
-    if (dates.length === 0) return new Date()
-    const lo = minDate(dates)
-    const hi = maxDate(dates)
-    const now = new Date()
-    return now >= lo && now <= hi ? now : lo
-  }, [phases, project.startDate])
+  const allDates: Date[] = []
+  for (const p of phases) [p.startDate, p.dueDate, p.finishedDate].forEach((v) => {
+    const d = toDate(v)
+    if (d) allDates.push(d)
+  })
+  const projStart = toDate(project.startDate)
+  const projGoLive = toDate(project.goLiveDate)
+  if (projStart) allDates.push(projStart)
+  if (projGoLive) allDates.push(projGoLive)
 
-  const { start: winStart, end: winEnd } = getWindow(scale, anchor, offset)
-  const totalDays = Math.max(1, differenceInCalendarDays(winEnd, winStart) + 1)
-  const { ticks, grid } = buildTicks(scale, winStart, winEnd)
+  const hasDates = allDates.length > 0
+  const domainStart = hasDates ? startOfMonth(minDate(allDates)) : startOfMonth(new Date())
+  const domainEnd = hasDates ? endOfMonth(maxDate(allDates)) : endOfMonth(addDays(new Date(), 60))
+  const totalDays = Math.max(1, differenceInCalendarDays(domainEnd, domainStart))
 
-  const pct = (d: Date) => (differenceInCalendarDays(d, winStart) / totalDays) * 100
+  const pxPerDay = PX_PER_DAY[scale]
+  const innerWidth = Math.max(totalDays * pxPerDay, 480)
+  const xOf = (d: Date) => differenceInCalendarDays(d, domainStart) * pxPerDay
+
+  const monthGrid = eachMonthOfInterval({ start: domainStart, end: domainEnd })
+  const ticks: Tick[] =
+    scale === 'semana'
+      ? eachDayOfInterval({ start: domainStart, end: domainEnd }).map((d) => ({
+          date: d,
+          label: d.getDate() === 1 ? format(d, 'dd MMM', { locale: ptBR }) : String(d.getDate()),
+        }))
+      : monthGrid.map((d) => ({ date: d, label: format(d, 'MMM/yy', { locale: ptBR }) }))
+
   const today = new Date()
-  const todayIn = today >= winStart && today <= winEnd
-
-  function changeScale(s: Scale) {
-    setScale(s)
-    setOffset(0)
-  }
+  const todayIn = today >= domainStart && today <= domainEnd
+  const todayX = xOf(today)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4" onMouseDown={onClose}>
@@ -170,7 +106,7 @@ export function GanttModal({ project, onClose }: GanttModalProps) {
             <CalendarRange className="size-5 text-brand-600" />
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Cronograma — {project.clientName}</h2>
-              <p className="text-sm text-slate-500">Linha do tempo das etapas por prazo</p>
+              <p className="text-sm text-slate-500">Role para o lado para ver toda a linha do tempo</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -178,13 +114,13 @@ export function GanttModal({ project, onClose }: GanttModalProps) {
               {(['semana', 'mes', 'trimestre', 'ano'] as Scale[]).map((s) => (
                 <button
                   key={s}
-                  onClick={() => changeScale(s)}
+                  onClick={() => setScale(s)}
                   className={cn(
                     'rounded-md px-3 py-1 text-sm font-medium capitalize transition-colors',
                     scale === s ? 'bg-brand-600 text-white' : 'text-slate-600 hover:bg-slate-100',
                   )}
                 >
-                  {s === 'mes' ? 'Mês' : s === 'trimestre' ? 'Trimestre' : s}
+                  {s === 'mes' ? 'Mês' : s}
                 </button>
               ))}
             </div>
@@ -195,83 +131,66 @@ export function GanttModal({ project, onClose }: GanttModalProps) {
           </div>
         </div>
 
-        {/* Navegação do período */}
-        <div className="flex items-center justify-center gap-4 border-b border-slate-100 bg-slate-50/60 px-5 py-2.5">
-          <button
-            onClick={() => setOffset((o) => o - 1)}
-            className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-200"
-            aria-label="Período anterior"
-          >
-            <ChevronLeft className="size-5" />
-          </button>
-          <span className="min-w-56 text-center text-sm font-semibold text-slate-800">
-            {windowLabel(scale, winStart, winEnd)}
-          </span>
-          <button
-            onClick={() => setOffset((o) => o + 1)}
-            className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-200"
-            aria-label="Próximo período"
-          >
-            <ChevronRight className="size-5" />
-          </button>
-          {offset !== 0 && (
-            <button onClick={() => setOffset(0)} className="text-xs font-medium text-brand-600 hover:underline">
-              hoje
-            </button>
-          )}
-        </div>
-
-        {/* Corpo */}
-        <div className="flex-1 overflow-y-auto p-5">
-          <div>
-            {/* Header de escala */}
-            <div className="flex border-b border-slate-200">
-              <div className="shrink-0" style={{ width: LABEL_W }} />
-              <div className="relative flex-1" style={{ height: 26 }}>
-                {ticks.map((t) => (
-                  <div
-                    key={t.date.toISOString()}
-                    className="absolute top-0 flex h-full items-center border-l border-slate-100 pl-1 text-[10px] font-semibold tracking-wide text-slate-400 uppercase"
-                    style={{ left: `${pct(t.date)}%` }}
-                  >
-                    {t.label}
-                  </div>
-                ))}
-                {todayIn && (
-                  <div className="absolute top-0 h-full" style={{ left: `${pct(today)}%` }}>
-                    <span className="absolute -translate-x-1/2 rounded bg-red-500 px-1 text-[9px] font-bold text-white">
-                      hoje
-                    </span>
-                  </div>
-                )}
-              </div>
+        {/* Corpo (scroll livre) */}
+        <div className="flex-1 overflow-auto p-5">
+          {!hasDates ? (
+            <div className="py-16 text-center text-sm text-slate-400">
+              Defina os prazos (Início/Prevista) nas etapas para visualizar o cronograma.
             </div>
+          ) : (
+            <div className="min-w-max">
+              {/* Header de escala */}
+              <div className="flex border-b border-slate-200">
+                <div className="sticky left-0 z-10 shrink-0 bg-white" style={{ width: LABEL_W }} />
+                <div className="relative shrink-0" style={{ width: innerWidth, height: 26 }}>
+                  {ticks.map((t) => (
+                    <div
+                      key={t.date.toISOString()}
+                      className="absolute top-0 flex h-full items-center border-l border-slate-100 pl-1 text-[10px] font-semibold tracking-wide text-slate-400 uppercase"
+                      style={{ left: `${xOf(t.date)}px` }}
+                    >
+                      {t.label}
+                    </div>
+                  ))}
+                  {todayIn && (
+                    <div className="absolute top-0 h-full" style={{ left: `${todayX}px` }}>
+                      <span className="absolute -translate-x-1/2 rounded bg-red-500 px-1 text-[9px] font-bold text-white">
+                        hoje
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
 
-            {/* Linhas */}
-            {phases.map((phase) => (
-              <GanttRow
-                key={phase.id}
-                phase={phase}
-                winStart={winStart}
-                winEnd={winEnd}
-                projStart={toDate(project.startDate)}
-                grid={grid}
-                pct={pct}
-                todayIn={todayIn}
-                today={today}
-              />
-            ))}
-          </div>
+              {/* Linhas */}
+              {phases.map((phase) => (
+                <GanttRow
+                  key={phase.id}
+                  phase={phase}
+                  domainStart={domainStart}
+                  innerWidth={innerWidth}
+                  monthGrid={monthGrid}
+                  xOf={xOf}
+                  pxPerDay={pxPerDay}
+                  projStart={projStart}
+                  todayIn={todayIn}
+                  todayX={todayX}
+                />
+              ))}
+            </div>
+          )}
 
           {/* Legenda */}
-          <div className="mt-5 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-            {Object.values(PHASE_STATUS_META).map((m) => (
-              <span key={m.label} className="inline-flex items-center gap-1.5">
-                <span className="size-3 rounded" style={{ backgroundColor: m.dot }} />
-                {m.label}
-              </span>
-            ))}
-          </div>
+          {hasDates && (
+            <div className="mt-5 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+              {Object.values(PHASE_STATUS_META).map((m) => (
+                <span key={m.label} className="inline-flex items-center gap-1.5">
+                  <span className="size-3 rounded" style={{ backgroundColor: m.dot }} />
+                  {m.label}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -280,43 +199,38 @@ export function GanttModal({ project, onClose }: GanttModalProps) {
 
 function GanttRow({
   phase,
-  winStart,
-  winEnd,
+  domainStart,
+  innerWidth,
+  monthGrid,
+  xOf,
+  pxPerDay,
   projStart,
-  grid,
-  pct,
   todayIn,
-  today,
+  todayX,
 }: {
   phase: Phase
-  winStart: Date
-  winEnd: Date
+  domainStart: Date
+  innerWidth: number
+  monthGrid: Date[]
+  xOf: (d: Date) => number
+  pxPerDay: number
   projStart: Date | null
-  grid: Date[]
-  pct: (d: Date) => number
   todayIn: boolean
-  today: Date
+  todayX: number
 }) {
   const hasDate = !!(phase.startDate || phase.dueDate || phase.finishedDate)
-  const start = toDate(phase.startDate) ?? projStart ?? winStart
+  const start = toDate(phase.startDate) ?? projStart ?? domainStart
   const endRaw = toDate(phase.finishedDate) ?? toDate(phase.dueDate)
   const end = endRaw ?? addDays(start, 3)
   const safeEnd = end < start ? addDays(start, 1) : end
-  const color = PHASE_STATUS_META[phase.status].dot
 
-  // Sobreposição com a janela atual.
-  const before = safeEnd < winStart
-  const after = start > winEnd
-  const visible = hasDate && !before && !after
-  const cs = start < winStart ? winStart : start
-  const ce = safeEnd > winEnd ? winEnd : safeEnd
-  const leftPct = Math.max(0, Math.min(100, pct(cs)))
-  const rightPct = Math.max(0, Math.min(100, pct(ce) + 100 / Math.max(1, differenceInCalendarDays(winEnd, winStart) + 1)))
-  const widthPct = Math.max(rightPct - leftPct, 2)
+  const leftPx = Math.max(0, xOf(start))
+  const widthPx = Math.max((differenceInCalendarDays(safeEnd, start) + 1) * pxPerDay, 8)
+  const color = PHASE_STATUS_META[phase.status].dot
 
   return (
     <div className="flex items-center border-b border-slate-50">
-      <div className="shrink-0 px-3 py-2.5" style={{ width: LABEL_W }}>
+      <div className="sticky left-0 z-10 shrink-0 bg-white px-3 py-2.5" style={{ width: LABEL_W }}>
         <div className="truncate text-sm font-medium text-slate-700">
           {phase.order}. {phase.name}
         </div>
@@ -325,25 +239,18 @@ function GanttRow({
         </div>
       </div>
 
-      <div className="relative flex-1" style={{ height: 42 }}>
-        {/* gridlines */}
-        {grid.map((g) => (
-          <div key={g.toISOString()} className="absolute top-0 h-full border-l border-slate-100" style={{ left: `${pct(g)}%` }} />
+      <div className="relative shrink-0" style={{ width: innerWidth, height: 42 }}>
+        {monthGrid.map((m) => (
+          <div key={m.toISOString()} className="absolute top-0 h-full border-l border-slate-100" style={{ left: `${xOf(m)}px` }} />
         ))}
-        {/* hoje */}
-        {todayIn && <div className="absolute top-0 h-full border-l-2 border-red-400/70" style={{ left: `${pct(today)}%` }} />}
-
-        {visible ? (
+        {todayIn && <div className="absolute top-0 h-full border-l-2 border-red-400/70" style={{ left: `${todayX}px` }} />}
+        {hasDate ? (
           <div
             className="absolute top-1/2 flex h-5 -translate-y-1/2 items-center overflow-hidden rounded-md px-2 text-[10px] font-medium text-white shadow-sm"
-            style={{ left: `${leftPct}%`, width: `${widthPct}%`, backgroundColor: color }}
+            style={{ left: `${leftPx}px`, width: `${widthPx}px`, backgroundColor: color }}
             title={`${phase.name} · ${formatDate(phase.startDate)} → ${formatDate(phase.finishedDate ?? phase.dueDate)} · ${PHASE_STATUS_META[phase.status].label}`}
           >
-            {widthPct > 12 && <span className="truncate">{PHASE_STATUS_META[phase.status].label}</span>}
-          </div>
-        ) : hasDate ? (
-          <div className="absolute top-1/2 -translate-y-1/2 text-[11px] text-slate-300" style={{ [before ? 'left' : 'right']: 8 } as React.CSSProperties}>
-            {before ? '◀ antes' : 'depois ▶'}
+            {widthPx > 60 && <span className="truncate">{PHASE_STATUS_META[phase.status].label}</span>}
           </div>
         ) : (
           <div className="absolute top-1/2 left-2 -translate-y-1/2 text-[11px] text-slate-300">sem prazo definido</div>
