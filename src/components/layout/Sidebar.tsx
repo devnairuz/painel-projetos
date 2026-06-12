@@ -103,7 +103,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           {!collapsed && (
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-white">Paulo Cavalcante</p>
-              <p className="truncate text-xs text-slate-400">Tech Lead · Nairuz</p>
+              <p className="truncate text-xs text-slate-400">Desenvolvedor · Nairuz</p>
             </div>
           )}
         </div>
