@@ -108,6 +108,16 @@ export function GanttModal({ project, onClose }: GanttModalProps) {
   const todayIn = today >= domainStart && today <= domainEnd
   const todayX = xOf(today)
 
+  // Abre/centraliza no "hoje" (e reposiciona ao trocar a escala).
+  useEffect(() => {
+    const el = bodyRef.current
+    if (!el) return
+    const trackVisible = Math.max(bodyW - 40 - LABEL_W, 100)
+    const target = todayIn ? xOf(today) - trackVisible * 0.3 : 0
+    el.scrollLeft = Math.max(0, target)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bodyW, scale])
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4" onMouseDown={onClose}>
       <div
@@ -192,19 +202,19 @@ export function GanttModal({ project, onClose }: GanttModalProps) {
               ))}
             </div>
           )}
-
-          {/* Legenda */}
-          {hasDates && (
-            <div className="mt-5 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-              {Object.values(PHASE_STATUS_META).map((m) => (
-                <span key={m.label} className="inline-flex items-center gap-1.5">
-                  <span className="size-3 rounded" style={{ backgroundColor: m.dot }} />
-                  {m.label}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
+
+        {/* Legenda fixa (rodapé) */}
+        {hasDates && (
+          <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 px-5 py-3 text-xs text-slate-500">
+            {Object.values(PHASE_STATUS_META).map((m) => (
+              <span key={m.label} className="inline-flex items-center gap-1.5">
+                <span className="size-3 rounded" style={{ backgroundColor: m.dot }} />
+                {m.label}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
