@@ -52,14 +52,21 @@ function recompute(project) {
   project.updatedAt = new Date().toISOString();
 }
 
-/** Ajusta status da fase a partir do checklist (respeita bloqueio/espera). */
+/**
+ * Ajusta status da fase a partir do checklist. Tudo concluído ⇒ "concluida"
+ * (vence a espera). "bloqueada" sempre preservada; "aguardando_cliente" só
+ * enquanto houver itens em aberto.
+ */
 function syncPhaseStatus(phase) {
-  if (phase.status === "bloqueada" || phase.status === "aguardando_cliente") return;
+  if (phase.status === "bloqueada") return;
   const total = phase.checklist.length;
   const done = phase.checklist.filter((c) => c.done).length;
-  if (total === 0 || done === 0) phase.status = "nao_iniciada";
-  else if (done === total) phase.status = "concluida";
-  else phase.status = "em_andamento";
+  if (total > 0 && done === total) {
+    phase.status = "concluida";
+    return;
+  }
+  if (phase.status === "aguardando_cliente") return;
+  phase.status = done === 0 || total === 0 ? "nao_iniciada" : "em_andamento";
 }
 
 function makeHistory(type, label) {

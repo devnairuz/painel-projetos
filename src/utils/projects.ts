@@ -48,16 +48,21 @@ export function deriveRisk(project: Project): RiskLevel {
 }
 
 /**
- * Ajusta o status da fase a partir do checklist (espelha o backend). Preserva
- * estados que o time setou manualmente (bloqueada / aguardando cliente).
+ * Ajusta o status da fase a partir do checklist (espelha o backend).
+ * Regra: tudo concluído ⇒ Concluída (vence qualquer espera). "Bloqueada" é
+ * sempre preservada; "Aguardando cliente" só é preservada enquanto houver
+ * itens em aberto.
  */
 export function syncPhaseStatus(phase: Phase): void {
-  if (phase.status === 'bloqueada' || phase.status === 'aguardando_cliente') return
+  if (phase.status === 'bloqueada') return
   const total = phase.checklist.length
   const done = phase.checklist.filter((c) => c.done).length
-  if (total === 0 || done === 0) phase.status = 'nao_iniciada'
-  else if (done === total) phase.status = 'concluida'
-  else phase.status = 'em_andamento'
+  if (total > 0 && done === total) {
+    phase.status = 'concluida'
+    return
+  }
+  if (phase.status === 'aguardando_cliente') return
+  phase.status = done === 0 || total === 0 ? 'nao_iniciada' : 'em_andamento'
 }
 
 /** Projeto "em risco" para fins de dashboard. */
