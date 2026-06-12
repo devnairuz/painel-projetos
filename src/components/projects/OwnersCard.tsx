@@ -20,12 +20,12 @@ export function OwnersCard({ owners, getMember, onChange }: OwnersCardProps) {
       <h2 className="mb-4 text-lg font-semibold text-slate-900">Responsáveis</h2>
       <div className="space-y-3">
         <OwnerRow
-          label="CS"
+          label="PMO"
           value={owners.csName ?? getMember(owners.csId)?.name ?? ''}
           onCommit={(v) => onChange({ csName: v })}
         />
         <OwnerRow
-          label="Tech Lead"
+          label="Desenvolvedor"
           value={owners.techLeadName ?? getMember(owners.techLeadId)?.name ?? ''}
           onCommit={(v) => onChange({ techLeadName: v })}
         />

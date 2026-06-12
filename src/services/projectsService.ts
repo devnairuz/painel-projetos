@@ -281,12 +281,15 @@ export async function renamePhase(id: string, phaseId: string, name: string): Pr
   )
 }
 
-/** Atualiza configurações da etapa: visibilidade, aprovação, pontos, responsável. */
+/** Atualiza configurações da etapa: visibilidade, aprovação, pontos, responsável e datas. */
 export interface PhaseSettingsPatch {
   clientVisible?: boolean
   requiresApproval?: boolean
   points?: number
   ownerId?: string
+  startDate?: string
+  dueDate?: string
+  finishedDate?: string
 }
 
 export async function updatePhaseSettings(
@@ -450,8 +453,11 @@ export async function approvePhase(id: string, phaseId: string): Promise<Project
     () =>
       updateLocalProject(id, (project) => {
         const phase = findLocalPhase(project, phaseId)
+        const now = new Date().toISOString()
         phase.clientApproved = true
-        phase.clientApprovedAt = new Date().toISOString()
+        phase.clientApprovedAt = now
+        // Finalizada segue a data da aprovação do cliente.
+        phase.finishedDate = now
         return project
       }),
   )

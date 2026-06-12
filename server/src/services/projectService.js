@@ -131,6 +131,9 @@ async function updatePhase(id, phaseId, patch = {}) {
     if (typeof patch.requiresApproval === "boolean") ph.requiresApproval = patch.requiresApproval;
     if (patch.points !== undefined) ph.points = Math.max(0, Number(patch.points) || 0);
     if (patch.ownerId !== undefined) ph.ownerId = patch.ownerId || undefined;
+    if (patch.startDate !== undefined) ph.startDate = patch.startDate || undefined;
+    if (patch.dueDate !== undefined) ph.dueDate = patch.dueDate || undefined;
+    if (patch.finishedDate !== undefined) ph.finishedDate = patch.finishedDate || undefined;
     p.updatedAt = new Date().toISOString();
   });
 }
@@ -226,8 +229,11 @@ async function approvePhase(id, phaseId) {
   return mutateProject(id, (p) => {
     const ph = p.phases.find((x) => x.id === phaseId);
     if (!ph) return;
+    const now = new Date().toISOString();
     ph.clientApproved = true;
-    ph.clientApprovedAt = new Date().toISOString();
+    ph.clientApprovedAt = now;
+    // Finalizada segue a data da aprovação do cliente.
+    ph.finishedDate = now;
     recompute(p);
   });
 }

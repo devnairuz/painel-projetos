@@ -145,6 +145,14 @@ export function ProjetoDetalhePage() {
     reload()
   }
 
+  async function handleUpdateDates(
+    phaseId: string,
+    patch: { startDate?: string; dueDate?: string; finishedDate?: string },
+  ) {
+    await updatePhaseSettings(project!.id, phaseId, patch)
+    reload()
+  }
+
   async function handleUpdateOwners(owners: Partial<ProjectOwners>) {
     await updateProjectOwners(project!.id, owners)
     notify('Responsáveis atualizados.')
@@ -267,6 +275,7 @@ export function ProjetoDetalhePage() {
                       onApprove={handleApprove}
                       onToggleResponsibility={handleToggleResponsibility}
                       onAddComment={handleAddComment}
+                      onUpdateDates={handleUpdateDates}
                     />
                   ))}
               </div>

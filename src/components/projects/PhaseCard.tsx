@@ -27,6 +27,7 @@ interface PhaseCardProps {
   onApprove: (phaseId: string) => void
   onToggleResponsibility: (phaseId: string, itemId: string, value: boolean) => void
   onAddComment: (phaseId: string, itemId: string, body: string) => void
+  onUpdateDates: (phaseId: string, patch: { startDate?: string; dueDate?: string; finishedDate?: string }) => void
 }
 
 /** Card de fase com checklist, comentários por subtarefa, datas e aprovação. */
@@ -38,6 +39,7 @@ export function PhaseCard({
   onApprove,
   onToggleResponsibility,
   onAddComment,
+  onUpdateDates,
 }: PhaseCardProps) {
   const [open, setOpen] = useState(defaultOpen)
   const { done, total } = phaseProgress(phase)
@@ -90,10 +92,22 @@ export function PhaseCard({
 
       {open && (
         <div className="border-t border-slate-100 px-4 py-4">
-          <div className="mb-4 grid grid-cols-3 gap-3 text-xs">
-            <DateCell label="Início" value={formatDate(phase.startDate)} />
-            <DateCell label="Prevista" value={formatDate(phase.dueDate)} />
-            <DateCell label="Finalizada" value={formatDate(phase.finishedDate)} />
+          <div className="mb-4 grid grid-cols-3 gap-3">
+            <DateField
+              label="Início"
+              value={phase.startDate}
+              onChange={(v) => onUpdateDates(phase.id, { startDate: v || undefined })}
+            />
+            <DateField
+              label="Prevista"
+              value={phase.dueDate}
+              onChange={(v) => onUpdateDates(phase.id, { dueDate: v || undefined })}
+            />
+            <DateField
+              label="Finalizada"
+              value={phase.finishedDate}
+              onChange={(v) => onUpdateDates(phase.id, { finishedDate: v || undefined })}
+            />
           </div>
 
           <ul className="space-y-1">
@@ -213,11 +227,24 @@ function ChecklistItemRow({
   )
 }
 
-function DateCell({ label, value }: { label: string; value: string }) {
+function DateField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value?: string
+  onChange: (value: string) => void
+}) {
   return (
     <div className="rounded-lg bg-slate-50 px-3 py-2">
       <div className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">{label}</div>
-      <div className="mt-0.5 text-slate-700">{value}</div>
+      <input
+        type="date"
+        value={value ? value.slice(0, 10) : ''}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-0.5 w-full bg-transparent text-sm text-slate-700 outline-none"
+      />
     </div>
   )
 }
