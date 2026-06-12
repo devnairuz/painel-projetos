@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   ChevronDown,
   Check,
@@ -236,13 +236,41 @@ function DateField({
   value?: string
   onChange: (value: string) => void
 }) {
+  const normalized = value ? value.slice(0, 10) : ''
+  const [text, setText] = useState(normalized)
+
+  // Sincroniza quando o valor muda por fora (ex.: aprovação preenche a data).
+  useEffect(() => {
+    setText(normalized)
+  }, [normalized])
+
+  /** Só persiste ao sair do campo, e apenas se for data completa e plausível. */
+  function commit() {
+    if (text === normalized) return
+    if (text === '') {
+      onChange('')
+      return
+    }
+    const year = Number(text.slice(0, 4))
+    const isComplete = /^\d{4}-\d{2}-\d{2}$/.test(text)
+    if (isComplete && year >= 2000 && year <= 2100) {
+      onChange(text)
+    } else {
+      // valor incompleto/implausível: descarta e volta ao salvo
+      setText(normalized)
+    }
+  }
+
   return (
     <div className="rounded-lg bg-slate-50 px-3 py-2">
       <div className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">{label}</div>
       <input
         type="date"
-        value={value ? value.slice(0, 10) : ''}
-        onChange={(e) => onChange(e.target.value)}
+        value={text}
+        min="2000-01-01"
+        max="2100-12-31"
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
         className="mt-0.5 w-full bg-transparent text-sm text-slate-700 outline-none"
       />
     </div>

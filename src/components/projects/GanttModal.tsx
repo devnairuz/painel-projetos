@@ -27,7 +27,10 @@ const LABEL_W = 220 // px da coluna de nomes
 function toDate(v?: string): Date | null {
   if (!v) return null
   const d = parseISO(v)
-  return isValid(d) ? d : null
+  // Ignora datas implausíveis (ex.: ano digitado errado tipo 0002).
+  if (!isValid(d)) return null
+  const year = d.getFullYear()
+  return year >= 2000 && year <= 2100 ? d : null
 }
 
 /** Painel dedicado (overlay) com o cronograma de Gantt das etapas do projeto. */
