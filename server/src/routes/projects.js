@@ -22,6 +22,11 @@ router.get("/:id", h(async (req, res) => {
 
 router.post("/", h(async (req, res) => res.status(201).json(await svc.createProject(req.body))));
 
+router.delete("/:id", h(async (req, res) => {
+  await svc.deleteProject(req.params.id);
+  res.json({ id: req.params.id, deleted: true });
+}));
+
 router.patch("/:id/status", h(async (req, res) => {
   const p = await svc.updateProjectStatus(req.params.id, req.body.status);
   return p ? res.json(p) : notFound(res);

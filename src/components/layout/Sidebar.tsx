@@ -1,7 +1,8 @@
 import { NavLink } from 'react-router-dom'
-import { ChevronLeft, ExternalLink } from 'lucide-react'
+import { ChevronLeft, ExternalLink, LogOut } from 'lucide-react'
 import { NAV_ITEMS } from '@/constants/nav'
 import { useProjects } from '@/hooks/useProjects'
+import { useCompanyAuth } from '@/hooks/useCompanyAuth'
 import { Avatar } from '@/components/ui/Avatar'
 import { cn } from '@/utils/cn'
 import { Logo } from './Logo'
@@ -15,6 +16,7 @@ interface SidebarProps {
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { data: projects } = useProjects()
   const projectCount = projects?.length ?? 0
+  const { user, logout } = useCompanyAuth()
 
   return (
     <aside
@@ -96,15 +98,27 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </a>
       </div>
 
-      {/* Rodapé / usuário */}
+      {/* Rodapé / usuário logado */}
       <div className="border-t border-white/10 p-3">
         <div className={cn('flex items-center gap-3 rounded-xl px-2 py-2', collapsed && 'justify-center')}>
-          <Avatar name="Paulo Cavalcante" color="#14b885" />
+          <Avatar name={user?.name ?? 'Nairuz'} color="#14b885" />
           {!collapsed && (
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-white">Paulo Cavalcante</p>
-              <p className="truncate text-xs text-slate-400">Desenvolvedor · Nairuz</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-white">{user?.name ?? 'Usuário'}</p>
+              <p className="truncate text-xs text-slate-400">
+                {user?.role === 'admin' ? 'Admin' : 'Membro'} · Nairuz
+              </p>
             </div>
+          )}
+          {!collapsed && (
+            <button
+              onClick={logout}
+              title="Sair"
+              aria-label="Sair"
+              className="text-slate-400 transition-colors hover:text-white"
+            >
+              <LogOut className="size-4" />
+            </button>
           )}
         </div>
       </div>

@@ -6,18 +6,24 @@
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000'
 
 const SESSION_KEY = 'nairuz-portal:client-session'
+const COMPANY_TOKEN_KEY = 'nairuz-portal:company-token'
 
 function authHeader(): Record<string, string> {
+  const headers: Record<string, string> = {}
   try {
+    // Empresa: JWT (Bearer) — usado na visão interna protegida.
+    const token = localStorage.getItem(COMPANY_TOKEN_KEY)
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    // Cliente: identidade por e-mail (portal externo, mock).
     const raw = localStorage.getItem(SESSION_KEY)
     if (raw) {
       const u = JSON.parse(raw) as { email?: string }
-      if (u?.email) return { 'x-user-email': u.email }
+      if (u?.email) headers['x-user-email'] = u.email
     }
   } catch {
     // ignora
   }
-  return {}
+  return headers
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {

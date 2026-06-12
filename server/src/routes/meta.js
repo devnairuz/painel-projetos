@@ -1,5 +1,6 @@
 const express = require("express");
 const svc = require("../services/projectService");
+const { requireAuth } = require("../middleware/requireAuth");
 
 const router = express.Router();
 const h = (fn) => (req, res) => Promise.resolve(fn(req, res)).catch((e) => {
@@ -9,7 +10,7 @@ const h = (fn) => (req, res) => Promise.resolve(fn(req, res)).catch((e) => {
 router.get("/team", (_req, res) => res.json(svc.listTeam()));
 
 router.get("/organizations", h(async (_req, res) => res.json(await svc.listOrganizations())));
-router.post("/organizations", h(async (req, res) =>
+router.post("/organizations", requireAuth, h(async (req, res) =>
   res.status(201).json(await svc.createOrganization(req.body))
 ));
 

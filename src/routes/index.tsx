@@ -1,7 +1,9 @@
-import { createBrowserRouter, Outlet } from 'react-router-dom'
+import { createBrowserRouter, Outlet, Navigate } from 'react-router-dom'
 import { AppShell } from '@/layouts/AppShell'
 import { ClientShell } from '@/layouts/ClientShell'
 import { ClientAuthProvider } from '@/hooks/useClientAuth'
+import { CompanyAuthProvider, useCompanyAuth } from '@/hooks/useCompanyAuth'
+import { CompanyAuthPage } from '@/pages/CompanyAuthPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { ProjetosPage } from '@/pages/ProjetosPage'
 import { ProjetoDetalhePage } from '@/pages/ProjetoDetalhePage'
@@ -20,17 +22,39 @@ function ClientAuthLayout() {
   )
 }
 
+/** Provedor de sessão da empresa (JWT). */
+function CompanyAuthLayout() {
+  return (
+    <CompanyAuthProvider>
+      <Outlet />
+    </CompanyAuthProvider>
+  )
+}
+
+/** Guarda: sem login da empresa → vai para /entrar. Com login → AppShell. */
+function RequireCompanyAuth() {
+  const { user } = useCompanyAuth()
+  if (!user) return <Navigate to="/entrar" replace />
+  return <AppShell />
+}
+
 export const router = createBrowserRouter([
-  // ───── Visão Nairuz (interna) ─────
+  // ───── Visão Nairuz (interna, protegida por login) ─────
   {
     path: '/',
-    element: <AppShell />,
+    element: <CompanyAuthLayout />,
     children: [
-      { index: true, element: <DashboardPage /> },
-      { path: 'projetos', element: <ProjetosPage /> },
-      { path: 'projetos/:id', element: <ProjetoDetalhePage /> },
-      { path: 'organizacoes', element: <OrganizacoesPage /> },
-      { path: 'relatorios', element: <RelatoriosPage /> },
+      { path: 'entrar', element: <CompanyAuthPage /> },
+      {
+        element: <RequireCompanyAuth />,
+        children: [
+          { index: true, element: <DashboardPage /> },
+          { path: 'projetos', element: <ProjetosPage /> },
+          { path: 'projetos/:id', element: <ProjetoDetalhePage /> },
+          { path: 'organizacoes', element: <OrganizacoesPage /> },
+          { path: 'relatorios', element: <RelatoriosPage /> },
+        ],
+      },
     ],
   },
 

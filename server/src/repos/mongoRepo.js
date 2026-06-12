@@ -1,6 +1,7 @@
 // Repositório MongoDB (Mongoose). Mesma interface do memoryRepo.
 const Project = require("../models/Project");
 const Organization = require("../models/Organization");
+const User = require("../models/User");
 const { seedProjects, ORGANIZATIONS } = require("../data/seed");
 
 function toPlain(doc) {
@@ -35,12 +36,35 @@ const mongoRepo = {
   async countProjects() {
     return Project.countDocuments();
   },
+  async deleteProject(id) {
+    await Project.deleteOne({ id });
+  },
   async listOrganizations() {
     const docs = await Organization.find().sort({ name: 1 }).lean();
     return docs.map(toPlain);
   },
   async insertOrganization(org) {
     await Organization.create(org);
+  },
+  // ───── usuários ─────
+  async createUser(user) {
+    return toPlain(await User.create(user));
+  },
+  async findUserByEmail(email) {
+    return toPlain(await User.findOne({ email }).lean());
+  },
+  async findUserById(id) {
+    return toPlain(await User.findOne({ id }).lean());
+  },
+  async listUsers() {
+    return (await User.find().sort({ createdAt: 1 }).lean()).map(toPlain);
+  },
+  async updateUser(id, patch) {
+    await User.updateOne({ id }, { $set: patch });
+    return toPlain(await User.findOne({ id }).lean());
+  },
+  async countUsers() {
+    return User.countDocuments();
   }
 };
 

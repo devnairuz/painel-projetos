@@ -80,6 +80,12 @@ async function createProject(input) {
   return project;
 }
 
+/** Exclui um projeto. */
+async function deleteProject(id) {
+  await getRepo().deleteProject(id);
+  return { id, deleted: true };
+}
+
 /** Helper: carrega, aplica `fn(project)`, persiste e retorna o projeto. */
 async function mutateProject(id, fn) {
   const repo = getRepo();
@@ -290,6 +296,7 @@ module.exports = {
   listOrganizations,
   createOrganization,
   createProject,
+  deleteProject,
   updateProjectStatus,
   addPhase,
   updatePhase,

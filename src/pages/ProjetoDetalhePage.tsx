@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, FolderKanban, Flag, Pencil, Check } from 'lucide-react'
+import { ArrowLeft, FolderKanban, Flag, Pencil, Check, Trash2 } from 'lucide-react'
 import { useProject } from '@/hooks/useProjects'
 import { useLookups } from '@/hooks/useLookups'
 import { useToast } from '@/components/ui/Toast'
@@ -10,6 +10,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Select } from '@/components/ui/Select'
+import { Button } from '@/components/ui/Button'
 import { PhaseCard } from '@/components/projects/PhaseCard'
 import { PhaseManager } from '@/components/projects/PhaseManager'
 import { ClientAccessCard } from '@/components/projects/ClientAccessCard'
@@ -23,6 +24,7 @@ import {
   addChecklistItem,
   addPhase,
   approvePhase,
+  deleteProject,
   removeChecklistItem,
   removePhase,
   renameChecklistItem,
@@ -157,6 +159,16 @@ export function ProjetoDetalhePage() {
     await updateProjectOwners(project!.id, owners)
     notify('Responsáveis atualizados.')
     reload()
+  }
+
+  async function handleDelete() {
+    const confirmed = window.confirm(
+      `Excluir o projeto "${project!.clientName}" (${project!.code})?\n\nEsta ação não pode ser desfeita.`,
+    )
+    if (!confirmed) return
+    await deleteProject(project!.id)
+    notify('Projeto excluído.', 'info')
+    navigate('/projetos')
   }
 
 
@@ -298,6 +310,18 @@ export function ProjetoDetalhePage() {
           <Card className="p-5">
             <h2 className="mb-1 text-lg font-semibold text-slate-900">Última atualização</h2>
             <p className="text-sm text-slate-500">{formatDate(project.updatedAt)}</p>
+          </Card>
+
+          {/* Zona de risco */}
+          <Card className="border-red-200 p-5">
+            <h2 className="mb-1 text-lg font-semibold text-slate-900">Excluir projeto</h2>
+            <p className="mb-3 text-sm text-slate-500">
+              Remove o projeto e todo o seu conteúdo. Esta ação não pode ser desfeita.
+            </p>
+            <Button variant="danger" onClick={handleDelete} className="w-full">
+              <Trash2 className="size-4" />
+              Excluir projeto
+            </Button>
           </Card>
         </div>
       </div>

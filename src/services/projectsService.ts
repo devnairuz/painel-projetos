@@ -225,6 +225,16 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
   )
 }
 
+export async function deleteProject(id: string): Promise<void> {
+  await mutate(
+    () => api.del<{ id: string }>(p(id)),
+    () => {
+      saveLocalProjects(localProjects().filter((project) => project.id !== id))
+      return { id }
+    },
+  )
+}
+
 export async function updateProjectStatus(id: string, status: ProjectStatus): Promise<Project> {
   return mutate(
     () => api.patch<Project>(`${p(id)}/status`, { status }),
