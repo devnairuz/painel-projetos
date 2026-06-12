@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, FolderKanban, Flag, Pencil, Check, Trash2 } from 'lucide-react'
+import { ArrowLeft, FolderKanban, Flag, Pencil, Check, Trash2, CalendarRange } from 'lucide-react'
 import { useProject } from '@/hooks/useProjects'
 import { useLookups } from '@/hooks/useLookups'
 import { useToast } from '@/components/ui/Toast'
@@ -13,6 +13,7 @@ import { Select } from '@/components/ui/Select'
 import { Button } from '@/components/ui/Button'
 import { PhaseCard } from '@/components/projects/PhaseCard'
 import { PhaseManager } from '@/components/projects/PhaseManager'
+import { GanttModal } from '@/components/projects/GanttModal'
 import { ClientAccessCard } from '@/components/projects/ClientAccessCard'
 import { OwnersCard } from '@/components/projects/OwnersCard'
 import { FinalizationConfigCard } from '@/components/projects/FinalizationConfigCard'
@@ -48,6 +49,7 @@ export function ProjetoDetalhePage() {
   const { getMember, team } = useLookups()
   const { notify } = useToast()
   const [editPhases, setEditPhases] = useState(false)
+  const [ganttOpen, setGanttOpen] = useState(false)
 
   if (loading) {
     return (
@@ -174,13 +176,24 @@ export function ProjetoDetalhePage() {
 
   return (
     <>
-      {/* Voltar */}
-      <button
-        onClick={() => navigate('/projetos')}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-800"
-      >
-        <ArrowLeft className="size-4" /> Projetos
-      </button>
+      {/* Voltar + Cronograma */}
+      <div className="mb-4 flex items-center justify-between">
+        <button
+          onClick={() => navigate('/projetos')}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-800"
+        >
+          <ArrowLeft className="size-4" /> Projetos
+        </button>
+        <button
+          onClick={() => setGanttOpen(true)}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+        >
+          <CalendarRange className="size-4 text-brand-600" />
+          Cronograma (Gantt)
+        </button>
+      </div>
+
+      {ganttOpen && <GanttModal project={project} onClose={() => setGanttOpen(false)} />}
 
       {/* Cabeçalho do projeto */}
       <Card className="mb-5 p-6">
