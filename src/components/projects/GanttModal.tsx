@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { X, CalendarRange } from 'lucide-react'
 import {
   parseISO,
@@ -18,7 +18,6 @@ import type { Phase, Project } from '@/types'
 import { PHASE_STATUS_META } from '@/constants'
 import { cn } from '@/utils/cn'
 import { formatDate } from '@/utils/dates'
-import { RefreshButton } from '@/components/ui/RefreshButton'
 import { notifyChange } from '@/services/store'
 
 interface GanttModalProps {
@@ -30,8 +29,8 @@ const LABEL_W = 220
 
 type Scale = 'semana' | 'mes' | 'trimestre' | 'ano'
 
-/** Pixels por dia (zoom). "Semana" é a proporção mais ampla. */
-const PX_PER_DAY: Record<Scale, number> = { semana: 34, mes: 11, trimestre: 4.5, ano: 1.8 }
+/** Pixels por dia (zoom) para Mês/Trimestre/Ano. "Semana" é calculado p/ 7 dias caberem. */
+const PX_PER_DAY: Record<Exclude<Scale, 'semana'>, number> = { mes: 11, trimestre: 4.5, ano: 1.8 }
 
 function toDate(v?: string): Date | null {
   if (!v) return null
@@ -48,10 +47,23 @@ interface Tick {
 
 export function GanttModal({ project, onClose }: GanttModalProps) {
   const [scale, setScale] = useState<Scale>('semana')
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const [bodyW, setBodyW] = useState(0)
 
-  // Atualiza ao abrir.
+  // Atualiza ao abrir (única forma de refresh — sem botão manual).
   useEffect(() => {
     notifyChange()
+  }, [])
+
+  // Mede a área visível para dimensionar "Semana" em exatamente 7 dias.
+  useEffect(() => {
+    const el = bodyRef.current
+    if (!el) return
+    const update = () => setBodyW(el.clientWidth)
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
   }, [])
 
   useEffect(() => {
@@ -77,7 +89,9 @@ export function GanttModal({ project, onClose }: GanttModalProps) {
   const domainEnd = hasDates ? endOfMonth(maxDate(allDates)) : endOfMonth(addDays(new Date(), 60))
   const totalDays = Math.max(1, differenceInCalendarDays(domainEnd, domainStart))
 
-  const pxPerDay = PX_PER_DAY[scale]
+  // Semana: cada dia ocupa 1/7 da largura visível (40 = padding p-5; LABEL_W = coluna de nomes).
+  const weekPx = bodyW > 0 ? Math.max((bodyW - 40 - LABEL_W) / 7, 28) : 110
+  const pxPerDay = scale === 'semana' ? weekPx : PX_PER_DAY[scale]
   const innerWidth = Math.max(totalDays * pxPerDay, 480)
   const xOf = (d: Date) => differenceInCalendarDays(d, domainStart) * pxPerDay
 
@@ -124,7 +138,6 @@ export function GanttModal({ project, onClose }: GanttModalProps) {
                 </button>
               ))}
             </div>
-            <RefreshButton compact />
             <button onClick={onClose} className="text-slate-400 hover:text-slate-700" aria-label="Fechar">
               <X className="size-5" />
             </button>
@@ -132,7 +145,7 @@ export function GanttModal({ project, onClose }: GanttModalProps) {
         </div>
 
         {/* Corpo (scroll livre) */}
-        <div className="flex-1 overflow-auto p-5">
+        <div ref={bodyRef} className="flex-1 overflow-auto p-5">
           {!hasDates ? (
             <div className="py-16 text-center text-sm text-slate-400">
               Defina os prazos (Início/Prevista) nas etapas para visualizar o cronograma.
