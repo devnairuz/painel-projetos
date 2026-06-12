@@ -25,7 +25,7 @@ export function Logo({ collapsed = false, tone = 'light' }: LogoProps) {
     <div className="select-none">
       <img src={wordmark} alt="nairuz" className="h-7 w-auto" />
       <p className={cn('mt-1 text-[11px] font-medium tracking-wide', subtitle)}>
-        Sustentação &amp; Evolução
+        Merketing &amp; Tecnologia
       </p>
     </div>
   )
