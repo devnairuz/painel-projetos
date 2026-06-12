@@ -9,19 +9,21 @@ interface AsyncState<T> {
   reload: () => void
 }
 
-/** Intervalo do poll de segurança (ms) — garante convergência mesmo se um evento se perder. */
-const POLL_MS = 2500
+/**
+ * Intervalo do poll de segurança (ms). Afrouxado para ~20s: as próprias ações
+ * do usuário refletem na hora (evento do store), ao focar a aba revalida, e há
+ * o botão "Atualizar" para puxar na hora. Isso elimina o re-render constante
+ * que deixava o painel travado.
+ */
+const POLL_MS = 20000
 
 /**
- * Executa uma função assíncrona com *stale-while-revalidate* e sincronização
- * contínua e robusta:
+ * Executa uma função assíncrona com *stale-while-revalidate*:
  * - skeleton só na carga inicial ou quando as `deps` mudam;
- * - revalida no broadcast do store (mesma aba / outras abas), ao focar a aba,
- *   e por um poll leve de segurança;
+ * - revalida no broadcast do store (ações próprias / outras abas), ao focar a
+ *   aba, e por um poll leve a cada ~20s;
  * - só troca o estado se o resultado realmente mudou (compara serializado),
  *   evitando re-render e flicker desnecessários.
- *
- * Resultado: painéis Nairuz e cliente sempre integrados, sem recarregar a página.
  */
 export function useAsync<T>(fn: () => Promise<T>, deps: unknown[] = []): AsyncState<T> {
   const [data, setData] = useState<T>()

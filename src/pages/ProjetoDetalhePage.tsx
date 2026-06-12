@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/Button'
 import { PhaseCard } from '@/components/projects/PhaseCard'
 import { PhaseManager } from '@/components/projects/PhaseManager'
 import { GanttModal } from '@/components/projects/GanttModal'
+import { RefreshButton } from '@/components/ui/RefreshButton'
 import { ClientAccessCard } from '@/components/projects/ClientAccessCard'
 import { OwnersCard } from '@/components/projects/OwnersCard'
 import { FinalizationConfigCard } from '@/components/projects/FinalizationConfigCard'
@@ -184,13 +185,16 @@ export function ProjetoDetalhePage() {
         >
           <ArrowLeft className="size-4" /> Projetos
         </button>
-        <button
-          onClick={() => setGanttOpen(true)}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
-        >
-          <CalendarRange className="size-4 text-brand-600" />
-          Cronograma (Gantt)
-        </button>
+        <div className="flex items-center gap-2">
+          <RefreshButton />
+          <button
+            onClick={() => setGanttOpen(true)}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+          >
+            <CalendarRange className="size-4 text-brand-600" />
+            Cronograma (Gantt)
+          </button>
+        </div>
       </div>
 
       {ganttOpen && <GanttModal project={project} onClose={() => setGanttOpen(false)} />}
