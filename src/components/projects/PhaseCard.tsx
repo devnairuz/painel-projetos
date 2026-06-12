@@ -165,40 +165,42 @@ function ChecklistItemRow({
         <span className={cn('flex-1 text-sm', item.done ? 'text-slate-400 line-through' : 'text-slate-700')}>
           {item.label}
         </span>
-        {isClient && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700">
-            <User className="size-3" /> Cliente
-          </span>
-        )}
+
+        {/* Responsabilidade do cliente (toggle por ícone, com tooltip) */}
+        <button
+          type="button"
+          onClick={() => onToggleResponsibility(phaseId, item.id, !isClient)}
+          aria-pressed={isClient}
+          title={
+            isClient
+              ? 'Responsabilidade do cliente — aparece nas tarefas dele. Clique para remover.'
+              : 'Marcar como responsabilidade do cliente (aparece no portal do cliente).'
+          }
+          className={cn(
+            'inline-flex size-7 items-center justify-center rounded-md transition-colors',
+            isClient ? 'bg-brand-50 text-brand-600' : 'text-slate-300 hover:bg-slate-100 hover:text-slate-500',
+          )}
+        >
+          <User className="size-4" />
+        </button>
+
+        {/* Comentários */}
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
+          title="Comentários"
           className={cn(
             'inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs transition-colors',
             count > 0 ? 'text-brand-600 hover:bg-brand-50' : 'text-slate-400 hover:bg-slate-100',
           )}
-          title="Comentários"
         >
-          <MessageSquare className="size-3.5" />
+          <MessageSquare className="size-4" />
           {count > 0 && count}
         </button>
       </div>
 
       {open && (
-        <div className="mb-1 ml-8 space-y-2 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
-          <button
-            type="button"
-            onClick={() => onToggleResponsibility(phaseId, item.id, !isClient)}
-            className={cn(
-              'inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-medium transition-colors',
-              isClient
-                ? 'border-brand-200 bg-brand-50 text-brand-700'
-                : 'border-slate-200 bg-white text-slate-500',
-            )}
-          >
-            <User className="size-3.5" />
-            {isClient ? 'Responsabilidade do cliente' : 'Marcar como do cliente'}
-          </button>
+        <div className="mb-1 ml-8 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
           <CommentThread
             comments={item.comments ?? []}
             onAdd={(body) => onAddComment(phaseId, item.id, body)}

@@ -153,6 +153,10 @@ export interface ProjectOwners {
   techLeadId?: string
   designerId?: string
   clientContact?: string
+  /** Nomes livres (digitados). A busca por usuário fica para depois. */
+  csName?: string
+  techLeadName?: string
+  designerName?: string
 }
 
 export interface Project {

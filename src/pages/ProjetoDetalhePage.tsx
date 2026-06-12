@@ -7,15 +7,15 @@ import { useToast } from '@/components/ui/Toast'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { ProgressBar } from '@/components/ui/ProgressBar'
-import { Avatar } from '@/components/ui/Avatar'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Select } from '@/components/ui/Select'
 import { PhaseCard } from '@/components/projects/PhaseCard'
 import { PhaseManager } from '@/components/projects/PhaseManager'
 import { ClientAccessCard } from '@/components/projects/ClientAccessCard'
+import { OwnersCard } from '@/components/projects/OwnersCard'
 import { FinalizationConfigCard } from '@/components/projects/FinalizationConfigCard'
-import { PLATFORM_META, STATUS_META, TYPE_META, RISK_META, ROLE_META } from '@/constants'
+import { PLATFORM_META, STATUS_META, TYPE_META, RISK_META } from '@/constants'
 import { PRODUCT_META } from '@/constants/templates'
 import type { Platform, ProjectStatus, ProjectType, ProjectOwners } from '@/types'
 import {
@@ -145,17 +145,12 @@ export function ProjetoDetalhePage() {
     reload()
   }
 
-  async function handleUpdateOwners(owners: ProjectOwners) {
+  async function handleUpdateOwners(owners: Partial<ProjectOwners>) {
     await updateProjectOwners(project!.id, owners)
     notify('Responsáveis atualizados.')
     reload()
   }
 
-  const owners: { role: keyof typeof ROLE_META; id?: string; contact?: string }[] = [
-    { role: 'cs', id: project.owners.csId },
-    { role: 'tech_lead', id: project.owners.techLeadId },
-    { role: 'designer', id: project.owners.designerId },
-  ]
 
   return (
     <>
@@ -281,56 +276,7 @@ export function ProjetoDetalhePage() {
 
         {/* Responsáveis */}
         <div className="space-y-5">
-          <Card className="p-5">
-            <h2 className="mb-4 text-lg font-semibold text-slate-900">Responsáveis</h2>
-            <div className="space-y-3">
-              {owners.map(({ role, id: memberId }) => {
-                const member = getMember(memberId)
-                const ownerKey: keyof ProjectOwners =
-                  role === 'cs' ? 'csId' : role === 'tech_lead' ? 'techLeadId' : 'designerId'
-                return (
-                  <div key={role} className="flex items-center gap-3">
-                    {member ? (
-                      <Avatar name={member.name} color={member.avatarColor} />
-                    ) : (
-                      <span className="flex size-8 items-center justify-center rounded-full bg-slate-100 text-xs text-slate-400">
-                        ?
-                      </span>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs text-slate-400">{ROLE_META[role].label}</div>
-                      <select
-                        value={memberId ?? ''}
-                        onChange={(e) =>
-                          handleUpdateOwners({ [ownerKey]: e.target.value || undefined } as ProjectOwners)
-                        }
-                        className="mt-0.5 h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-brand-400 focus:outline-none"
-                      >
-                        <option value="">Não atribuído</option>
-                        {(team ?? []).map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                )
-              })}
-              {/* Contato do cliente */}
-              <div className="flex items-center gap-3 border-t border-slate-100 pt-3">
-                <span className="flex size-8 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
-                  CL
-                </span>
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-medium text-slate-800">
-                    {project.owners.clientContact ?? 'Não informado'}
-                  </div>
-                  <div className="text-xs text-slate-400">Contato do cliente</div>
-                </div>
-              </div>
-            </div>
-          </Card>
+          <OwnersCard owners={project.owners} getMember={getMember} onChange={handleUpdateOwners} />
 
           <ClientAccessCard
             projectId={project.id}

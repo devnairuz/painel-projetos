@@ -1,7 +1,7 @@
 import type { ChecklistItem, Organization, Phase, Project, ProjectStatus, TeamMember } from '@/types'
 import { PRODUCT_TEMPLATES } from '@/constants/templates'
 import { DEFAULT_FINALIZATION, DEFAULT_SUPPORT_HOURS } from '@/constants/templates'
-import { computeProgress, currentPhase, deriveRisk } from '@/utils/projects'
+import { computeProgress, currentPhase, deriveRisk, syncPhaseStatus } from '@/utils/projects'
 import { api } from './api'
 import { ORGANIZATIONS, TEAM, seedProjects } from './mockData'
 import { notifyChange } from './store'
@@ -49,7 +49,10 @@ function writeLocal<T>(key: string, value: T): T {
 }
 
 function localProjects(): Project[] {
-  return readLocal(PROJECTS_KEY, seedProjects())
+  const projects = readLocal(PROJECTS_KEY, seedProjects())
+  // Cura dados antigos: garante que o status da fase reflita o checklist.
+  projects.forEach((project) => project.phases.forEach(syncPhaseStatus))
+  return projects
 }
 
 function saveLocalProjects(projects: Project[]): Project[] {
@@ -79,6 +82,7 @@ async function mutate<T>(apiCall: () => Promise<T>, localCall: () => T): Promise
 }
 
 function syncProject(project: Project): Project {
+  project.phases.forEach(syncPhaseStatus)
   project.progress = computeProgress(project.phases)
   project.currentPhaseId = currentPhase(project.phases)?.id
   project.risk = deriveRisk(project)
@@ -306,7 +310,7 @@ export async function updateProjectOwners(
 ): Promise<Project> {
   return mutate(
     () => api.patch<Project>(`${p(id)}/owners`, { owners }),
-    () => updateLocalProject(id, (project) => ({ ...project, owners })),
+    () => updateLocalProject(id, (project) => ({ ...project, owners: { ...project.owners, ...owners } })),
   )
 }
 
@@ -342,9 +346,13 @@ export async function toggleChecklistItem(
     () => api.post<Project>(`${p(id)}/phases/${phaseId}/toggle/${itemId}`),
     () =>
       updateLocalProject(id, (project) => {
-        const item = findLocalChecklistItem(findLocalPhase(project, phaseId), itemId)
+        const phase = findLocalPhase(project, phaseId)
+        const item = findLocalChecklistItem(phase, itemId)
         item.done = !item.done
         item.doneAt = item.done ? new Date().toISOString() : undefined
+        const allDone = phase.checklist.length > 0 && phase.checklist.every((c) => c.done)
+        if (allDone && !phase.finishedDate) phase.finishedDate = new Date().toISOString()
+        if (!allDone) phase.finishedDate = undefined
         return project
       }),
   )
