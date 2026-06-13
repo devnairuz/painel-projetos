@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { Upload, Clock3, Gauge, FileText, Plus } from 'lucide-react'
+import { Upload, Gauge, FileText } from 'lucide-react'
 import type { DeadlineConfidence, Project, TrackingScopeStatus } from '@/types'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
-import { addScopeFile, addTimeEntry, updateProjectTracking } from '@/services/projectsService'
+import { addScopeFile, updateProjectTracking } from '@/services/projectsService'
 import { formatDate } from '@/utils/dates'
 
 interface ProjectTrackingCardProps {
@@ -34,12 +34,7 @@ export function ProjectTrackingCard({ project, onProjectChange }: ProjectTrackin
   }
   const [estimatedHours, setEstimatedHours] = useState(String(tracking.estimatedHours))
   const [notes, setNotes] = useState(tracking.notes ?? '')
-  const [entryLabel, setEntryLabel] = useState('')
-  const [entryHours, setEntryHours] = useState('')
   const [saving, setSaving] = useState(false)
-
-  const usedHours = tracking.usedHours ?? 0
-  const remaining = Math.max(0, Number(estimatedHours || tracking.estimatedHours) - usedHours)
 
   async function saveTracking(patch: Partial<typeof tracking>) {
     const updated = await updateProjectTracking(project.id, {
@@ -70,31 +65,16 @@ export function ProjectTrackingCard({ project, onProjectChange }: ProjectTrackin
     notify('Escopo anexado ao projeto.')
   }
 
-  async function handleAddTime() {
-    const hours = Number(entryHours)
-    if (!entryLabel.trim() || !hours) return
-    const updated = await addTimeEntry(project.id, {
-      label: entryLabel.trim(),
-      hours,
-      kind: 'realizado',
-    })
-    setEntryLabel('')
-    setEntryHours('')
-    onProjectChange(updated)
-  }
-
   return (
     <Card className="p-5">
       <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
         <Gauge className="size-5 text-brand-600" />
         Tracking
       </h2>
-      <p className="mt-0.5 text-sm text-slate-500">Escopo, horas consumidas e confiança de prazo.</p>
+      <p className="mt-0.5 text-sm text-slate-500">Escopo, horas previstas e confiança de prazo.</p>
 
-      <div className="mt-4 grid grid-cols-3 gap-2">
-        <Metric label="Estimadas" value={`${Number(estimatedHours) || 0}h`} />
-        <Metric label="Usadas" value={`${usedHours}h`} />
-        <Metric label="Saldo" value={`${remaining}h`} />
+      <div className="mt-4">
+        <Metric label="Horas previstas" value={`${Number(estimatedHours) || 0}h`} />
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
@@ -163,33 +143,6 @@ export function ProjectTrackingCard({ project, onProjectChange }: ProjectTrackin
           ))}
         </ul>
       )}
-
-      <div className="mt-4 rounded-lg bg-slate-50 p-3">
-        <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-          <Clock3 className="size-4 text-slate-500" />
-          Lançar horas
-        </div>
-        <div className="grid grid-cols-[1fr_72px_auto] gap-2">
-          <input
-            value={entryLabel}
-            onChange={(e) => setEntryLabel(e.target.value)}
-            placeholder="Atividade"
-            className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm focus:border-brand-400 focus:outline-none"
-          />
-          <input
-            type="number"
-            min={0}
-            step="0.25"
-            value={entryHours}
-            onChange={(e) => setEntryHours(e.target.value)}
-            placeholder="h"
-            className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm focus:border-brand-400 focus:outline-none"
-          />
-          <Button size="sm" onClick={handleAddTime}>
-            <Plus className="size-4" />
-          </Button>
-        </div>
-      </div>
     </Card>
   )
 }

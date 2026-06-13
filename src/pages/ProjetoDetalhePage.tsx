@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, FolderKanban, Flag, Pencil, Check, Trash2, CalendarRange } from 'lucide-react'
+import { ArrowLeft, FolderKanban, Flag, Pencil, Check, Trash2, CalendarRange, Settings, ChevronDown } from 'lucide-react'
 import { useProject } from '@/hooks/useProjects'
 import { useLookups } from '@/hooks/useLookups'
 import { useCompanyAuth } from '@/hooks/useCompanyAuth'
@@ -20,9 +20,6 @@ import { ClientAccessCard } from '@/components/projects/ClientAccessCard'
 import { OwnersCard } from '@/components/projects/OwnersCard'
 import { CollaboratorsCard } from '@/components/projects/CollaboratorsCard'
 import { FinalizationConfigCard } from '@/components/projects/FinalizationConfigCard'
-import { ProjectChargesCard } from '@/components/projects/ProjectChargesCard'
-import { ProjectGovernanceCard } from '@/components/projects/ProjectGovernanceCard'
-import { ProjectTasksCard } from '@/components/projects/ProjectTasksCard'
 import { ProjectTrackingCard } from '@/components/projects/ProjectTrackingCard'
 import { PLATFORM_META, STATUS_META, TYPE_META, RISK_META } from '@/constants'
 import { PRODUCT_META } from '@/constants/templates'
@@ -48,6 +45,7 @@ import {
 } from '@/services/projectsService'
 import { currentPhase, syncPhaseStatus, computeProgress } from '@/utils/projects'
 import { formatDate, relativeDeadlineLabel } from '@/utils/dates'
+import { cn } from '@/utils/cn'
 
 const STATUS_OPTIONS = Object.entries(STATUS_META).map(([value, m]) => ({ value, label: m.label }))
 
@@ -390,17 +388,7 @@ export function ProjetoDetalhePage() {
             onChange={handleUpdateCollaborators}
           />
 
-          <ProjectTasksCard
-            project={project}
-            users={mentionUsers ?? []}
-            onProjectChange={setProject}
-          />
-
           <ProjectTrackingCard project={project} onProjectChange={setProject} />
-
-          <ProjectChargesCard project={project} onProjectChange={setProject} />
-
-          <ProjectGovernanceCard project={project} onProjectChange={setProject} />
 
           <ClientAccessCard
             projectId={project!.id}
@@ -415,20 +403,54 @@ export function ProjetoDetalhePage() {
             <p className="text-sm text-slate-500">{formatDate(project.updatedAt)}</p>
           </Card>
 
-          {/* Zona de risco */}
-          <Card className="border-red-200 p-5">
-            <h2 className="mb-1 text-lg font-semibold text-slate-900">Excluir projeto</h2>
-            <p className="mb-3 text-sm text-slate-500">
-              Remove o projeto e todo o seu conteúdo. Esta ação não pode ser desfeita.
-            </p>
-            <Button variant="danger" onClick={handleDelete} className="w-full">
-              <Trash2 className="size-4" />
-              Excluir projeto
-            </Button>
-          </Card>
+          <ProjectSettingsCard project={project} onDelete={handleDelete} />
         </div>
       </div>
     </>
+  )
+}
+
+function ProjectSettingsCard({
+  project,
+  onDelete,
+}: {
+  project: Project
+  onDelete: () => void
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <Card className="overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center justify-between gap-3 p-5 text-left hover:bg-slate-50"
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <Settings className="size-5 shrink-0 text-slate-500" />
+          <span>
+            <span className="block text-lg font-semibold text-slate-900">Configurações</span>
+            <span className="text-sm text-slate-500">Ações administrativas do projeto</span>
+          </span>
+        </span>
+        <ChevronDown className={cn('size-4 shrink-0 text-slate-400 transition-transform', open && 'rotate-180')} />
+      </button>
+
+      {open && (
+        <div className="border-t border-slate-100 p-5">
+          <div className="rounded-lg border border-red-100 bg-red-50/60 p-4">
+            <h3 className="text-sm font-semibold text-red-900">Excluir projeto</h3>
+            <p className="mt-1 text-sm text-red-700">
+              Remove {project.clientName} e todo o histórico vinculado. Esta ação não pode ser desfeita.
+            </p>
+            <Button variant="danger" onClick={onDelete} className="mt-3 w-full">
+              <Trash2 className="size-4" />
+              Excluir projeto
+            </Button>
+          </div>
+        </div>
+      )}
+    </Card>
   )
 }
 
