@@ -1,4 +1,4 @@
-import type { Project } from '@/types'
+import type { CommentAttachment, Project } from '@/types'
 import { clientApi } from './api'
 import { notifyChange } from './store'
 
@@ -37,8 +37,12 @@ export async function clientAddComment(
   phaseId: string,
   itemId: string,
   body: string,
+  attachments?: CommentAttachment[],
 ): Promise<Project> {
-  const r = await clientApi.post<Project>(`${cp(id)}/phases/${phaseId}/items/${itemId}/comments`, { body })
+  const r = await clientApi.post<Project>(`${cp(id)}/phases/${phaseId}/items/${itemId}/comments`, {
+    body,
+    attachments,
+  })
   notifyChange()
   return r
 }

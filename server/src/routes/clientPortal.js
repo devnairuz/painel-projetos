@@ -62,8 +62,10 @@ router.post("/projects/:id/phases/:phaseId/items/:itemId/comments", h(async (req
   }
   await svc.addChecklistComment(req.params.id, req.params.phaseId, req.params.itemId, {
       authorType: "cliente",
+      authorId: req.clientEmail,
       authorName: req.clientName,
-      body: req.body.body
+      body: req.body.body,
+      attachments: req.body.attachments
     });
   res.json(await svc.getProjectForClient(req.params.id, req.clientEmail));
 }));

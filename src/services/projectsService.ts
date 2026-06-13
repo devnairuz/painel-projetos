@@ -1,5 +1,6 @@
 import type {
   ChecklistItem,
+  CommentAttachment,
   Organization,
   Phase,
   Project,
@@ -484,9 +485,11 @@ export async function addChecklistComment(
   itemId: string,
   input: {
     authorType: 'nairuz' | 'cliente'
+    authorId?: string
     authorName: string
     body: string
     mentionedUserIds?: string[]
+    attachments?: CommentAttachment[]
   },
 ): Promise<Project> {
   return mutate(
@@ -497,9 +500,11 @@ export async function addChecklistComment(
         if (!Array.isArray(item.comments)) item.comments = []
         item.comments.push({
           id: uid('cmt'),
+          authorId: input.authorId,
           authorType: input.authorType,
           authorName: input.authorName || (input.authorType === 'cliente' ? 'Cliente' : 'Nairuz'),
           body: input.body,
+          attachments: input.attachments ?? [],
           mentionedUserIds: input.mentionedUserIds ?? [],
           createdAt: new Date().toISOString(),
         })

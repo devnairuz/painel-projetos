@@ -22,7 +22,7 @@ function reqRepo() {
 function createApp() {
   const app = express();
   app.use(cors({ origin: config.allowedOrigins }));
-  app.use(express.json({ limit: "2mb" }));
+  app.use(express.json({ limit: "8mb" }));
 
   app.get("/health", (_req, res) => res.json({ status: "ok", repo: reqRepo() }));
 

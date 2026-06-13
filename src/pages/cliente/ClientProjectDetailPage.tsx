@@ -26,7 +26,7 @@ import { HoursBreakdown } from '@/components/cliente/HoursBreakdown'
 import { ClientGameHub } from '@/components/cliente/ClientGameHub'
 import { CommentThread } from '@/components/ui/CommentThread'
 import { PLATFORM_META, STATUS_META } from '@/constants'
-import type { Phase } from '@/types'
+import type { CommentAttachment, Phase } from '@/types'
 import { clientApprovePhase, clientAddComment } from '@/services/clientProjectsService'
 import { phaseProgress } from '@/utils/projects'
 import { formatDate, relativeDeadlineLabel } from '@/utils/dates'
@@ -96,8 +96,13 @@ export function ClientProjectDetailPage() {
     reload()
   }
 
-  async function handleAddClientComment(phaseId: string, itemId: string, body: string) {
-    await clientAddComment(project!.id, phaseId, itemId, body)
+  async function handleAddClientComment(
+    phaseId: string,
+    itemId: string,
+    body: string,
+    attachments?: CommentAttachment[],
+  ) {
+    await clientAddComment(project!.id, phaseId, itemId, body, attachments)
     reload()
   }
 
@@ -233,7 +238,9 @@ export function ClientProjectDetailPage() {
                 <div className="pl-7">
                   <CommentThread
                     comments={item.comments ?? []}
-                    onAdd={(body) => handleAddClientComment(phaseId, item.id, body)}
+                    currentAuthorId={user?.email}
+                    currentAuthorName={user?.name}
+                    onAdd={(body, _mentions, attachments) => handleAddClientComment(phaseId, item.id, body, attachments)}
                     side="cliente"
                     placeholder="Responder / comentar…"
                   />

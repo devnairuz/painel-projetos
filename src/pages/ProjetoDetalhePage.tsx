@@ -26,7 +26,7 @@ import { ProjectTasksCard } from '@/components/projects/ProjectTasksCard'
 import { ProjectTrackingCard } from '@/components/projects/ProjectTrackingCard'
 import { PLATFORM_META, STATUS_META, TYPE_META, RISK_META } from '@/constants'
 import { PRODUCT_META } from '@/constants/templates'
-import type { Platform, Project, ProjectStatus, ProjectType, ProjectOwners } from '@/types'
+import type { CommentAttachment, Platform, Project, ProjectStatus, ProjectType, ProjectOwners } from '@/types'
 import {
   addChecklistComment,
   addChecklistItem,
@@ -112,6 +112,26 @@ export function ProjetoDetalhePage() {
     return { ...p, phases, progress: computeProgress(phases) }
   }
 
+  function updateChecklistOwnerLocally(p: Project, phaseId: string, itemId: string, ownerId: string): Project {
+    const normalizedOwnerId = ownerId || undefined
+    const phases = p.phases.map((ph) =>
+      ph.id === phaseId
+        ? {
+            ...ph,
+            checklist: ph.checklist.map((it) =>
+              it.id === itemId ? { ...it, ownerId: normalizedOwnerId } : it,
+            ),
+          }
+        : ph,
+    )
+    const tasks = (p.tasks ?? []).map((task) =>
+      task.phaseId === phaseId && task.checklistItemId === itemId
+        ? { ...task, ownerId: normalizedOwnerId }
+        : task,
+    )
+    return { ...p, phases, tasks }
+  }
+
   async function handleToggle(phaseId: string, itemId: string) {
     setProject((prev) => (prev ? toggleLocally(prev, phaseId, itemId) : prev)) // instantâneo
     try {
@@ -168,7 +188,13 @@ export function ProjetoDetalhePage() {
   }
 
   async function handleUpdateItemOwner(phaseId: string, itemId: string, ownerId: string) {
-    setProject(await setChecklistOwner(project!.id, phaseId, itemId, ownerId))
+    setProject((prev) => (prev ? updateChecklistOwnerLocally(prev, phaseId, itemId, ownerId) : prev))
+    try {
+      const updated = await setChecklistOwner(project!.id, phaseId, itemId, ownerId)
+      setProject(updateChecklistOwnerLocally(updated, phaseId, itemId, ownerId))
+    } catch {
+      reload()
+    }
   }
 
   async function handleAddComment(
@@ -176,13 +202,16 @@ export function ProjetoDetalhePage() {
     itemId: string,
     body: string,
     mentionedUserIds: string[],
+    attachments?: CommentAttachment[],
   ) {
     setProject(
       await addChecklistComment(project!.id, phaseId, itemId, {
+        authorId: companyUser?.id,
         authorType: 'nairuz',
         authorName: companyUser?.name ?? 'Equipe Nairuz',
         body,
         mentionedUserIds,
+        attachments,
       }),
     )
   }
@@ -342,6 +371,7 @@ export function ProjetoDetalhePage() {
                       onUpdateItemOwner={handleUpdateItemOwner}
                       onAddComment={handleAddComment}
                       onUpdateDates={handleUpdateDates}
+                      currentUser={{ id: companyUser?.id, name: companyUser?.name }}
                       users={mentionUsers ?? []}
                     />
                   ))}

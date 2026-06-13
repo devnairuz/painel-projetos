@@ -16,6 +16,26 @@ const {
 const norm = (s) => String(s || "").trim().toLowerCase();
 const nowIso = () => new Date().toISOString();
 
+function cleanCommentAttachments(attachments = []) {
+  if (!Array.isArray(attachments)) return [];
+  return attachments
+    .slice(0, 3)
+    .map((item) => {
+      const url = String((item && item.url) || "").trim();
+      const mimeType = String((item && item.mimeType) || "").trim();
+      if (!url || !mimeType.startsWith("image/")) return null;
+      if (!url.startsWith("data:image/") && !url.startsWith("https://") && !url.startsWith("http://")) return null;
+      return {
+        id: String(item.id || uid("att")),
+        name: String(item.name || "imagem").trim().slice(0, 140),
+        mimeType,
+        size: Number(item.size) || undefined,
+        url
+      };
+    })
+    .filter(Boolean);
+}
+
 const DEFAULT_SECURITY_CHECKS = [
   "Acessos revisados",
   "Tokens e senhas fora de comentários",
@@ -321,9 +341,10 @@ async function updateChecklistItem(id, phaseId, itemId, patch = {}) {
 }
 
 /** Adiciona um comentário a uma subtarefa (Nairuz ou cliente). */
-async function addChecklistComment(id, phaseId, itemId, { authorType, authorName, body, mentionedUserIds } = {}) {
+async function addChecklistComment(id, phaseId, itemId, { authorType, authorId, authorName, body, mentionedUserIds, attachments } = {}) {
   const text = String(body || "").trim();
-  if (!text) return getProject(id);
+  const cleanAttachments = cleanCommentAttachments(attachments);
+  if (!text && cleanAttachments.length === 0) return getProject(id);
   const mentions = Array.isArray(mentionedUserIds) ? mentionedUserIds.filter(Boolean) : [];
   const project = await mutateProject(id, (p) => {
     const ph = p.phases.find((x) => x.id === phaseId);
@@ -332,9 +353,11 @@ async function addChecklistComment(id, phaseId, itemId, { authorType, authorName
     if (!Array.isArray(item.comments)) item.comments = [];
     item.comments.push({
       id: uid("cmt"),
+      authorId: String(authorId || "").trim() || undefined,
       authorType: authorType === "cliente" ? "cliente" : "nairuz",
       authorName: String(authorName || "").trim() || (authorType === "cliente" ? "Cliente" : "Nairuz"),
       body: text,
+      attachments: cleanAttachments,
       mentionedUserIds: mentions,
       createdAt: new Date().toISOString()
     });
@@ -344,13 +367,14 @@ async function addChecklistComment(id, phaseId, itemId, { authorType, authorName
     const ph = project.phases.find((x) => x.id === phaseId);
     const item = ph && ph.checklist.find((c) => c.id === itemId);
     const label = item ? item.label + ": " : "";
+    const notificationBody = text || `${cleanAttachments.length} imagem(ns) enviada(s)`;
     const who = String(authorName || "").trim() || (authorType === "cliente" ? "Cliente" : "Nairuz");
     // Comentário do cliente avisa os colaboradores do projeto.
     if (authorType === "cliente") {
       await notificationService.notifyProject(project, {
         type: "comentario",
         title: `Comentário do cliente — ${project.clientName}`,
-        body: `${label}${text}`,
+        body: `${label}${notificationBody}`,
         link: `/projetos/${project.id}`
       });
     }
@@ -359,7 +383,7 @@ async function addChecklistComment(id, phaseId, itemId, { authorType, authorName
       await notificationService.createForUsers(mentions, {
         type: "mencao",
         title: `${who} mencionou você — ${project.clientName}`,
-        body: `${label}${text}`,
+        body: `${label}${notificationBody}`,
         link: `/projetos/${project.id}`
       });
     }

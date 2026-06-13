@@ -9,7 +9,7 @@ import {
   MessageSquare,
   User,
 } from 'lucide-react'
-import type { ChecklistItem, Phase, TeamMember } from '@/types'
+import type { ChecklistItem, CommentAttachment, Phase, TeamMember } from '@/types'
 import type { MentionableUser } from '@/services/usersService'
 import { PHASE_STATUS_META } from '@/constants'
 import { Badge } from '@/components/ui/Badge'
@@ -28,8 +28,15 @@ interface PhaseCardProps {
   onApprove: (phaseId: string) => void
   onToggleResponsibility: (phaseId: string, itemId: string, value: boolean) => void
   onUpdateItemOwner: (phaseId: string, itemId: string, ownerId: string) => void
-  onAddComment: (phaseId: string, itemId: string, body: string, mentionedUserIds: string[]) => void
+  onAddComment: (
+    phaseId: string,
+    itemId: string,
+    body: string,
+    mentionedUserIds: string[],
+    attachments?: CommentAttachment[],
+  ) => void
   onUpdateDates: (phaseId: string, patch: { startDate?: string; dueDate?: string; finishedDate?: string }) => void
+  currentUser?: { id?: string; name?: string }
   users?: MentionableUser[]
 }
 
@@ -44,6 +51,7 @@ export function PhaseCard({
   onUpdateItemOwner,
   onAddComment,
   onUpdateDates,
+  currentUser,
   users = [],
 }: PhaseCardProps) {
   const [open, setOpen] = useState(defaultOpen)
@@ -126,6 +134,7 @@ export function PhaseCard({
                 onToggleResponsibility={onToggleResponsibility}
                 onUpdateItemOwner={onUpdateItemOwner}
                 onAddComment={onAddComment}
+                currentUser={currentUser}
               />
             ))}
           </ul>
@@ -160,6 +169,7 @@ function ChecklistItemRow({
   onToggleResponsibility,
   onUpdateItemOwner,
   onAddComment,
+  currentUser,
 }: {
   phaseId: string
   item: ChecklistItem
@@ -167,11 +177,19 @@ function ChecklistItemRow({
   onToggle: (phaseId: string, itemId: string) => void
   onToggleResponsibility: (phaseId: string, itemId: string, value: boolean) => void
   onUpdateItemOwner: (phaseId: string, itemId: string, ownerId: string) => void
-  onAddComment: (phaseId: string, itemId: string, body: string, mentionedUserIds: string[]) => void
+  onAddComment: (
+    phaseId: string,
+    itemId: string,
+    body: string,
+    mentionedUserIds: string[],
+    attachments?: CommentAttachment[],
+  ) => void
+  currentUser?: { id?: string; name?: string }
 }) {
   const [open, setOpen] = useState(false)
   const count = item.comments?.length ?? 0
   const isClient = !!item.clientResponsibility
+  const assignedUser = item.ownerId ? users.find((user) => user.id === item.ownerId) : undefined
 
   return (
     <li className="rounded-lg">
@@ -190,6 +208,16 @@ function ChecklistItemRow({
         <span className={cn('flex-1 text-sm', item.done ? 'text-slate-400 line-through' : 'text-slate-700')}>
           {item.label}
         </span>
+
+        {assignedUser && (
+          <span
+            title={`Responsável: ${assignedUser.name}`}
+            className="hidden max-w-32 shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 md:inline-flex"
+          >
+            <UserCheck className="size-3.5" />
+            <span className="truncate">{assignedUser.name}</span>
+          </span>
+        )}
 
         <select
           value={item.ownerId ?? ''}
@@ -243,7 +271,9 @@ function ChecklistItemRow({
           <CommentThread
             comments={item.comments ?? []}
             users={users}
-            onAdd={(body, mentions) => onAddComment(phaseId, item.id, body, mentions)}
+            currentAuthorId={currentUser?.id}
+            currentAuthorName={currentUser?.name}
+            onAdd={(body, mentions, attachments) => onAddComment(phaseId, item.id, body, mentions, attachments)}
             side="nairuz"
           />
         </div>

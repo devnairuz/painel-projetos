@@ -97,12 +97,24 @@ export interface ClientUser {
 /** Comentário numa subtarefa — canal de tratativa entre Nairuz e cliente. */
 export interface ChecklistComment {
   id: string
+  /** ID do autor quando disponível (usuário interno ou e-mail do cliente). */
+  authorId?: string
   authorType: 'nairuz' | 'cliente'
   authorName: string
   body: string
+  /** Imagens anexadas ao comentário. */
+  attachments?: CommentAttachment[]
   /** IDs de usuários mencionados (@) neste comentário. */
   mentionedUserIds?: string[]
   createdAt: string
+}
+
+export interface CommentAttachment {
+  id: string
+  name: string
+  mimeType: string
+  size?: number
+  url: string
 }
 
 export interface ChecklistItem {
