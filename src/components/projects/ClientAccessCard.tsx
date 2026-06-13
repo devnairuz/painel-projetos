@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Mail, Plus, X, ShieldCheck } from 'lucide-react'
+import { Mail, Plus, X, ShieldCheck, Link2, Check } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
@@ -23,6 +23,23 @@ export function ClientAccessCard({ projectId, emails, onChanged }: ClientAccessC
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string>()
   const [busy, setBusy] = useState(false)
+  const [copied, setCopied] = useState<string>()
+
+  /** Link de convite pré-preenchido com o e-mail do cliente. */
+  function inviteLink(target: string) {
+    return `${window.location.origin}/cliente/login?email=${encodeURIComponent(target)}`
+  }
+
+  async function handleCopyInvite(target: string) {
+    try {
+      await navigator.clipboard.writeText(inviteLink(target))
+      setCopied(target)
+      notify(`Link de convite de ${target} copiado.`, 'info')
+      setTimeout(() => setCopied((c) => (c === target ? undefined : c)), 2000)
+    } catch {
+      notify('Não foi possível copiar o link.', 'error')
+    }
+  }
 
   async function handleGrant(e: FormEvent) {
     e.preventDefault()
@@ -75,6 +92,16 @@ export function ClientAccessCard({ projectId, emails, onChanged }: ClientAccessC
               <Mail className="size-4 shrink-0 text-slate-400" />
               <span className="min-w-0 flex-1 truncate text-sm text-slate-700">{e}</span>
               <button
+                type="button"
+                onClick={() => handleCopyInvite(e)}
+                className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-brand-50 hover:text-brand-600"
+                title="Copiar link de convite"
+                aria-label={`Copiar link de convite para ${e}`}
+              >
+                {copied === e ? <Check className="size-4 text-emerald-600" /> : <Link2 className="size-4" />}
+              </button>
+              <button
+                type="button"
                 onClick={() => handleRevoke(e)}
                 className="text-slate-400 transition-colors hover:text-red-500"
                 title="Remover acesso"

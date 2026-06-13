@@ -15,7 +15,7 @@ import { Logo } from '@/components/layout/Logo'
 export function ClientShell() {
   const { user, logout } = useClientAuth()
   const { getOrg } = useLookups()
-  const { data: clientProjects } = useClientProjects(user?.email)
+  const { data: clientProjects } = useClientProjects()
 
   // Carteira de pontos: soma dos pontos das etapas concluídas e visíveis em
   // todos os projetos do cliente (gamificação — troca por horas depois).

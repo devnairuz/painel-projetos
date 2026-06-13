@@ -11,7 +11,7 @@ import {
   Flag,
   Star,
 } from 'lucide-react'
-import { useProject } from '@/hooks/useProjects'
+import { useClientProject } from '@/hooks/useProjects'
 import { useClientAuth } from '@/hooks/useClientAuth'
 import { useToast } from '@/components/ui/Toast'
 import { Card } from '@/components/ui/Card'
@@ -26,7 +26,7 @@ import { HoursBreakdown } from '@/components/cliente/HoursBreakdown'
 import { CommentThread } from '@/components/ui/CommentThread'
 import { PLATFORM_META, STATUS_META } from '@/constants'
 import type { Phase } from '@/types'
-import { approvePhase, addChecklistComment } from '@/services/projectsService'
+import { clientApprovePhase, clientAddComment } from '@/services/clientProjectsService'
 import { phaseProgress } from '@/utils/projects'
 import { formatDate, relativeDeadlineLabel } from '@/utils/dates'
 import { cn } from '@/utils/cn'
@@ -49,7 +49,7 @@ function needsClient(phase: Phase): boolean {
 export function ClientProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useClientAuth()
-  const { data: project, loading, reload } = useProject(id)
+  const { data: project, loading, reload } = useClientProject(id)
   const { notify } = useToast()
 
   const pending = useMemo(
@@ -90,17 +90,13 @@ export function ClientProjectDetailPage() {
   }
 
   async function handleApprove(phaseId: string) {
-    await approvePhase(project!.id, phaseId)
+    await clientApprovePhase(project!.id, phaseId)
     notify('Obrigado! Sua aprovação foi registrada.')
     reload()
   }
 
   async function handleAddClientComment(phaseId: string, itemId: string, body: string) {
-    await addChecklistComment(project!.id, phaseId, itemId, {
-      authorType: 'cliente',
-      authorName: user?.name ?? 'Cliente',
-      body,
-    })
+    await clientAddComment(project!.id, phaseId, itemId, body)
     reload()
   }
 

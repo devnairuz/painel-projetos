@@ -1,35 +1,33 @@
 /**
- * Cliente HTTP da API do Portal. Base configurável via VITE_API_URL (default
- * http://localhost:4000). Injeta o e-mail do cliente logado em `x-user-email`
- * (auth mock, como no suporte-nairuz).
+ * Clientes HTTP da API. Base configurável via VITE_API_URL (default
+ * http://localhost:4000).
+ * - `api`     → visão da empresa (token JWT de usuário interno).
+ * - `clientApi` → portal do cliente (token de cliente).
  */
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:4000'
 
-const SESSION_KEY = 'nairuz-portal:client-session'
 const COMPANY_TOKEN_KEY = 'nairuz-portal:company-token'
+const CLIENT_TOKEN_KEY = 'nairuz-portal:client-token'
 
-function authHeader(): Record<string, string> {
-  const headers: Record<string, string> = {}
+function bearer(key: string): Record<string, string> {
   try {
-    // Empresa: JWT (Bearer) — usado na visão interna protegida.
-    const token = localStorage.getItem(COMPANY_TOKEN_KEY)
-    if (token) headers['Authorization'] = `Bearer ${token}`
-    // Cliente: identidade por e-mail (portal externo, mock).
-    const raw = localStorage.getItem(SESSION_KEY)
-    if (raw) {
-      const u = JSON.parse(raw) as { email?: string }
-      if (u?.email) headers['x-user-email'] = u.email
-    }
+    const t = localStorage.getItem(key)
+    if (t) return { Authorization: `Bearer ${t}` }
   } catch {
     // ignora
   }
-  return headers
+  return {}
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(
+  method: string,
+  path: string,
+  body: unknown,
+  headers: Record<string, string>,
+): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json', ...authHeader() },
+    headers: { 'Content-Type': 'application/json', ...headers },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
   if (!res.ok) {
@@ -48,9 +46,14 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return (await res.json()) as T
 }
 
-export const api = {
-  get: <T>(path: string) => request<T>('GET', path),
-  post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
-  patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body),
-  del: <T>(path: string, body?: unknown) => request<T>('DELETE', path, body),
+function makeApi(tokenKey: string) {
+  return {
+    get: <T>(path: string) => request<T>('GET', path, undefined, bearer(tokenKey)),
+    post: <T>(path: string, body?: unknown) => request<T>('POST', path, body, bearer(tokenKey)),
+    patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body, bearer(tokenKey)),
+    del: <T>(path: string, body?: unknown) => request<T>('DELETE', path, body, bearer(tokenKey)),
+  }
 }
+
+export const api = makeApi(COMPANY_TOKEN_KEY)
+export const clientApi = makeApi(CLIENT_TOKEN_KEY)

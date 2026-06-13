@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'
 import { FolderKanban, ChevronRight, Star, PartyPopper } from 'lucide-react'
-import { useClientAuth } from '@/hooks/useClientAuth'
 import { useClientProjects } from '@/hooks/useProjects'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -13,8 +12,7 @@ import { formatDate } from '@/utils/dates'
 
 /** Lista os projetos da organização do cliente (sem dados internos). */
 export function ClientProjectsPage() {
-  const { user } = useClientAuth()
-  const { data: projects, loading } = useClientProjects(user?.email)
+  const { data: projects, loading } = useClientProjects()
 
   return (
     <>

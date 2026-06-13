@@ -26,7 +26,28 @@ async function getProject(id) {
 async function listProjectsForClient(email) {
   const target = norm(email);
   const all = await getRepo().listProjects();
-  return all.filter((p) => (p.clientEmails || []).some((e) => norm(e) === target));
+  return all
+    .filter((p) => (p.clientEmails || []).some((e) => norm(e) === target))
+    .map((p) => toClientProject(p, target));
+}
+
+/** Projeto específico, só se o e-mail do cliente tiver acesso liberado. */
+async function getProjectForClient(id, email) {
+  const target = norm(email);
+  const p = await getRepo().getProject(id);
+  if (!p) return null;
+  const allowed = (p.clientEmails || []).some((e) => norm(e) === target);
+  return allowed ? toClientProject(p, target) : null;
+}
+
+/** Recorte seguro do projeto para o portal do cliente. */
+function toClientProject(project, clientEmail) {
+  return {
+    ...project,
+    clientEmails: (project.clientEmails || []).filter((e) => norm(e) === clientEmail),
+    collaborators: [],
+    phases: (project.phases || []).filter((ph) => ph.clientVisible !== false)
+  };
 }
 
 function listTeam() {
@@ -339,6 +360,7 @@ module.exports = {
   listProjects,
   getProject,
   listProjectsForClient,
+  getProjectForClient,
   listTeam,
   listOrganizations,
   createOrganization,

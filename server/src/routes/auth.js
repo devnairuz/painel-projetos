@@ -5,8 +5,8 @@ const router = express.Router();
 
 router.post("/client-login", async (req, res) => {
   try {
-    const user = await clientLogin(req.body.email);
-    res.json(user);
+    const result = await clientLogin(req.body.email); // { user, token }
+    res.json(result);
   } catch (e) {
     res.status(e.status || 400).json({ error: e.message || "login_failed" });
   }

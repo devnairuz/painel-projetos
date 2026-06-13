@@ -7,7 +7,9 @@ const { router: authRouter } = require("./routes/auth");
 const { router: companyAuthRouter } = require("./routes/companyAuth");
 const { router: usersRouter } = require("./routes/users");
 const { router: notificationsRouter } = require("./routes/notifications");
+const { router: clientPortalRouter } = require("./routes/clientPortal");
 const { requireAuth } = require("./middleware/requireAuth");
+const { requireClientAuth } = require("./middleware/requireClientAuth");
 
 function reqRepo() {
   try {
@@ -30,6 +32,9 @@ function createApp() {
 
   // Leituras públicas que o portal do cliente usa (sem login da empresa).
   app.use("/api", metaRouter); // GET /team, GET /organizations (POST é protegido dentro)
+
+  // ───── Portal do cliente (token de cliente) ─────
+  app.use("/api/client", requireClientAuth, clientPortalRouter);
 
   // ───── Visão da empresa (protegida por JWT) ─────
   app.use("/api/users", requireAuth, usersRouter);

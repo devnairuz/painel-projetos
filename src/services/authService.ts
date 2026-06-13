@@ -5,9 +5,10 @@ import { CLIENT_USERS, seedProjects } from './mockData'
 /**
  * Autenticação de cliente via API. O backend valida o e-mail (liberado em
  * algum projeto ou no registro). A sessão é guardada no localStorage e
- * reenviada como header `x-user-email` pelo cliente HTTP.
+ * o token de cliente é reenviado como Bearer pelo cliente HTTP do portal.
  */
 const SESSION_KEY = 'nairuz-portal:client-session'
+const CLIENT_TOKEN_KEY = 'nairuz-portal:client-token'
 const PROJECTS_KEY = 'nairuz-portal:fallback-projects'
 
 function localClientLogin(email: string): ClientUser {
@@ -39,9 +40,23 @@ function localClientLogin(email: string): ClientUser {
 export async function clientLogin(email: string): Promise<ClientUser> {
   let user: ClientUser
   try {
-    user = await api.post<ClientUser>('/api/auth/client-login', { email })
-  } catch {
+    const res = await api.post<{ user: ClientUser; token: string }>('/api/auth/client-login', { email })
+    user = res.user
+    try {
+      localStorage.setItem(CLIENT_TOKEN_KEY, res.token)
+    } catch {
+      // ignora
+    }
+  } catch (err) {
+    // Se a API respondeu (401/403/etc.), respeita a negativa do backend.
+    if (err instanceof Error && 'status' in err) throw err
+    // Sem API: cai no fallback local (somente leitura, sem token).
     user = localClientLogin(email)
+    try {
+      localStorage.removeItem(CLIENT_TOKEN_KEY)
+    } catch {
+      // ignora
+    }
   }
   try {
     localStorage.setItem(SESSION_KEY, JSON.stringify(user))
@@ -63,6 +78,7 @@ export function getClientSession(): ClientUser | null {
 export function clientLogout(): void {
   try {
     localStorage.removeItem(SESSION_KEY)
+    localStorage.removeItem(CLIENT_TOKEN_KEY)
   } catch {
     // noop
   }

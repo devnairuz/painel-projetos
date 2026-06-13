@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { LogIn, AlertCircle } from 'lucide-react'
 import { useClientAuth } from '@/hooks/useClientAuth'
 import { Logo } from '@/components/layout/Logo'
@@ -10,7 +10,10 @@ import { CLIENT_USERS } from '@/services/mockData'
 export function ClientLoginPage() {
   const { user, login } = useClientAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
+  // Convite por link: a Nairuz compartilha /cliente/login?email=… e o campo
+  // já vem preenchido para o cliente só confirmar.
+  const [params] = useSearchParams()
+  const [email, setEmail] = useState(params.get('email') ?? '')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string>()
   const [submitting, setSubmitting] = useState(false)

@@ -3,7 +3,7 @@ import { Star } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
-import { answerNps } from '@/services/projectsService'
+import { clientAnswerNps } from '@/services/clientProjectsService'
 import { cn } from '@/utils/cn'
 
 interface NpsGateProps {
@@ -25,7 +25,7 @@ export function NpsGate({ projectId, hoursAfter, onAnswered }: NpsGateProps) {
   async function handleSubmit() {
     if (score === null) return
     setSaving(true)
-    await answerNps(projectId, score, comment)
+    await clientAnswerNps(projectId, score, comment)
     setSaving(false)
     notify(`Obrigado pela avaliação! Suas horas de suporte agora são ${hoursAfter}h.`)
     onAnswered()

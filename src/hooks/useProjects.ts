@@ -1,22 +1,19 @@
-import {
-  getProject,
-  listOrganizations,
-  listProjects,
-  listProjectsForClient,
-  listTeam,
-} from '@/services/projectsService'
+import { getProject, listOrganizations, listProjects, listTeam } from '@/services/projectsService'
+import { getClientProject, getClientProjects } from '@/services/clientProjectsService'
 import { useAsync } from './useAsync'
 
 export function useProjects() {
   return useAsync(() => listProjects(), [])
 }
 
-/** Projetos liberados para o e-mail do cliente logado (portal do cliente). */
-export function useClientProjects(email: string | undefined) {
-  return useAsync(
-    () => (email ? listProjectsForClient(email) : Promise.resolve([])),
-    [email],
-  )
+/** Projetos do cliente logado (portal externo, via token de cliente). */
+export function useClientProjects() {
+  return useAsync(() => getClientProjects(), [])
+}
+
+/** Um projeto específico para o cliente logado. */
+export function useClientProject(id: string | undefined) {
+  return useAsync(() => (id ? getClientProject(id) : Promise.resolve(undefined)), [id])
 }
 
 export function useProject(id: string | undefined) {
