@@ -14,19 +14,90 @@ const {
 } = require("../domain/ops");
 
 const norm = (s) => String(s || "").trim().toLowerCase();
+const nowIso = () => new Date().toISOString();
+
+const DEFAULT_SECURITY_CHECKS = [
+  "Acessos revisados",
+  "Tokens e senhas fora de comentários",
+  "Cliente visualiza apenas projetos liberados",
+  "Dados sensíveis não expostos no portal do cliente"
+];
+
+function checklistTaskStatus(phase, item) {
+  if (item.done) return "concluida";
+  if (phase.status === "bloqueada") return "bloqueada";
+  if (phase.status === "em_andamento") return "em_andamento";
+  return "aberta";
+}
+
+function syncTasksFromChecklist(project) {
+  const manual = (project.tasks || []).filter((task) => task.source !== "checklist");
+  const createdAt = project.startDate || project.updatedAt || nowIso();
+  const checklistTasks = (project.phases || []).flatMap((phase) =>
+    (phase.checklist || []).map((item) => ({
+      id: `task-${item.id}`,
+      projectId: project.id,
+      phaseId: phase.id,
+      checklistItemId: item.id,
+      title: item.label,
+      status: checklistTaskStatus(phase, item),
+      source: "checklist",
+      ownerId: phase.ownerId,
+      dueDate: phase.dueDate,
+      clientResponsibility: !!item.clientResponsibility,
+      createdAt,
+      updatedAt: item.doneAt || project.updatedAt,
+      completedAt: item.doneAt
+    }))
+  );
+  project.tasks = [...checklistTasks, ...manual];
+}
+
+function normalizeProject(project) {
+  if (!project) return project;
+  project.phases = project.phases || [];
+  project.clientEmails = project.clientEmails || [];
+  project.collaborators = project.collaborators || [];
+  project.charges = project.charges || [];
+  project.scopeFiles = project.scopeFiles || [];
+  project.timeEntries = project.timeEntries || [];
+  project.attachments = project.attachments || [];
+  project.tracking = {
+    scopeStatus: "pendente",
+    estimatedHours: 0,
+    usedHours: (project.timeEntries || [])
+      .filter((entry) => entry.kind === "realizado")
+      .reduce((sum, entry) => sum + (Number(entry.hours) || 0), 0),
+    deadlineConfidence: "no_prazo",
+    ...(project.tracking || {})
+  };
+  project.security = {
+    checklist: DEFAULT_SECURITY_CHECKS.map((label, index) => ({
+      id: `sec-${index + 1}`,
+      label,
+      done: false
+    })),
+    ...(project.security || {})
+  };
+  project.security.checklist = project.security.checklist || [];
+  syncTasksFromChecklist(project);
+  return project;
+}
 
 async function listProjects() {
-  return getRepo().listProjects();
+  const projects = await getRepo().listProjects();
+  return projects.map(normalizeProject);
 }
 
 async function getProject(id) {
-  return getRepo().getProject(id);
+  return normalizeProject(await getRepo().getProject(id));
 }
 
 async function listProjectsForClient(email) {
   const target = norm(email);
   const all = await getRepo().listProjects();
   return all
+    .map(normalizeProject)
     .filter((p) => (p.clientEmails || []).some((e) => norm(e) === target))
     .map((p) => toClientProject(p, target));
 }
@@ -34,7 +105,7 @@ async function listProjectsForClient(email) {
 /** Projeto específico, só se o e-mail do cliente tiver acesso liberado. */
 async function getProjectForClient(id, email) {
   const target = norm(email);
-  const p = await getRepo().getProject(id);
+  const p = normalizeProject(await getRepo().getProject(id));
   if (!p) return null;
   const allowed = (p.clientEmails || []).some((e) => norm(e) === target);
   return allowed ? toClientProject(p, target) : null;
@@ -46,7 +117,11 @@ function toClientProject(project, clientEmail) {
     ...project,
     clientEmails: (project.clientEmails || []).filter((e) => norm(e) === clientEmail),
     collaborators: [],
-    phases: (project.phases || []).filter((ph) => ph.clientVisible !== false)
+    phases: (project.phases || []).filter((ph) => ph.clientVisible !== false),
+    tasks: (project.tasks || []).filter((task) => !!task.clientResponsibility),
+    charges: (project.charges || []).filter((charge) => charge.ownerSide === "cliente"),
+    timeEntries: [],
+    security: undefined
   };
 }
 
@@ -92,11 +167,20 @@ async function createProject(input) {
     phases,
     clientEmails: [],
     collaborators: [],
+    charges: [],
+    scopeFiles: [],
+    timeEntries: [],
+    attachments: [],
+    tracking: { scopeStatus: "pendente", estimatedHours: 0, usedHours: 0, deadlineConfidence: "no_prazo" },
+    security: {
+      checklist: DEFAULT_SECURITY_CHECKS.map((label, index) => ({ id: `sec-${index + 1}`, label, done: false }))
+    },
     history: [makeHistory("projeto_criado", "Projeto criado")],
     nps: null,
     supportHours: { ...DEFAULT_SUPPORT_HOURS },
     finalization: JSON.parse(JSON.stringify(DEFAULT_FINALIZATION))
   };
+  normalizeProject(project);
   const cp = currentPhase(phases);
   project.currentPhaseId = cp ? cp.id : undefined;
   await repo.insertProject(project);
@@ -114,7 +198,9 @@ async function mutateProject(id, fn) {
   const repo = getRepo();
   const project = await repo.getProject(id);
   if (!project) return null;
+  normalizeProject(project);
   fn(project);
+  normalizeProject(project);
   await repo.updateProject(project);
   return project;
 }
@@ -356,6 +442,160 @@ async function updateSupportHours(id, hours) {
   });
 }
 
+async function addTask(id, input = {}) {
+  const title = String(input.title || "").trim();
+  if (!title) return getProject(id);
+  return mutateProject(id, (p) => {
+    p.tasks.push({
+      id: uid("task"),
+      projectId: id,
+      title,
+      status: input.status || "aberta",
+      source: "manual",
+      ownerId: input.ownerId || undefined,
+      dueDate: input.dueDate || undefined,
+      clientResponsibility: !!input.clientResponsibility,
+      createdAt: nowIso()
+    });
+    p.updatedAt = nowIso();
+  });
+}
+
+async function updateTask(id, taskId, patch = {}) {
+  return mutateProject(id, (p) => {
+    const task = (p.tasks || []).find((item) => item.id === taskId);
+    if (!task) return;
+    if (typeof patch.title === "string" && patch.title.trim()) task.title = patch.title.trim();
+    if (patch.status) task.status = patch.status;
+    if (patch.ownerId !== undefined) task.ownerId = patch.ownerId || undefined;
+    if (patch.dueDate !== undefined) task.dueDate = patch.dueDate || undefined;
+    if (typeof patch.clientResponsibility === "boolean") task.clientResponsibility = patch.clientResponsibility;
+    task.updatedAt = nowIso();
+    task.completedAt = task.status === "concluida" ? (task.completedAt || nowIso()) : undefined;
+
+    if (task.source === "checklist" && task.phaseId && task.checklistItemId && patch.status) {
+      const phase = p.phases.find((ph) => ph.id === task.phaseId);
+      const item = phase && phase.checklist.find((check) => check.id === task.checklistItemId);
+      if (phase && item) {
+        item.done = task.status === "concluida";
+        item.doneAt = item.done ? (item.doneAt || nowIso()) : undefined;
+        syncPhaseStatus(phase);
+        recompute(p);
+      }
+    }
+    p.updatedAt = nowIso();
+  });
+}
+
+async function addCharge(id, input = {}) {
+  const title = String(input.title || "").trim();
+  if (!title) return getProject(id);
+  return mutateProject(id, (p) => {
+    p.charges.push({
+      id: uid("chg"),
+      projectId: id,
+      title,
+      description: String(input.description || "").trim() || undefined,
+      ownerSide: input.ownerSide || "cliente",
+      ownerId: input.ownerId || undefined,
+      status: "aberta",
+      priority: input.priority || "medio",
+      dueDate: input.dueDate || undefined,
+      createdAt: nowIso()
+    });
+    p.updatedAt = nowIso();
+  });
+}
+
+async function updateCharge(id, chargeId, patch = {}) {
+  return mutateProject(id, (p) => {
+    const charge = (p.charges || []).find((item) => item.id === chargeId);
+    if (!charge) return;
+    if (typeof patch.title === "string" && patch.title.trim()) charge.title = patch.title.trim();
+    if (patch.description !== undefined) charge.description = String(patch.description || "").trim() || undefined;
+    if (patch.ownerSide) charge.ownerSide = patch.ownerSide;
+    if (patch.ownerId !== undefined) charge.ownerId = patch.ownerId || undefined;
+    if (patch.priority) charge.priority = patch.priority;
+    if (patch.dueDate !== undefined) charge.dueDate = patch.dueDate || undefined;
+    if (patch.status) {
+      charge.status = patch.status;
+      charge.resolvedAt = patch.status === "resolvida" ? (charge.resolvedAt || nowIso()) : undefined;
+    }
+    charge.updatedAt = nowIso();
+    p.updatedAt = nowIso();
+  });
+}
+
+async function updateTracking(id, patch = {}) {
+  return mutateProject(id, (p) => {
+    p.tracking = {
+      ...p.tracking,
+      ...patch,
+      estimatedHours: Math.max(0, Number(patch.estimatedHours ?? p.tracking.estimatedHours) || 0),
+      usedHours: Math.max(0, Number(patch.usedHours ?? p.tracking.usedHours) || 0),
+      updatedAt: nowIso()
+    };
+    p.updatedAt = nowIso();
+  });
+}
+
+async function addScopeFile(id, input = {}) {
+  const name = String(input.name || "").trim();
+  if (!name) return getProject(id);
+  return mutateProject(id, (p) => {
+    p.scopeFiles.push({
+      id: uid("scp"),
+      name,
+      size: Number(input.size) || undefined,
+      mimeType: input.mimeType || undefined,
+      url: String(input.url || "").trim() || undefined,
+      notes: String(input.notes || "").trim() || undefined,
+      uploadedAt: nowIso(),
+      uploadedBy: input.uploadedBy || "Nairuz"
+    });
+    if (p.tracking.scopeStatus === "pendente") p.tracking.scopeStatus = "recebido";
+    p.tracking.updatedAt = nowIso();
+    p.updatedAt = nowIso();
+  });
+}
+
+async function addTimeEntry(id, input = {}) {
+  const hours = Math.max(0, Number(input.hours) || 0);
+  const label = String(input.label || "").trim();
+  if (!hours || !label) return getProject(id);
+  return mutateProject(id, (p) => {
+    p.timeEntries.push({
+      id: uid("time"),
+      label,
+      hours,
+      kind: input.kind === "planejado" ? "planejado" : "realizado",
+      ownerId: input.ownerId || undefined,
+      loggedAt: nowIso()
+    });
+    const used = p.timeEntries
+      .filter((entry) => entry.kind === "realizado")
+      .reduce((sum, entry) => sum + (Number(entry.hours) || 0), 0);
+    p.tracking.usedHours = used;
+    p.tracking.updatedAt = nowIso();
+    p.updatedAt = nowIso();
+  });
+}
+
+async function updateSecurity(id, checklist = []) {
+  return mutateProject(id, (p) => {
+    p.security = {
+      lastReviewAt: nowIso(),
+      checklist: checklist.map((item, index) => ({
+        id: item.id || `sec-${index + 1}`,
+        label: String(item.label || "").trim(),
+        done: !!item.done,
+        updatedAt: nowIso()
+      })).filter((item) => item.label)
+    };
+    p.updatedAt = nowIso();
+  });
+}
+
 module.exports = {
   listProjects,
   getProject,
@@ -382,5 +622,13 @@ module.exports = {
   revokeClientAccess,
   answerNps,
   updateFinalization,
-  updateSupportHours
+  updateSupportHours,
+  addTask,
+  updateTask,
+  addCharge,
+  updateCharge,
+  updateTracking,
+  addScopeFile,
+  addTimeEntry,
+  updateSecurity
 };

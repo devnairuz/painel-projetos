@@ -23,6 +23,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { NpsGate } from '@/components/cliente/NpsGate'
 import { FinalizationUpsell } from '@/components/cliente/FinalizationUpsell'
 import { HoursBreakdown } from '@/components/cliente/HoursBreakdown'
+import { RewardsPanel } from '@/components/cliente/RewardsPanel'
 import { CommentThread } from '@/components/ui/CommentThread'
 import { PLATFORM_META, STATUS_META } from '@/constants'
 import type { Phase } from '@/types'
@@ -126,6 +127,8 @@ export function ClientProjectDetailPage() {
       </Link>
 
       {/* Carteira de horas (pontos → horas), só no projeto encerrado */}
+      <RewardsPanel points={earnedPoints} />
+
       {isClosed && (
         <div className="mb-5">
           <HoursBreakdown project={project} earnedPoints={earnedPoints} />

@@ -113,4 +113,44 @@ router.patch("/:id/support-hours", h(async (req, res) => {
   return p ? res.json(p) : notFound(res);
 }));
 
+router.post("/:id/tasks", h(async (req, res) => {
+  const p = await svc.addTask(req.params.id, req.body);
+  return p ? res.json(p) : notFound(res);
+}));
+
+router.patch("/:id/tasks/:taskId", h(async (req, res) => {
+  const p = await svc.updateTask(req.params.id, req.params.taskId, req.body);
+  return p ? res.json(p) : notFound(res);
+}));
+
+router.post("/:id/charges", h(async (req, res) => {
+  const p = await svc.addCharge(req.params.id, req.body);
+  return p ? res.json(p) : notFound(res);
+}));
+
+router.patch("/:id/charges/:chargeId", h(async (req, res) => {
+  const p = await svc.updateCharge(req.params.id, req.params.chargeId, req.body);
+  return p ? res.json(p) : notFound(res);
+}));
+
+router.patch("/:id/tracking", h(async (req, res) => {
+  const p = await svc.updateTracking(req.params.id, req.body);
+  return p ? res.json(p) : notFound(res);
+}));
+
+router.post("/:id/scope-files", h(async (req, res) => {
+  const p = await svc.addScopeFile(req.params.id, req.body);
+  return p ? res.json(p) : notFound(res);
+}));
+
+router.post("/:id/time-entries", h(async (req, res) => {
+  const p = await svc.addTimeEntry(req.params.id, req.body);
+  return p ? res.json(p) : notFound(res);
+}));
+
+router.patch("/:id/security", h(async (req, res) => {
+  const p = await svc.updateSecurity(req.params.id, req.body.checklist || req.body);
+  return p ? res.json(p) : notFound(res);
+}));
+
 module.exports = { router };

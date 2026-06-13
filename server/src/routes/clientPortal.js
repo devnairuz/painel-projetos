@@ -42,12 +42,14 @@ router.post("/projects/:id/phases/:phaseId/approve", h(async (req, res) => {
   if (!phase || !phase.requiresApproval) {
     return res.status(404).json({ error: "phase_not_found" });
   }
-  res.json(await svc.approvePhase(req.params.id, req.params.phaseId));
+  await svc.approvePhase(req.params.id, req.params.phaseId);
+  res.json(await svc.getProjectForClient(req.params.id, req.clientEmail));
 }));
 
 router.post("/projects/:id/nps", h(async (req, res) => {
   if (!(await authorized(req, res))) return;
-  res.json(await svc.answerNps(req.params.id, req.body.score, req.body.comment));
+  await svc.answerNps(req.params.id, req.body.score, req.body.comment);
+  res.json(await svc.getProjectForClient(req.params.id, req.clientEmail));
 }));
 
 router.post("/projects/:id/phases/:phaseId/items/:itemId/comments", h(async (req, res) => {
@@ -58,13 +60,12 @@ router.post("/projects/:id/phases/:phaseId/items/:itemId/comments", h(async (req
   if (!phase || !item) {
     return res.status(404).json({ error: "task_not_found" });
   }
-  res.json(
-    await svc.addChecklistComment(req.params.id, req.params.phaseId, req.params.itemId, {
+  await svc.addChecklistComment(req.params.id, req.params.phaseId, req.params.itemId, {
       authorType: "cliente",
       authorName: req.clientName,
       body: req.body.body
-    })
-  );
+    });
+  res.json(await svc.getProjectForClient(req.params.id, req.clientEmail));
 }));
 
 module.exports = { router };

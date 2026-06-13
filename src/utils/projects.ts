@@ -1,4 +1,4 @@
-import type { Phase, Project, RiskLevel } from '@/types'
+import type { Phase, Project, ProjectTask, RiskLevel } from '@/types'
 import { daysUntil } from './dates'
 
 /** Conta itens de checklist concluídos / total numa fase. */
@@ -68,4 +68,72 @@ export function syncPhaseStatus(phase: Phase): void {
 /** Projeto "em risco" para fins de dashboard. */
 export function isAtRisk(project: Project): boolean {
   return project.risk === 'alto' || project.risk === 'critico'
+}
+
+const DEFAULT_SECURITY_LABELS = [
+  'Acessos revisados',
+  'Tokens e senhas fora de comentários',
+  'Cliente visualiza apenas projetos liberados',
+  'Dados sensíveis não expostos no portal do cliente',
+]
+
+function checklistTaskStatus(phase: Phase, done: boolean): ProjectTask['status'] {
+  if (done) return 'concluida'
+  if (phase.status === 'bloqueada') return 'bloqueada'
+  if (phase.status === 'em_andamento') return 'em_andamento'
+  return 'aberta'
+}
+
+export function normalizedTasks(project: Project): ProjectTask[] {
+  const manual = (project.tasks ?? []).filter((task) => task.source !== 'checklist')
+  const createdAt = project.startDate || project.updatedAt || new Date().toISOString()
+  const checklistTasks = project.phases.flatMap((phase) =>
+    phase.checklist.map((item) => ({
+      id: `task-${item.id}`,
+      projectId: project.id,
+      phaseId: phase.id,
+      checklistItemId: item.id,
+      title: item.label,
+      status: checklistTaskStatus(phase, item.done),
+      source: 'checklist' as const,
+      ownerId: phase.ownerId,
+      dueDate: phase.dueDate,
+      clientResponsibility: !!item.clientResponsibility,
+      createdAt,
+      updatedAt: item.doneAt ?? project.updatedAt,
+      completedAt: item.doneAt,
+    })),
+  )
+  return [...checklistTasks, ...manual]
+}
+
+export function normalizeProjectCollections(project: Project): Project {
+  const timeEntries = project.timeEntries ?? []
+  const usedHours = timeEntries
+    .filter((entry) => entry.kind === 'realizado')
+    .reduce((sum, entry) => sum + (Number(entry.hours) || 0), 0)
+  return {
+    ...project,
+    collaborators: project.collaborators ?? [],
+    tasks: normalizedTasks(project),
+    charges: project.charges ?? [],
+    scopeFiles: project.scopeFiles ?? [],
+    timeEntries,
+    attachments: project.attachments ?? [],
+    tracking: {
+      scopeStatus: 'pendente',
+      estimatedHours: 0,
+      usedHours,
+      deadlineConfidence: 'no_prazo',
+      ...project.tracking,
+    },
+    security: {
+      checklist: DEFAULT_SECURITY_LABELS.map((label, index) => ({
+        id: `sec-${index + 1}`,
+        label,
+        done: false,
+      })),
+      ...project.security,
+    },
+  }
 }

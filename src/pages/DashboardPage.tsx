@@ -7,6 +7,8 @@ import {
   Building2,
   Rocket,
   CheckCircle2,
+  BellRing,
+  Upload,
   type LucideIcon,
 } from 'lucide-react'
 import { useProjects } from '@/hooks/useProjects'
@@ -43,6 +45,10 @@ export function DashboardPage() {
       waitingClient: active.filter((p) => p.status === 'aguardando_cliente'),
       waitingNairuz: active.filter((p) => p.status === 'aguardando_nairuz'),
       readyGoLive: active.filter((p) => p.status === 'pronto_go_live'),
+      openCharges: active.flatMap((p) =>
+        (p.charges ?? []).filter((charge) => charge.status !== 'resolvida' && charge.status !== 'cancelada'),
+      ),
+      scopePending: active.filter((p) => (p.tracking?.scopeStatus ?? 'pendente') === 'pendente'),
     }
   }, [projects])
 
@@ -54,21 +60,23 @@ export function DashboardPage() {
       />
 
       {loading ? (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="h-28 w-full rounded-2xl" />
           ))}
         </div>
       ) : (
         <>
           {/* Cards de métrica */}
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <StatCard icon={FolderKanban} label="Projetos ativos" value={stats.active.length} tone="brand" />
             <StatCard icon={AlertTriangle} label="Em risco" value={stats.atRisk.length} tone="red" />
             <StatCard icon={Clock} label="Aguardando cliente" value={stats.waitingClient.length} tone="amber" />
             <StatCard icon={Building2} label="Aguardando Nairuz" value={stats.waitingNairuz.length} tone="orange" />
             <StatCard icon={Rocket} label="Go lives próximos (21d)" value={stats.upcoming.length} tone="blue" />
             <StatCard icon={CheckCircle2} label="Prontos para go live" value={stats.readyGoLive.length} tone="emerald" />
+            <StatCard icon={BellRing} label="Pendências abertas" value={stats.openCharges.length} tone="amber" />
+            <StatCard icon={Upload} label="Escopos pendentes" value={stats.scopePending.length} tone="blue" />
           </div>
 
           {/* Listas */}

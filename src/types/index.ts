@@ -59,6 +59,13 @@ export type MemberRole =
   | 'pm'
   | 'cliente'
 
+export type ProjectTaskStatus = 'aberta' | 'em_andamento' | 'concluida' | 'bloqueada'
+export type ProjectTaskSource = 'checklist' | 'manual' | 'cliente'
+export type ProjectChargeStatus = 'aberta' | 'respondida' | 'resolvida' | 'cancelada'
+export type ProjectChargeSide = 'cliente' | 'nairuz' | 'terceiro'
+export type TrackingScopeStatus = 'pendente' | 'recebido' | 'validado'
+export type DeadlineConfidence = 'no_prazo' | 'atencao' | 'atrasado'
+
 // ───────────────────────── Entidades ─────────────────────────
 
 export interface Organization {
@@ -161,6 +168,88 @@ export interface ProjectOwners {
   designerName?: string
 }
 
+/** Tarefa normalizada. Checklists continuam existindo, mas viram itens consultáveis. */
+export interface ProjectTask {
+  id: string
+  projectId: string
+  phaseId?: string
+  checklistItemId?: string
+  title: string
+  status: ProjectTaskStatus
+  source: ProjectTaskSource
+  ownerId?: string
+  dueDate?: string
+  clientResponsibility?: boolean
+  createdAt: string
+  updatedAt?: string
+  completedAt?: string
+}
+
+/** Cobrança/pendência formal, com lado responsável e prazo. */
+export interface ProjectCharge {
+  id: string
+  projectId: string
+  title: string
+  description?: string
+  ownerSide: ProjectChargeSide
+  ownerId?: string
+  status: ProjectChargeStatus
+  priority: RiskLevel
+  dueDate?: string
+  createdAt: string
+  updatedAt?: string
+  resolvedAt?: string
+}
+
+export interface ScopeFile {
+  id: string
+  name: string
+  size?: number
+  mimeType?: string
+  url?: string
+  notes?: string
+  uploadedAt: string
+  uploadedBy?: string
+}
+
+export interface TimeEntry {
+  id: string
+  label: string
+  hours: number
+  kind: 'planejado' | 'realizado'
+  ownerId?: string
+  loggedAt: string
+}
+
+export interface ProjectAttachment {
+  id: string
+  name: string
+  url?: string
+  type?: string
+  createdAt: string
+}
+
+export interface ProjectTracking {
+  scopeStatus: TrackingScopeStatus
+  estimatedHours: number
+  usedHours: number
+  deadlineConfidence: DeadlineConfidence
+  notes?: string
+  updatedAt?: string
+}
+
+export interface SecurityCheck {
+  id: string
+  label: string
+  done: boolean
+  updatedAt?: string
+}
+
+export interface ProjectSecurity {
+  lastReviewAt?: string
+  checklist: SecurityCheck[]
+}
+
 export interface Project {
   id: string
   /** Código curto e legível, ex: "PRJ-014". */
@@ -188,6 +277,15 @@ export interface Project {
   clientEmails: string[]
   /** IDs de usuários que recebem notificações deste projeto. */
   collaborators?: string[]
+  /** Coleções normalizadas para visões operacionais. */
+  tasks?: ProjectTask[]
+  charges?: ProjectCharge[]
+  scopeFiles?: ScopeFile[]
+  timeEntries?: TimeEntry[]
+  attachments?: ProjectAttachment[]
+  tracking?: ProjectTracking
+  security?: ProjectSecurity
+  templateNotes?: string
   /** Produto/serviço — define o template de etapas usado na criação. */
   product?: Product
   /** Histórico estrutural visível ao cliente. */

@@ -4,6 +4,8 @@ import {
   BarChart3,
   Building2,
   Users,
+  AlertCircle,
+  UserRoundCheck,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -21,8 +23,10 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', to: '/', icon: LayoutDashboard },
+  { label: 'Minha visão', to: '/minha-visao', icon: UserRoundCheck },
   { label: 'Projetos', to: '/projetos', icon: FolderKanban, badge: 'projects' },
+  { label: 'Pendências', to: '/pendencias', icon: AlertCircle },
   { label: 'Organizações', to: '/organizacoes', icon: Building2 },
   { label: 'Usuários', to: '/usuarios', icon: Users, adminOnly: true },
-  { label: 'Relatórios', to: '/relatorios', icon: BarChart3, soon: true },
+  { label: 'Relatórios', to: '/relatorios', icon: BarChart3 },
 ]

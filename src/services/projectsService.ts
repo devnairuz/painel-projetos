@@ -1,7 +1,19 @@
-import type { ChecklistItem, Organization, Phase, Project, ProjectStatus, TeamMember } from '@/types'
+import type {
+  ChecklistItem,
+  Organization,
+  Phase,
+  Project,
+  ProjectCharge,
+  ProjectStatus,
+  ProjectTask,
+  ScopeFile,
+  SecurityCheck,
+  TeamMember,
+  TimeEntry,
+} from '@/types'
 import { PRODUCT_TEMPLATES } from '@/constants/templates'
 import { DEFAULT_FINALIZATION, DEFAULT_SUPPORT_HOURS } from '@/constants/templates'
-import { computeProgress, currentPhase, deriveRisk, syncPhaseStatus } from '@/utils/projects'
+import { computeProgress, currentPhase, deriveRisk, normalizeProjectCollections, syncPhaseStatus } from '@/utils/projects'
 import { api } from './api'
 import { ORGANIZATIONS, TEAM, seedProjects } from './mockData'
 import { notifyChange } from './store'
@@ -52,7 +64,7 @@ function localProjects(): Project[] {
   const projects = readLocal(PROJECTS_KEY, seedProjects())
   // Cura dados antigos: garante que o status da fase reflita o checklist.
   projects.forEach((project) => project.phases.forEach(syncPhaseStatus))
-  return projects
+  return projects.map(normalizeProjectCollections)
 }
 
 function saveLocalProjects(projects: Project[]): Project[] {
@@ -87,7 +99,7 @@ function syncProject(project: Project): Project {
   project.currentPhaseId = currentPhase(project.phases)?.id
   project.risk = deriveRisk(project)
   project.updatedAt = new Date().toISOString()
-  return project
+  return normalizeProjectCollections(project)
 }
 
 function updateLocalProject(id: string, fn: (project: Project) => Project): Project {
@@ -113,13 +125,16 @@ function findLocalChecklistItem(phase: Phase, itemId: string): ChecklistItem {
 }
 
 export async function listProjects(): Promise<Project[]> {
-  return fallback(() => api.get<Project[]>('/api/projects'), () => localProjects())
+  return fallback(
+    () => api.get<Project[]>('/api/projects').then((projects) => projects.map(normalizeProjectCollections)),
+    () => localProjects(),
+  )
 }
 
 export async function getProject(id: string): Promise<Project | undefined> {
   try {
     return await fallback(
-      () => api.get<Project>(p(id)),
+      () => api.get<Project>(p(id)).then(normalizeProjectCollections),
       () => localProjects().find((project) => project.id === id),
     )
   } catch {
@@ -214,6 +229,21 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
         progress: 0,
         risk: 'baixo',
         clientEmails: [],
+        collaborators: [],
+        tasks: [],
+        charges: [],
+        scopeFiles: [],
+        timeEntries: [],
+        attachments: [],
+        tracking: { scopeStatus: 'pendente', estimatedHours: 0, usedHours: 0, deadlineConfidence: 'no_prazo' },
+        security: {
+          checklist: [
+            { id: 'sec-1', label: 'Acessos revisados', done: false },
+            { id: 'sec-2', label: 'Tokens e senhas fora de comentários', done: false },
+            { id: 'sec-3', label: 'Cliente visualiza apenas projetos liberados', done: false },
+            { id: 'sec-4', label: 'Dados sensíveis não expostos no portal do cliente', done: false },
+          ],
+        },
         product: input.product,
         history: [{ id: uid('h'), type: 'projeto_criado', label: 'Projeto criado', at: now, actor: 'Nairuz' }],
         supportHours: { ...DEFAULT_SUPPORT_HOURS },
@@ -540,5 +570,185 @@ export async function updateSupportHours(
   return mutate(
     () => api.patch<Project>(`${p(id)}/support-hours`, hours),
     () => updateLocalProject(id, (project) => ({ ...project, supportHours: hours })),
+  )
+}
+
+export async function addProjectTask(
+  id: string,
+  input: Pick<ProjectTask, 'title'> & Partial<ProjectTask>,
+): Promise<Project> {
+  return mutate(
+    () => api.post<Project>(`${p(id)}/tasks`, input).then(normalizeProjectCollections),
+    () =>
+      updateLocalProject(id, (project) => {
+        project.tasks = [
+          ...(project.tasks ?? []),
+          {
+            id: uid('task'),
+            projectId: id,
+            title: input.title,
+            status: input.status ?? 'aberta',
+            source: 'manual',
+            ownerId: input.ownerId,
+            dueDate: input.dueDate,
+            clientResponsibility: !!input.clientResponsibility,
+            createdAt: new Date().toISOString(),
+          },
+        ]
+        return project
+      }),
+  )
+}
+
+export async function updateProjectTask(
+  id: string,
+  taskId: string,
+  patch: Partial<ProjectTask>,
+): Promise<Project> {
+  return mutate(
+    () => api.patch<Project>(`${p(id)}/tasks/${taskId}`, patch).then(normalizeProjectCollections),
+    () =>
+      updateLocalProject(id, (project) => {
+        const task = (project.tasks ?? []).find((item) => item.id === taskId)
+        if (task) Object.assign(task, patch, { updatedAt: new Date().toISOString() })
+        return project
+      }),
+  )
+}
+
+export async function addProjectCharge(
+  id: string,
+  input: Pick<ProjectCharge, 'title' | 'ownerSide'> & Partial<ProjectCharge>,
+): Promise<Project> {
+  return mutate(
+    () => api.post<Project>(`${p(id)}/charges`, input).then(normalizeProjectCollections),
+    () =>
+      updateLocalProject(id, (project) => {
+        project.charges = [
+          ...(project.charges ?? []),
+          {
+            id: uid('chg'),
+            projectId: id,
+            title: input.title,
+            description: input.description,
+            ownerSide: input.ownerSide,
+            ownerId: input.ownerId,
+            status: 'aberta',
+            priority: input.priority ?? 'medio',
+            dueDate: input.dueDate,
+            createdAt: new Date().toISOString(),
+          },
+        ]
+        return project
+      }),
+  )
+}
+
+export async function updateProjectCharge(
+  id: string,
+  chargeId: string,
+  patch: Partial<ProjectCharge>,
+): Promise<Project> {
+  return mutate(
+    () => api.patch<Project>(`${p(id)}/charges/${chargeId}`, patch).then(normalizeProjectCollections),
+    () =>
+      updateLocalProject(id, (project) => {
+        const charge = (project.charges ?? []).find((item) => item.id === chargeId)
+        if (charge) Object.assign(charge, patch, { updatedAt: new Date().toISOString() })
+        return project
+      }),
+  )
+}
+
+export async function updateProjectTracking(
+  id: string,
+  tracking: NonNullable<Project['tracking']>,
+): Promise<Project> {
+  return mutate(
+    () => api.patch<Project>(`${p(id)}/tracking`, tracking).then(normalizeProjectCollections),
+    () => updateLocalProject(id, (project) => ({ ...project, tracking })),
+  )
+}
+
+export async function addScopeFile(
+  id: string,
+  input: Pick<ScopeFile, 'name'> & Partial<ScopeFile>,
+): Promise<Project> {
+  return mutate(
+    () => api.post<Project>(`${p(id)}/scope-files`, input).then(normalizeProjectCollections),
+    () =>
+      updateLocalProject(id, (project) => {
+        project.scopeFiles = [
+          ...(project.scopeFiles ?? []),
+          {
+            id: uid('scp'),
+            name: input.name,
+            size: input.size,
+            mimeType: input.mimeType,
+            url: input.url,
+            notes: input.notes,
+            uploadedAt: new Date().toISOString(),
+            uploadedBy: input.uploadedBy,
+          },
+        ]
+        project.tracking = {
+          scopeStatus: project.tracking?.scopeStatus === 'validado' ? 'validado' : 'recebido',
+          estimatedHours: project.tracking?.estimatedHours ?? 0,
+          usedHours: project.tracking?.usedHours ?? 0,
+          deadlineConfidence: project.tracking?.deadlineConfidence ?? 'no_prazo',
+          notes: project.tracking?.notes,
+          updatedAt: new Date().toISOString(),
+        }
+        return project
+      }),
+  )
+}
+
+export async function addTimeEntry(
+  id: string,
+  input: Pick<TimeEntry, 'label' | 'hours' | 'kind'> & Partial<TimeEntry>,
+): Promise<Project> {
+  return mutate(
+    () => api.post<Project>(`${p(id)}/time-entries`, input).then(normalizeProjectCollections),
+    () =>
+      updateLocalProject(id, (project) => {
+        project.timeEntries = [
+          ...(project.timeEntries ?? []),
+          {
+            id: uid('time'),
+            label: input.label,
+            hours: Number(input.hours) || 0,
+            kind: input.kind,
+            ownerId: input.ownerId,
+            loggedAt: new Date().toISOString(),
+          },
+        ]
+        const usedHours = project.timeEntries
+          .filter((entry) => entry.kind === 'realizado')
+          .reduce((sum, entry) => sum + entry.hours, 0)
+        project.tracking = {
+          scopeStatus: project.tracking?.scopeStatus ?? 'pendente',
+          estimatedHours: project.tracking?.estimatedHours ?? 0,
+          usedHours,
+          deadlineConfidence: project.tracking?.deadlineConfidence ?? 'no_prazo',
+          notes: project.tracking?.notes,
+          updatedAt: new Date().toISOString(),
+        }
+        return project
+      }),
+  )
+}
+
+export async function updateProjectSecurity(
+  id: string,
+  checklist: SecurityCheck[],
+): Promise<Project> {
+  return mutate(
+    () => api.patch<Project>(`${p(id)}/security`, { checklist }).then(normalizeProjectCollections),
+    () =>
+      updateLocalProject(id, (project) => ({
+        ...project,
+        security: { lastReviewAt: new Date().toISOString(), checklist },
+      })),
   )
 }

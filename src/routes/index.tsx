@@ -7,7 +7,9 @@ import { CompanyAuthPage } from '@/pages/CompanyAuthPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { ProjetosPage } from '@/pages/ProjetosPage'
 import { ProjetoDetalhePage } from '@/pages/ProjetoDetalhePage'
-import { RelatoriosPage } from '@/pages/stubs'
+import { MinhaVisaoPage } from '@/pages/MinhaVisaoPage'
+import { PendenciasPage } from '@/pages/PendenciasPage'
+import { RelatoriosPage } from '@/pages/RelatoriosPage'
 import { OrganizacoesPage } from '@/pages/OrganizacoesPage'
 import { UsuariosPage } from '@/pages/UsuariosPage'
 import { ClientLoginPage } from '@/pages/cliente/ClientLoginPage'
@@ -50,8 +52,10 @@ export const router = createBrowserRouter([
         element: <RequireCompanyAuth />,
         children: [
           { index: true, element: <DashboardPage /> },
+          { path: 'minha-visao', element: <MinhaVisaoPage /> },
           { path: 'projetos', element: <ProjetosPage /> },
           { path: 'projetos/:id', element: <ProjetoDetalhePage /> },
+          { path: 'pendencias', element: <PendenciasPage /> },
           { path: 'organizacoes', element: <OrganizacoesPage /> },
           { path: 'usuarios', element: <UsuariosPage /> },
           { path: 'relatorios', element: <RelatoriosPage /> },

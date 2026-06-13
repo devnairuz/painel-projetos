@@ -20,6 +20,9 @@ import { ClientAccessCard } from '@/components/projects/ClientAccessCard'
 import { OwnersCard } from '@/components/projects/OwnersCard'
 import { CollaboratorsCard } from '@/components/projects/CollaboratorsCard'
 import { FinalizationConfigCard } from '@/components/projects/FinalizationConfigCard'
+import { ProjectChargesCard } from '@/components/projects/ProjectChargesCard'
+import { ProjectGovernanceCard } from '@/components/projects/ProjectGovernanceCard'
+import { ProjectTrackingCard } from '@/components/projects/ProjectTrackingCard'
 import { PLATFORM_META, STATUS_META, TYPE_META, RISK_META } from '@/constants'
 import { PRODUCT_META } from '@/constants/templates'
 import type { Platform, Project, ProjectStatus, ProjectType, ProjectOwners } from '@/types'
@@ -349,6 +352,12 @@ export function ProjetoDetalhePage() {
             users={mentionUsers ?? []}
             onChange={handleUpdateCollaborators}
           />
+
+          <ProjectTrackingCard project={project} onProjectChange={setProject} />
+
+          <ProjectChargesCard project={project} onProjectChange={setProject} />
+
+          <ProjectGovernanceCard project={project} onProjectChange={setProject} />
 
           <ClientAccessCard
             projectId={project!.id}
