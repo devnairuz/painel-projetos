@@ -42,7 +42,7 @@ function syncTasksFromChecklist(project) {
       title: item.label,
       status: checklistTaskStatus(phase, item),
       source: "checklist",
-      ownerId: phase.ownerId,
+      ownerId: item.ownerId || phase.ownerId,
       dueDate: phase.dueDate,
       clientResponsibility: !!item.clientResponsibility,
       createdAt,
@@ -301,7 +301,7 @@ async function addChecklistItem(id, phaseId, label) {
   return mutateProject(id, (p) => {
     const ph = p.phases.find((x) => x.id === phaseId);
     if (!ph) return;
-    ph.checklist.push({ id: uid("chk"), label: clean, done: false, clientResponsibility: false, comments: [] });
+    ph.checklist.push({ id: uid("chk"), label: clean, done: false, ownerId: undefined, clientResponsibility: false, comments: [] });
     syncPhaseStatus(ph);
     recompute(p);
   });
@@ -314,6 +314,7 @@ async function updateChecklistItem(id, phaseId, itemId, patch = {}) {
     const item = ph && ph.checklist.find((c) => c.id === itemId);
     if (!item) return;
     if (typeof patch.label === "string" && patch.label.trim()) item.label = patch.label.trim();
+    if (patch.ownerId !== undefined) item.ownerId = patch.ownerId || undefined;
     if (typeof patch.clientResponsibility === "boolean") item.clientResponsibility = patch.clientResponsibility;
     p.updatedAt = new Date().toISOString();
   });
@@ -473,14 +474,17 @@ async function updateTask(id, taskId, patch = {}) {
     task.updatedAt = nowIso();
     task.completedAt = task.status === "concluida" ? (task.completedAt || nowIso()) : undefined;
 
-    if (task.source === "checklist" && task.phaseId && task.checklistItemId && patch.status) {
+    if (task.source === "checklist" && task.phaseId && task.checklistItemId) {
       const phase = p.phases.find((ph) => ph.id === task.phaseId);
       const item = phase && phase.checklist.find((check) => check.id === task.checklistItemId);
       if (phase && item) {
-        item.done = task.status === "concluida";
-        item.doneAt = item.done ? (item.doneAt || nowIso()) : undefined;
-        syncPhaseStatus(phase);
-        recompute(p);
+        if (patch.ownerId !== undefined) item.ownerId = patch.ownerId || undefined;
+        if (patch.status) {
+          item.done = task.status === "concluida";
+          item.doneAt = item.done ? (item.doneAt || nowIso()) : undefined;
+          syncPhaseStatus(phase);
+          recompute(p);
+        }
       }
     }
     p.updatedAt = nowIso();

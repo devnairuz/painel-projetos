@@ -110,6 +110,8 @@ export interface ChecklistItem {
   label: string
   done: boolean
   doneAt?: string
+  /** Responsável interno direto pela subtarefa. Se vazio, herda a etapa. */
+  ownerId?: string
   /** Marca a subtarefa como responsabilidade do cliente (aparece no portal dele). */
   clientResponsibility?: boolean
   /** Thread de comentários da subtarefa. */

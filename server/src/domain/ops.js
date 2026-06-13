@@ -81,7 +81,7 @@ function phasesFromTemplate(projectId, product) {
     order: idx + 1,
     name: t.name,
     status: "nao_iniciada",
-    checklist: t.checklist.map((label) => ({ id: uid("chk"), label, done: false })),
+    checklist: t.checklist.map((label) => ({ id: uid("chk"), label, done: false, ownerId: undefined })),
     clientApproved: false,
     clientVisible: true,
     requiresApproval: false,

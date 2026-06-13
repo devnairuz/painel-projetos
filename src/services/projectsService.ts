@@ -207,6 +207,7 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
           id: uid('chk'),
           label,
           done: false,
+          ownerId: undefined,
         })),
         clientApproved: false,
         clientVisible: true,
@@ -414,7 +415,12 @@ export async function addChecklistItem(id: string, phaseId: string, label: strin
     () => api.post<Project>(`${p(id)}/phases/${phaseId}/items`, { label }),
     () =>
       updateLocalProject(id, (project) => {
-        findLocalPhase(project, phaseId).checklist.push({ id: uid('chk'), label, done: false })
+        findLocalPhase(project, phaseId).checklist.push({
+          id: uid('chk'),
+          label,
+          done: false,
+          ownerId: undefined,
+        })
         return project
       }),
   )
@@ -449,6 +455,23 @@ export async function setChecklistResponsibility(
       updateLocalProject(id, (project) => {
         findLocalChecklistItem(findLocalPhase(project, phaseId), itemId).clientResponsibility =
           clientResponsibility
+        return project
+      }),
+  )
+}
+
+/** Define o responsável interno direto por uma subtarefa. */
+export async function setChecklistOwner(
+  id: string,
+  phaseId: string,
+  itemId: string,
+  ownerId: string,
+): Promise<Project> {
+  return mutate(
+    () => api.patch<Project>(`${p(id)}/phases/${phaseId}/items/${itemId}`, { ownerId }).then(normalizeProjectCollections),
+    () =>
+      updateLocalProject(id, (project) => {
+        findLocalChecklistItem(findLocalPhase(project, phaseId), itemId).ownerId = ownerId || undefined
         return project
       }),
   )
@@ -610,7 +633,11 @@ export async function updateProjectTask(
     () =>
       updateLocalProject(id, (project) => {
         const task = (project.tasks ?? []).find((item) => item.id === taskId)
-        if (task) Object.assign(task, patch, { updatedAt: new Date().toISOString() })
+        if (task) {
+          Object.assign(task, patch, { updatedAt: new Date().toISOString() })
+          if (patch.ownerId !== undefined) task.ownerId = patch.ownerId || undefined
+          if (patch.dueDate !== undefined) task.dueDate = patch.dueDate || undefined
+        }
         return project
       }),
   )

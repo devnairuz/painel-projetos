@@ -22,6 +22,7 @@ import { CollaboratorsCard } from '@/components/projects/CollaboratorsCard'
 import { FinalizationConfigCard } from '@/components/projects/FinalizationConfigCard'
 import { ProjectChargesCard } from '@/components/projects/ProjectChargesCard'
 import { ProjectGovernanceCard } from '@/components/projects/ProjectGovernanceCard'
+import { ProjectTasksCard } from '@/components/projects/ProjectTasksCard'
 import { ProjectTrackingCard } from '@/components/projects/ProjectTrackingCard'
 import { PLATFORM_META, STATUS_META, TYPE_META, RISK_META } from '@/constants'
 import { PRODUCT_META } from '@/constants/templates'
@@ -37,6 +38,7 @@ import {
   renameChecklistItem,
   renamePhase,
   setChecklistResponsibility,
+  setChecklistOwner,
   toggleChecklistItem,
   updateCollaborators,
   updatePhaseSettings,
@@ -163,6 +165,10 @@ export function ProjetoDetalhePage() {
 
   async function handleToggleResponsibility(phaseId: string, itemId: string, value: boolean) {
     setProject(await setChecklistResponsibility(project!.id, phaseId, itemId, value))
+  }
+
+  async function handleUpdateItemOwner(phaseId: string, itemId: string, ownerId: string) {
+    setProject(await setChecklistOwner(project!.id, phaseId, itemId, ownerId))
   }
 
   async function handleAddComment(
@@ -333,6 +339,7 @@ export function ProjetoDetalhePage() {
                       onToggleItem={handleToggle}
                       onApprove={handleApprove}
                       onToggleResponsibility={handleToggleResponsibility}
+                      onUpdateItemOwner={handleUpdateItemOwner}
                       onAddComment={handleAddComment}
                       onUpdateDates={handleUpdateDates}
                       users={mentionUsers ?? []}
@@ -351,6 +358,12 @@ export function ProjetoDetalhePage() {
             collaborators={project.collaborators ?? []}
             users={mentionUsers ?? []}
             onChange={handleUpdateCollaborators}
+          />
+
+          <ProjectTasksCard
+            project={project}
+            users={mentionUsers ?? []}
+            onProjectChange={setProject}
           />
 
           <ProjectTrackingCard project={project} onProjectChange={setProject} />

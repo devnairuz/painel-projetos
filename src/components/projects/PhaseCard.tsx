@@ -27,6 +27,7 @@ interface PhaseCardProps {
   onToggleItem: (phaseId: string, itemId: string) => void
   onApprove: (phaseId: string) => void
   onToggleResponsibility: (phaseId: string, itemId: string, value: boolean) => void
+  onUpdateItemOwner: (phaseId: string, itemId: string, ownerId: string) => void
   onAddComment: (phaseId: string, itemId: string, body: string, mentionedUserIds: string[]) => void
   onUpdateDates: (phaseId: string, patch: { startDate?: string; dueDate?: string; finishedDate?: string }) => void
   users?: MentionableUser[]
@@ -40,6 +41,7 @@ export function PhaseCard({
   onToggleItem,
   onApprove,
   onToggleResponsibility,
+  onUpdateItemOwner,
   onAddComment,
   onUpdateDates,
   users = [],
@@ -122,6 +124,7 @@ export function PhaseCard({
                 users={users}
                 onToggle={onToggleItem}
                 onToggleResponsibility={onToggleResponsibility}
+                onUpdateItemOwner={onUpdateItemOwner}
                 onAddComment={onAddComment}
               />
             ))}
@@ -155,6 +158,7 @@ function ChecklistItemRow({
   users,
   onToggle,
   onToggleResponsibility,
+  onUpdateItemOwner,
   onAddComment,
 }: {
   phaseId: string
@@ -162,6 +166,7 @@ function ChecklistItemRow({
   users: MentionableUser[]
   onToggle: (phaseId: string, itemId: string) => void
   onToggleResponsibility: (phaseId: string, itemId: string, value: boolean) => void
+  onUpdateItemOwner: (phaseId: string, itemId: string, ownerId: string) => void
   onAddComment: (phaseId: string, itemId: string, body: string, mentionedUserIds: string[]) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -185,6 +190,20 @@ function ChecklistItemRow({
         <span className={cn('flex-1 text-sm', item.done ? 'text-slate-400 line-through' : 'text-slate-700')}>
           {item.label}
         </span>
+
+        <select
+          value={item.ownerId ?? ''}
+          onChange={(e) => onUpdateItemOwner(phaseId, item.id, e.target.value)}
+          title="Responsável pela subtarefa"
+          className="h-7 w-36 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-600 focus:border-brand-400 focus:outline-none"
+        >
+          <option value="">Responsável</option>
+          {users.map((user) => (
+            <option key={user.id} value={user.id}>
+              {user.name}
+            </option>
+          ))}
+        </select>
 
         {/* Responsabilidade do cliente (toggle por ícone, com tooltip) */}
         <button

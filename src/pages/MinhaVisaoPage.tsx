@@ -26,22 +26,28 @@ export function MinhaVisaoPage() {
   const { data: projects, loading } = useProjects()
   const { team } = useLookups()
   const myTeamMember = team?.find((member) => member.name.toLowerCase() === user?.name.toLowerCase())
+  const myOwnerIds = new Set(
+    [user?.id, myTeamMember?.id].filter((id): id is string => Boolean(id)),
+  )
+  const isMine = (ownerId?: string) => !!ownerId && myOwnerIds.has(ownerId)
   const list = projects ?? []
   const myProjects = list.filter((project) =>
-    (project.collaborators ?? []).includes(user?.id ?? '') ||
-    project.owners.csId === myTeamMember?.id ||
-    project.owners.techLeadId === myTeamMember?.id ||
-    project.owners.designerId === myTeamMember?.id ||
-    project.phases.some((phase) => phase.ownerId === myTeamMember?.id),
+    (project.collaborators ?? []).some((id) => myOwnerIds.has(id)) ||
+    isMine(project.owners.csId) ||
+    isMine(project.owners.techLeadId) ||
+    isMine(project.owners.designerId) ||
+    project.phases.some((phase) => isMine(phase.ownerId) || phase.checklist.some((item) => isMine(item.ownerId))) ||
+    (project.tasks ?? []).some((task) => isMine(task.ownerId)) ||
+    (project.charges ?? []).some((charge) => isMine(charge.ownerId)),
   )
   const myTasks: TaskRow[] = list.flatMap((project) =>
     (project.tasks ?? [])
-      .filter((task) => task.status !== 'concluida' && task.ownerId && task.ownerId === myTeamMember?.id)
+      .filter((task) => task.status !== 'concluida' && isMine(task.ownerId))
       .map((task) => ({ project, task })),
   )
   const myCharges: ChargeRow[] = list.flatMap((project) =>
     (project.charges ?? [])
-      .filter((charge) => charge.status !== 'resolvida' && charge.status !== 'cancelada' && charge.ownerId === user?.id)
+      .filter((charge) => charge.status !== 'resolvida' && charge.status !== 'cancelada' && isMine(charge.ownerId))
       .map((charge) => ({ project, charge })),
   )
 
@@ -70,7 +76,7 @@ export function MinhaVisaoPage() {
             <Card className="overflow-hidden">
               <div className="border-b border-slate-100 p-5">
                 <h2 className="text-lg font-semibold text-slate-900">Tarefas atribuídas</h2>
-                <p className="mt-0.5 text-sm text-slate-500">Itens de checklist normalizados por responsável.</p>
+                <p className="mt-0.5 text-sm text-slate-500">Checklists e tarefas gerais ligados ao seu usuário.</p>
               </div>
               {myTasks.length === 0 ? (
                 <p className="px-5 py-8 text-center text-sm text-slate-400">Nenhuma tarefa direta para você.</p>

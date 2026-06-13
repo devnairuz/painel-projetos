@@ -96,7 +96,7 @@ export function normalizedTasks(project: Project): ProjectTask[] {
       title: item.label,
       status: checklistTaskStatus(phase, item.done),
       source: 'checklist' as const,
-      ownerId: phase.ownerId,
+      ownerId: item.ownerId || phase.ownerId,
       dueDate: phase.dueDate,
       clientResponsibility: !!item.clientResponsibility,
       createdAt,
