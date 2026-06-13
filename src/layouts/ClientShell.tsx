@@ -1,12 +1,13 @@
 import { useMemo } from 'react'
 import { Navigate, Outlet, Link } from 'react-router-dom'
-import { LogOut, Star } from 'lucide-react'
+import { Bell, LogOut, Star } from 'lucide-react'
 import { useClientAuth } from '@/hooks/useClientAuth'
 import { useClientProjects } from '@/hooks/useProjects'
 import { useLookups } from '@/hooks/useLookups'
 import { ToastProvider } from '@/components/ui/Toast'
 import { Avatar } from '@/components/ui/Avatar'
 import { Logo } from '@/components/layout/Logo'
+import { buildClientGameState } from '@/utils/gamification'
 
 /**
  * Casca do portal do cliente: barra superior com a marca Nairuz, sem o menu
@@ -17,20 +18,13 @@ export function ClientShell() {
   const { getOrg } = useLookups()
   const { data: clientProjects } = useClientProjects()
 
-  // Carteira de pontos: soma dos pontos das etapas concluídas e visíveis em
-  // todos os projetos do cliente (gamificação — troca por horas depois).
-  const totalPoints = useMemo(
-    () =>
-      (clientProjects ?? []).reduce(
-        (sum, p) =>
-          sum +
-          p.phases
-            .filter((ph) => ph.clientVisible !== false && ph.status === 'concluida')
-            .reduce((s, ph) => s + (ph.points ?? 0), 0),
-        0,
-      ),
-    [clientProjects],
-  )
+  const gameWallet = useMemo(() => {
+    const states = (clientProjects ?? []).map(buildClientGameState)
+    return {
+      xp: states.reduce((sum, state) => sum + state.xp, 0),
+      actions: states.reduce((sum, state) => sum + state.pendingApprovals + state.pendingClientTasks, 0),
+    }
+  }, [clientProjects])
 
   if (!user) {
     return <Navigate to="/cliente/login" replace />
@@ -48,15 +42,24 @@ export function ClientShell() {
               <Logo tone="dark" />
             </Link>
             <div className="flex items-center gap-4">
-              {/* Carteira de pontos (gamificação) */}
+              {/* Carteira de XP do cliente */}
               <div
                 className="flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5"
-                title="Pontos acumulados — troque por horas de acompanhamento"
+                title="XP acumulado pela participação nos projetos"
               >
                 <Star className="size-4 text-amber-500" />
-                <span className="text-sm font-bold text-amber-700">{totalPoints}</span>
-                <span className="hidden text-xs font-medium text-amber-600 sm:inline">pontos</span>
+                <span className="text-sm font-bold text-amber-700">{gameWallet.xp}</span>
+                <span className="hidden text-xs font-medium text-amber-600 sm:inline">XP</span>
               </div>
+              {gameWallet.actions > 0 && (
+                <div
+                  className="flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-brand-700"
+                  title="Ações que destravam avanço"
+                >
+                  <Bell className="size-4" />
+                  <span className="text-sm font-bold">{gameWallet.actions}</span>
+                </div>
+              )}
               <div className="text-right">
                 <div className="text-sm font-semibold text-slate-800">{user.name}</div>
                 <div className="text-xs text-slate-400">{org?.name ?? 'Cliente'}</div>

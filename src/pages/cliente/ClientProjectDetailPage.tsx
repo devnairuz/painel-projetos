@@ -23,7 +23,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { NpsGate } from '@/components/cliente/NpsGate'
 import { FinalizationUpsell } from '@/components/cliente/FinalizationUpsell'
 import { HoursBreakdown } from '@/components/cliente/HoursBreakdown'
-import { RewardsPanel } from '@/components/cliente/RewardsPanel'
+import { ClientGameHub } from '@/components/cliente/ClientGameHub'
 import { CommentThread } from '@/components/ui/CommentThread'
 import { PLATFORM_META, STATUS_META } from '@/constants'
 import type { Phase } from '@/types'
@@ -126,8 +126,7 @@ export function ClientProjectDetailPage() {
         <ArrowLeft className="size-4" /> Seus projetos
       </Link>
 
-      {/* Carteira de horas (pontos → horas), só no projeto encerrado */}
-      <RewardsPanel points={earnedPoints} />
+      <ClientGameHub project={project} />
 
       {isClosed && (
         <div className="mb-5">

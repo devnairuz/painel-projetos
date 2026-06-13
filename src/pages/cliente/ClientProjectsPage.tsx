@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { FolderKanban, ChevronRight, Star, PartyPopper } from 'lucide-react'
+import { FolderKanban, ChevronRight, Star, PartyPopper, Trophy, Flame, Clock3 } from 'lucide-react'
 import { useClientProjects } from '@/hooks/useProjects'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PLATFORM_META, STATUS_META } from '@/constants'
 import { currentPhase } from '@/utils/projects'
+import { buildClientGameState } from '@/utils/gamification'
 import { formatDate } from '@/utils/dates'
 
 /** Lista os projetos da organização do cliente (sem dados internos). */
@@ -39,6 +40,7 @@ export function ClientProjectsPage() {
         <div className="space-y-4">
           {projects.map((p) => {
             const phase = currentPhase(p.phases)
+            const game = buildClientGameState(p)
             return (
               <Link key={p.id} to={`/cliente/projeto/${p.id}`}>
                 <Card className="p-5 transition-shadow hover:shadow-md">
@@ -67,6 +69,12 @@ export function ClientProjectsPage() {
                     Previsão de go live: <span className="font-medium text-slate-700">{formatDate(p.goLiveDate)}</span>
                   </div>
 
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    <GamePill icon={Trophy} label={game.currentLevel.name} />
+                    <GamePill icon={Flame} label={`${game.streak} sequência`} />
+                    <GamePill icon={Clock3} label={`${game.pendingApprovals + game.pendingClientTasks} ações`} />
+                  </div>
+
                   {/* Finalização: chama o cliente para ação */}
                   {p.status === 'encerrado' && !p.nps && (
                     <div className="mt-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
@@ -87,5 +95,14 @@ export function ClientProjectsPage() {
         </div>
       )}
     </>
+  )
+}
+
+function GamePill({ icon: Icon, label }: { icon: typeof Trophy; label: string }) {
+  return (
+    <div className="flex min-w-0 items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-2 text-xs font-semibold text-slate-600">
+      <Icon className="size-3.5 shrink-0 text-brand-600" />
+      <span className="truncate">{label}</span>
+    </div>
   )
 }

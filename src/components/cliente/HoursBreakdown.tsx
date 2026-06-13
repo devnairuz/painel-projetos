@@ -3,9 +3,7 @@ import { Clock, Star, Award, Lock, Check } from 'lucide-react'
 import type { Project } from '@/types'
 import { Card } from '@/components/ui/Card'
 import { cn } from '@/utils/cn'
-
-/** Conversão de pontos em horas. Por enquanto fixo; depois vira configurável. */
-export const POINTS_PER_HOUR = 100
+import { POINTS_PER_HOUR } from '@/utils/gamification'
 
 interface HoursBreakdownProps {
   project: Project

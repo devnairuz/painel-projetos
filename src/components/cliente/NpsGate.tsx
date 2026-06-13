@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Star } from 'lucide-react'
+import { Gift, Star } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
@@ -41,6 +41,11 @@ export function NpsGate({ projectId, hoursAfter, onAnswered }: NpsGateProps) {
         De 0 a 10, o quanto você recomendaria a Nairuz para um colega? Responder libera a finalização
         e amplia seu suporte para <strong>{hoursAfter}h</strong>.
       </p>
+
+      <div className="mt-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        <Gift className="size-4 shrink-0" />
+        Bônus de avaliação: +70 XP e liberação das horas extras de acompanhamento.
+      </div>
 
       {/* Escala 0–10 */}
       <div className="mt-4 flex flex-wrap gap-1.5">
