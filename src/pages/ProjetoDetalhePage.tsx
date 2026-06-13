@@ -4,6 +4,7 @@ import { ArrowLeft, FolderKanban, Flag, Pencil, Check, Trash2, CalendarRange } f
 import { useProject } from '@/hooks/useProjects'
 import { useLookups } from '@/hooks/useLookups'
 import { useCompanyAuth } from '@/hooks/useCompanyAuth'
+import { useMentionableUsers } from '@/hooks/useMentionableUsers'
 import { useToast } from '@/components/ui/Toast'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -17,6 +18,7 @@ import { PhaseManager } from '@/components/projects/PhaseManager'
 import { GanttModal } from '@/components/projects/GanttModal'
 import { ClientAccessCard } from '@/components/projects/ClientAccessCard'
 import { OwnersCard } from '@/components/projects/OwnersCard'
+import { CollaboratorsCard } from '@/components/projects/CollaboratorsCard'
 import { FinalizationConfigCard } from '@/components/projects/FinalizationConfigCard'
 import { PLATFORM_META, STATUS_META, TYPE_META, RISK_META } from '@/constants'
 import { PRODUCT_META } from '@/constants/templates'
@@ -33,6 +35,7 @@ import {
   renamePhase,
   setChecklistResponsibility,
   toggleChecklistItem,
+  updateCollaborators,
   updatePhaseSettings,
   updateProjectOwners,
   updateProjectStatus,
@@ -49,6 +52,7 @@ export function ProjetoDetalhePage() {
   const { data: fetched, loading, reload } = useProject(id)
   const { getMember, team } = useLookups()
   const { user: companyUser } = useCompanyAuth()
+  const { data: mentionUsers } = useMentionableUsers()
   const { notify } = useToast()
   // Cópia local: aplica updates na hora (otimista) e reconcilia com o servidor.
   const [project, setProject] = useState<Project | undefined>(undefined)
@@ -158,14 +162,24 @@ export function ProjetoDetalhePage() {
     setProject(await setChecklistResponsibility(project!.id, phaseId, itemId, value))
   }
 
-  async function handleAddComment(phaseId: string, itemId: string, body: string) {
+  async function handleAddComment(
+    phaseId: string,
+    itemId: string,
+    body: string,
+    mentionedUserIds: string[],
+  ) {
     setProject(
       await addChecklistComment(project!.id, phaseId, itemId, {
         authorType: 'nairuz',
         authorName: companyUser?.name ?? 'Equipe Nairuz',
         body,
+        mentionedUserIds,
       }),
     )
+  }
+
+  async function handleUpdateCollaborators(userIds: string[]) {
+    setProject(await updateCollaborators(project!.id, userIds))
   }
 
   async function handleUpdateDates(
@@ -318,6 +332,7 @@ export function ProjetoDetalhePage() {
                       onToggleResponsibility={handleToggleResponsibility}
                       onAddComment={handleAddComment}
                       onUpdateDates={handleUpdateDates}
+                      users={mentionUsers ?? []}
                     />
                   ))}
               </div>
@@ -328,6 +343,12 @@ export function ProjetoDetalhePage() {
         {/* Responsáveis */}
         <div className="space-y-5">
           <OwnersCard owners={project.owners} getMember={getMember} onChange={handleUpdateOwners} />
+
+          <CollaboratorsCard
+            collaborators={project.collaborators ?? []}
+            users={mentionUsers ?? []}
+            onChange={handleUpdateCollaborators}
+          />
 
           <ClientAccessCard
             projectId={project!.id}

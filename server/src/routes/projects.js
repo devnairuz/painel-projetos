@@ -37,6 +37,11 @@ router.patch("/:id/owners", h(async (req, res) => {
   return p ? res.json(p) : notFound(res);
 }));
 
+router.patch("/:id/collaborators", h(async (req, res) => {
+  const p = await svc.updateCollaborators(req.params.id, req.body.collaborators || req.body.userIds);
+  return p ? res.json(p) : notFound(res);
+}));
+
 router.post("/:id/phases", h(async (req, res) => {
   const p = await svc.addPhase(req.params.id, req.body.name);
   return p ? res.json(p) : notFound(res);

@@ -93,6 +93,8 @@ export interface ChecklistComment {
   authorType: 'nairuz' | 'cliente'
   authorName: string
   body: string
+  /** IDs de usuários mencionados (@) neste comentário. */
+  mentionedUserIds?: string[]
   createdAt: string
 }
 
@@ -184,6 +186,8 @@ export interface Project {
    * esta lista; o portal do cliente só mostra projetos cujo e-mail consta aqui.
    */
   clientEmails: string[]
+  /** IDs de usuários que recebem notificações deste projeto. */
+  collaborators?: string[]
   /** Produto/serviço — define o template de etapas usado na criação. */
   product?: Product
   /** Histórico estrutural visível ao cliente. */

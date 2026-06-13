@@ -24,6 +24,8 @@ const projectSchema = new mongoose.Schema(
     owners: mongoose.Schema.Types.Mixed,
     phases: mongoose.Schema.Types.Mixed,
     clientEmails: { type: [String], default: [], index: true },
+    // IDs de usuários da empresa que recebem notificações deste projeto.
+    collaborators: { type: [String], default: [] },
     history: mongoose.Schema.Types.Mixed,
     nps: mongoose.Schema.Types.Mixed,
     supportHours: mongoose.Schema.Types.Mixed,

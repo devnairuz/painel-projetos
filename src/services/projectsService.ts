@@ -327,6 +327,14 @@ export async function updateProjectOwners(
   )
 }
 
+/** Define os colaboradores (usuários que recebem notificações do projeto). */
+export async function updateCollaborators(id: string, userIds: string[]): Promise<Project> {
+  return mutate(
+    () => api.patch<Project>(`${p(id)}/collaborators`, { collaborators: userIds }),
+    () => updateLocalProject(id, (project) => ({ ...project, collaborators: userIds })),
+  )
+}
+
 export async function removePhase(id: string, phaseId: string): Promise<Project> {
   return mutate(
     () => api.del<Project>(`${p(id)}/phases/${phaseId}`),
@@ -421,7 +429,12 @@ export async function addChecklistComment(
   id: string,
   phaseId: string,
   itemId: string,
-  input: { authorType: 'nairuz' | 'cliente'; authorName: string; body: string },
+  input: {
+    authorType: 'nairuz' | 'cliente'
+    authorName: string
+    body: string
+    mentionedUserIds?: string[]
+  },
 ): Promise<Project> {
   return mutate(
     () => api.post<Project>(`${p(id)}/phases/${phaseId}/items/${itemId}/comments`, input),
@@ -434,6 +447,7 @@ export async function addChecklistComment(
           authorType: input.authorType,
           authorName: input.authorName || (input.authorType === 'cliente' ? 'Cliente' : 'Nairuz'),
           body: input.body,
+          mentionedUserIds: input.mentionedUserIds ?? [],
           createdAt: new Date().toISOString(),
         })
         return project

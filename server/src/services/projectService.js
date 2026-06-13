@@ -70,6 +70,7 @@ async function createProject(input) {
     owners: input.owners || {},
     phases,
     clientEmails: [],
+    collaborators: [],
     history: [makeHistory("projeto_criado", "Projeto criado")],
     nps: null,
     supportHours: { ...DEFAULT_SUPPORT_HOURS },
@@ -153,6 +154,15 @@ async function updateProjectOwners(id, owners = {}) {
   });
 }
 
+/** Define os colaboradores (usuários que recebem notificações do projeto). */
+async function updateCollaborators(id, userIds = []) {
+  const clean = [...new Set((userIds || []).map((x) => String(x)).filter(Boolean))];
+  return mutateProject(id, (p) => {
+    p.collaborators = clean;
+    p.updatedAt = new Date().toISOString();
+  });
+}
+
 async function removePhase(id, phaseId) {
   return mutateProject(id, (p) => {
     const ph = p.phases.find((x) => x.id === phaseId);
@@ -203,9 +213,10 @@ async function updateChecklistItem(id, phaseId, itemId, patch = {}) {
 }
 
 /** Adiciona um comentário a uma subtarefa (Nairuz ou cliente). */
-async function addChecklistComment(id, phaseId, itemId, { authorType, authorName, body } = {}) {
+async function addChecklistComment(id, phaseId, itemId, { authorType, authorName, body, mentionedUserIds } = {}) {
   const text = String(body || "").trim();
   if (!text) return getProject(id);
+  const mentions = Array.isArray(mentionedUserIds) ? mentionedUserIds.filter(Boolean) : [];
   const project = await mutateProject(id, (p) => {
     const ph = p.phases.find((x) => x.id === phaseId);
     const item = ph && ph.checklist.find((c) => c.id === itemId);
@@ -216,20 +227,34 @@ async function addChecklistComment(id, phaseId, itemId, { authorType, authorName
       authorType: authorType === "cliente" ? "cliente" : "nairuz",
       authorName: String(authorName || "").trim() || (authorType === "cliente" ? "Cliente" : "Nairuz"),
       body: text,
+      mentionedUserIds: mentions,
       createdAt: new Date().toISOString()
     });
     p.updatedAt = new Date().toISOString();
   });
-  // Avisa o time quando o comentário é do cliente.
-  if (project && authorType === "cliente") {
+  if (project) {
     const ph = project.phases.find((x) => x.id === phaseId);
     const item = ph && ph.checklist.find((c) => c.id === itemId);
-    await notificationService.createForAllCompany({
-      type: "comentario",
-      title: `Comentário do cliente — ${project.clientName}`,
-      body: `${item ? item.label + ": " : ""}${text}`,
-      link: `/projetos/${project.id}`
-    });
+    const label = item ? item.label + ": " : "";
+    const who = String(authorName || "").trim() || (authorType === "cliente" ? "Cliente" : "Nairuz");
+    // Comentário do cliente avisa os colaboradores do projeto.
+    if (authorType === "cliente") {
+      await notificationService.notifyProject(project, {
+        type: "comentario",
+        title: `Comentário do cliente — ${project.clientName}`,
+        body: `${label}${text}`,
+        link: `/projetos/${project.id}`
+      });
+    }
+    // Menções avisam diretamente os usuários citados.
+    if (mentions.length > 0) {
+      await notificationService.createForUsers(mentions, {
+        type: "mencao",
+        title: `${who} mencionou você — ${project.clientName}`,
+        body: `${label}${text}`,
+        link: `/projetos/${project.id}`
+      });
+    }
   }
   return project;
 }
@@ -286,7 +311,7 @@ async function answerNps(id, score, comment) {
     p.updatedAt = new Date().toISOString();
   });
   if (project && project.nps) {
-    await notificationService.createForAllCompany({
+    await notificationService.notifyProject(project, {
       type: "nps",
       title: `NPS recebido — ${project.clientName}`,
       body: `Nota ${project.nps.score}${project.nps.comment ? ` · "${project.nps.comment}"` : ""}`,
@@ -323,6 +348,7 @@ module.exports = {
   addPhase,
   updatePhase,
   updateProjectOwners,
+  updateCollaborators,
   removePhase,
   toggleChecklistItem,
   addChecklistItem,

@@ -10,6 +10,7 @@ import {
   User,
 } from 'lucide-react'
 import type { ChecklistItem, Phase, TeamMember } from '@/types'
+import type { MentionableUser } from '@/services/usersService'
 import { PHASE_STATUS_META } from '@/constants'
 import { Badge } from '@/components/ui/Badge'
 import { Avatar } from '@/components/ui/Avatar'
@@ -26,8 +27,9 @@ interface PhaseCardProps {
   onToggleItem: (phaseId: string, itemId: string) => void
   onApprove: (phaseId: string) => void
   onToggleResponsibility: (phaseId: string, itemId: string, value: boolean) => void
-  onAddComment: (phaseId: string, itemId: string, body: string) => void
+  onAddComment: (phaseId: string, itemId: string, body: string, mentionedUserIds: string[]) => void
   onUpdateDates: (phaseId: string, patch: { startDate?: string; dueDate?: string; finishedDate?: string }) => void
+  users?: MentionableUser[]
 }
 
 /** Card de fase com checklist, comentários por subtarefa, datas e aprovação. */
@@ -40,6 +42,7 @@ export function PhaseCard({
   onToggleResponsibility,
   onAddComment,
   onUpdateDates,
+  users = [],
 }: PhaseCardProps) {
   const [open, setOpen] = useState(defaultOpen)
   const { done, total } = phaseProgress(phase)
@@ -116,6 +119,7 @@ export function PhaseCard({
                 key={item.id}
                 phaseId={phase.id}
                 item={item}
+                users={users}
                 onToggle={onToggleItem}
                 onToggleResponsibility={onToggleResponsibility}
                 onAddComment={onAddComment}
@@ -148,15 +152,17 @@ export function PhaseCard({
 function ChecklistItemRow({
   phaseId,
   item,
+  users,
   onToggle,
   onToggleResponsibility,
   onAddComment,
 }: {
   phaseId: string
   item: ChecklistItem
+  users: MentionableUser[]
   onToggle: (phaseId: string, itemId: string) => void
   onToggleResponsibility: (phaseId: string, itemId: string, value: boolean) => void
-  onAddComment: (phaseId: string, itemId: string, body: string) => void
+  onAddComment: (phaseId: string, itemId: string, body: string, mentionedUserIds: string[]) => void
 }) {
   const [open, setOpen] = useState(false)
   const count = item.comments?.length ?? 0
@@ -217,9 +223,9 @@ function ChecklistItemRow({
         <div className="mb-1 ml-8 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
           <CommentThread
             comments={item.comments ?? []}
-            onAdd={(body) => onAddComment(phaseId, item.id, body)}
+            users={users}
+            onAdd={(body, mentions) => onAddComment(phaseId, item.id, body, mentions)}
             side="nairuz"
-            placeholder="Comentar como Nairuz…"
           />
         </div>
       )}
