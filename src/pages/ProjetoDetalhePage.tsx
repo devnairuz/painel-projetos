@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, FolderKanban, Flag, Pencil, Check, Trash2, CalendarRange } from 'lucide-react'
 import { useProject } from '@/hooks/useProjects'
 import { useLookups } from '@/hooks/useLookups'
+import { useCompanyAuth } from '@/hooks/useCompanyAuth'
 import { useToast } from '@/components/ui/Toast'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -47,6 +48,7 @@ export function ProjetoDetalhePage() {
   const navigate = useNavigate()
   const { data: fetched, loading, reload } = useProject(id)
   const { getMember, team } = useLookups()
+  const { user: companyUser } = useCompanyAuth()
   const { notify } = useToast()
   // Cópia local: aplica updates na hora (otimista) e reconcilia com o servidor.
   const [project, setProject] = useState<Project | undefined>(undefined)
@@ -160,7 +162,7 @@ export function ProjetoDetalhePage() {
     setProject(
       await addChecklistComment(project!.id, phaseId, itemId, {
         authorType: 'nairuz',
-        authorName: 'Equipe Nairuz',
+        authorName: companyUser?.name ?? 'Equipe Nairuz',
         body,
       }),
     )

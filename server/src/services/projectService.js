@@ -1,6 +1,7 @@
 // Regras de negócio dos projetos. Carrega via repo, aplica operação pura de
 // domínio, persiste. Igual para memória ou Mongo.
 const { getRepo } = require("../repos");
+const notificationService = require("./notificationService");
 const { TEAM } = require("../data/seed");
 const { DEFAULT_FINALIZATION, DEFAULT_SUPPORT_HOURS } = require("../domain/constants");
 const {
@@ -205,7 +206,7 @@ async function updateChecklistItem(id, phaseId, itemId, patch = {}) {
 async function addChecklistComment(id, phaseId, itemId, { authorType, authorName, body } = {}) {
   const text = String(body || "").trim();
   if (!text) return getProject(id);
-  return mutateProject(id, (p) => {
+  const project = await mutateProject(id, (p) => {
     const ph = p.phases.find((x) => x.id === phaseId);
     const item = ph && ph.checklist.find((c) => c.id === itemId);
     if (!item) return;
@@ -219,6 +220,18 @@ async function addChecklistComment(id, phaseId, itemId, { authorType, authorName
     });
     p.updatedAt = new Date().toISOString();
   });
+  // Avisa o time quando o comentário é do cliente.
+  if (project && authorType === "cliente") {
+    const ph = project.phases.find((x) => x.id === phaseId);
+    const item = ph && ph.checklist.find((c) => c.id === itemId);
+    await notificationService.createForAllCompany({
+      type: "comentario",
+      title: `Comentário do cliente — ${project.clientName}`,
+      body: `${item ? item.label + ": " : ""}${text}`,
+      link: `/projetos/${project.id}`
+    });
+  }
+  return project;
 }
 
 async function removeChecklistItem(id, phaseId, itemId) {
@@ -264,7 +277,7 @@ async function revokeClientAccess(id, email) {
 }
 
 async function answerNps(id, score, comment) {
-  return mutateProject(id, (p) => {
+  const project = await mutateProject(id, (p) => {
     p.nps = {
       score: Math.max(0, Math.min(10, Math.round(Number(score) || 0))),
       comment: (comment && String(comment).trim()) || undefined,
@@ -272,6 +285,15 @@ async function answerNps(id, score, comment) {
     };
     p.updatedAt = new Date().toISOString();
   });
+  if (project && project.nps) {
+    await notificationService.createForAllCompany({
+      type: "nps",
+      title: `NPS recebido — ${project.clientName}`,
+      body: `Nota ${project.nps.score}${project.nps.comment ? ` · "${project.nps.comment}"` : ""}`,
+      link: `/projetos/${project.id}`
+    });
+  }
+  return project;
 }
 
 async function updateFinalization(id, finalization) {

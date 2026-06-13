@@ -6,6 +6,7 @@ const { router: metaRouter } = require("./routes/meta");
 const { router: authRouter } = require("./routes/auth");
 const { router: companyAuthRouter } = require("./routes/companyAuth");
 const { router: usersRouter } = require("./routes/users");
+const { router: notificationsRouter } = require("./routes/notifications");
 const { requireAuth } = require("./middleware/requireAuth");
 
 function reqRepo() {
@@ -32,6 +33,7 @@ function createApp() {
 
   // ───── Visão da empresa (protegida por JWT) ─────
   app.use("/api/users", requireAuth, usersRouter);
+  app.use("/api/notifications", requireAuth, notificationsRouter);
   app.use("/api/projects", requireAuth, projectsRouter);
 
   app.use((_req, res) => res.status(404).json({ error: "not_found" }));

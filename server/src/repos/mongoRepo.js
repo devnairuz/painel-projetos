@@ -2,6 +2,7 @@
 const Project = require("../models/Project");
 const Organization = require("../models/Organization");
 const User = require("../models/User");
+const Notification = require("../models/Notification");
 const { seedProjects, ORGANIZATIONS } = require("../data/seed");
 const { config } = require("../config");
 
@@ -68,6 +69,23 @@ const mongoRepo = {
   },
   async countUsers() {
     return User.countDocuments();
+  },
+  // ───── notificações ─────
+  async insertNotifications(items) {
+    if (items.length) await Notification.insertMany(items);
+  },
+  async listNotifications(userId, limit = 30) {
+    const docs = await Notification.find({ userId }).sort({ createdAt: -1 }).limit(limit).lean();
+    return docs.map(toPlain);
+  },
+  async countUnread(userId) {
+    return Notification.countDocuments({ userId, read: false });
+  },
+  async markNotificationRead(id, userId) {
+    await Notification.updateOne({ id, userId }, { $set: { read: true } });
+  },
+  async markAllNotificationsRead(userId) {
+    await Notification.updateMany({ userId, read: false }, { $set: { read: true } });
   }
 };
 

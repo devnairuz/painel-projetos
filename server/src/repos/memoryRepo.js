@@ -4,6 +4,7 @@ const { seedProjects, ORGANIZATIONS } = require("../data/seed");
 let projects = [];
 let organizations = [];
 let users = [];
+let notifications = [];
 
 const clone = (v) => JSON.parse(JSON.stringify(v));
 
@@ -64,6 +65,29 @@ const memoryRepo = {
   },
   async countUsers() {
     return users.length;
+  },
+  // ───── notificações ─────
+  async insertNotifications(items) {
+    items.forEach((n) => notifications.push(clone(n)));
+  },
+  async listNotifications(userId, limit = 30) {
+    return notifications
+      .filter((n) => n.userId === userId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, limit)
+      .map(clone);
+  },
+  async countUnread(userId) {
+    return notifications.filter((n) => n.userId === userId && !n.read).length;
+  },
+  async markNotificationRead(id, userId) {
+    const n = notifications.find((x) => x.id === id && x.userId === userId);
+    if (n) n.read = true;
+  },
+  async markAllNotificationsRead(userId) {
+    notifications.forEach((n) => {
+      if (n.userId === userId) n.read = true;
+    });
   }
 };
 
