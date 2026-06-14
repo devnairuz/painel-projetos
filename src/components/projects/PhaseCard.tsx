@@ -187,6 +187,7 @@ function ChecklistItemRow({
   currentUser?: { id?: string; name?: string }
 }) {
   const [open, setOpen] = useState(false)
+  const [editingOwner, setEditingOwner] = useState(false)
   const count = item.comments?.length ?? 0
   const isClient = !!item.clientResponsibility
   const assignedUser = item.ownerId ? users.find((user) => user.id === item.ownerId) : undefined
@@ -209,29 +210,37 @@ function ChecklistItemRow({
           {item.label}
         </span>
 
-        {assignedUser && (
-          <span
-            title={`Responsável: ${assignedUser.name}`}
-            className="hidden max-w-32 shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 md:inline-flex"
+        {/* Responsável: chip quando atribuído (clique para trocar); senão, o seletor */}
+        {assignedUser && !editingOwner ? (
+          <button
+            type="button"
+            onClick={() => setEditingOwner(true)}
+            title={`Responsável: ${assignedUser.name} — clique para alterar`}
+            className="inline-flex max-w-40 shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
           >
-            <UserCheck className="size-3.5" />
+            <UserCheck className="size-3.5 shrink-0" />
             <span className="truncate">{assignedUser.name}</span>
-          </span>
+          </button>
+        ) : (
+          <select
+            value={item.ownerId ?? ''}
+            autoFocus={editingOwner}
+            onChange={(e) => {
+              onUpdateItemOwner(phaseId, item.id, e.target.value)
+              setEditingOwner(false)
+            }}
+            onBlur={() => setEditingOwner(false)}
+            title="Responsável pela subtarefa"
+            className="h-7 w-36 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-600 focus:border-brand-400 focus:outline-none"
+          >
+            <option value="">Responsável</option>
+            {users.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.name}
+              </option>
+            ))}
+          </select>
         )}
-
-        <select
-          value={item.ownerId ?? ''}
-          onChange={(e) => onUpdateItemOwner(phaseId, item.id, e.target.value)}
-          title="Responsável pela subtarefa"
-          className="h-7 w-36 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-600 focus:border-brand-400 focus:outline-none"
-        >
-          <option value="">Responsável</option>
-          {users.map((user) => (
-            <option key={user.id} value={user.id}>
-              {user.name}
-            </option>
-          ))}
-        </select>
 
         {/* Responsabilidade do cliente (toggle por ícone, com tooltip) */}
         <button
