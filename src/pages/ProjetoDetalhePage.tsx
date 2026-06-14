@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, FolderKanban, Flag, Pencil, Check, Trash2, CalendarRange, Settings, ChevronDown } from 'lucide-react'
+import { ArrowLeft, FolderKanban, Flag, Pencil, Check, Trash2, CalendarRange, Settings, ChevronDown, Sparkles } from 'lucide-react'
 import { useProject } from '@/hooks/useProjects'
 import { useLookups } from '@/hooks/useLookups'
 import { useCompanyAuth } from '@/hooks/useCompanyAuth'
@@ -44,6 +44,7 @@ import {
   type PhaseSettingsPatch,
 } from '@/services/projectsService'
 import { currentPhase, syncPhaseStatus, computeProgress } from '@/utils/projects'
+import { deriveProjectFlow } from '@/utils/flow'
 import { formatDate, relativeDeadlineLabel } from '@/utils/dates'
 import { cn } from '@/utils/cn'
 
@@ -93,6 +94,11 @@ export function ProjetoDetalhePage() {
   }
 
   const phaseNow = currentPhase(project.phases)
+  const flow = deriveProjectFlow(project)
+  const statusSuggested =
+    flow.shouldSuggestStatus && flow.suggestedStatus !== project.status
+      ? flow.suggestedStatus
+      : undefined
 
   /** Aplica o toggle localmente (preserva refs das fases não alteradas). */
   function toggleLocally(p: Project, phaseId: string, itemId: string): Project {
@@ -295,6 +301,17 @@ export function ProjetoDetalhePage() {
                 value={project.status}
                 onChange={(e) => handleStatusChange(e.target.value as ProjectStatus)}
               />
+              {statusSuggested && (
+                <button
+                  type="button"
+                  onClick={() => handleStatusChange(statusSuggested)}
+                  className="mt-1.5 inline-flex items-center gap-1 rounded-lg border border-brand-200 bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-100"
+                  title="Aplicar o status que o estado das etapas sugere"
+                >
+                  <Sparkles className="size-3" />
+                  Sugerido: {STATUS_META[statusSuggested].label} · aplicar
+                </button>
+              )}
             </div>
             <Metric icon={Flag} label="Go live" value={formatDate(project.goLiveDate)} hint={relativeDeadlineLabel(project.goLiveDate)} />
           </div>
@@ -309,13 +326,13 @@ export function ProjetoDetalhePage() {
           <ProgressBar value={project.progress} />
         </div>
 
-        {/* Próxima ação */}
-        {project.nextAction && (
+        {/* Próxima ação — derivada do estado real (fallback: texto manual) */}
+        {(flow.nextAction ?? project.nextAction) && (
           <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
             <div className="text-xs font-semibold tracking-wide text-amber-700 uppercase">
               Próxima ação
             </div>
-            <p className="mt-0.5 text-sm text-amber-900">{project.nextAction}</p>
+            <p className="mt-0.5 text-sm text-amber-900">{flow.nextAction ?? project.nextAction}</p>
           </div>
         )}
       </Card>
