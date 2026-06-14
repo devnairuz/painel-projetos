@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, FolderKanban, Flag, Pencil, Check, Trash2, CalendarRange, Settings, ChevronDown, Sparkles } from 'lucide-react'
 import { useProject } from '@/hooks/useProjects'
@@ -396,8 +396,11 @@ export function ProjetoDetalhePage() {
           </Card>
         </div>
 
-        {/* Responsáveis */}
+        {/* Coluna lateral: Operação (dia a dia) em cima, Configuração recolhida */}
         <div className="space-y-5">
+          {/* ── Operação ── */}
+          <RailLabel>Operação</RailLabel>
+
           <OwnersCard owners={project.owners} getMember={getMember} onChange={handleUpdateOwners} />
 
           <CollaboratorsCard
@@ -408,23 +411,56 @@ export function ProjetoDetalhePage() {
 
           <ProjectTrackingCard project={project} onProjectChange={setProject} />
 
-          <ClientAccessCard
-            projectId={project!.id}
-            emails={project.clientEmails}
-            onChanged={reload}
-          />
-
-          <FinalizationConfigCard project={project} onChanged={reload} />
-
           <Card className="p-5">
             <h2 className="mb-1 text-lg font-semibold text-slate-900">Última atualização</h2>
             <p className="text-sm text-slate-500">{formatDate(project.updatedAt)}</p>
           </Card>
 
-          <ProjectSettingsCard project={project} onDelete={handleDelete} />
+          {/* ── Configuração (setup — raramente mexido) ── */}
+          <ConfigSection>
+            <ClientAccessCard
+              projectId={project!.id}
+              emails={project.clientEmails}
+              onChanged={reload}
+            />
+
+            <FinalizationConfigCard project={project} onChanged={reload} />
+
+            <ProjectSettingsCard project={project} onDelete={handleDelete} />
+          </ConfigSection>
         </div>
       </div>
     </>
+  )
+}
+
+/** Rótulo de seção da coluna lateral. */
+function RailLabel({ children }: { children: ReactNode }) {
+  return (
+    <div className="px-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
+      {children}
+    </div>
+  )
+}
+
+/** Agrupa o setup (acesso do cliente, finalização, exclusão) recolhível. */
+function ConfigSection({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="space-y-5">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase transition-colors hover:text-slate-600"
+      >
+        <span className="flex items-center gap-1.5">
+          <Settings className="size-3.5" />
+          Configuração
+        </span>
+        <ChevronDown className={cn('size-4 transition-transform', open && 'rotate-180')} />
+      </button>
+      {open && <div className="space-y-5">{children}</div>}
+    </div>
   )
 }
 
