@@ -222,17 +222,16 @@ export function ProjectTrackingCard({ project, onProjectChange }: ProjectTrackin
                 key={file.id}
                 className="flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-2 text-xs text-slate-600"
               >
-                <FileText className="size-3.5 shrink-0 text-slate-400" />
-                <span className="min-w-0 flex-1 truncate">{file.name}</span>
-                <span className="shrink-0 text-slate-400">{formatDate(file.uploadedAt)}</span>
                 <button
                   type="button"
                   onClick={() => handleViewFile(file)}
-                  className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-white hover:text-brand-600 focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:outline-none"
+                  className="flex min-w-0 flex-1 items-center gap-2 rounded-md text-left transition-colors hover:text-brand-600 focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:outline-none"
                   title={`Visualizar ${file.name}`}
                 >
-                  <Eye className="size-3.5" />
-                  <span className="sr-only">Visualizar</span>
+                  <FileText className="size-3.5 shrink-0 text-slate-400" />
+                  <span className="min-w-0 flex-1 truncate">{file.name}</span>
+                  <span className="shrink-0 text-slate-400">{formatDate(file.uploadedAt)}</span>
+                  <Eye className="size-3.5 shrink-0 text-slate-400" />
                 </button>
                 <button
                   type="button"
