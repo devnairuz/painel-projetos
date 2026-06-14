@@ -17,6 +17,7 @@ import { PhaseCard } from '@/components/projects/PhaseCard'
 import { PhaseManager } from '@/components/projects/PhaseManager'
 import { GanttModal } from '@/components/projects/GanttModal'
 import { ClientAccessCard } from '@/components/projects/ClientAccessCard'
+import { ActionNeededCard } from '@/components/projects/ActionNeededCard'
 import { OwnersCard } from '@/components/projects/OwnersCard'
 import { CollaboratorsCard } from '@/components/projects/CollaboratorsCard'
 import { FinalizationConfigCard } from '@/components/projects/FinalizationConfigCard'
@@ -333,6 +334,9 @@ export function ProjetoDetalhePage() {
           </div>
         )}
       </Card>
+
+      {/* Precisa de ação — o que está travando o avanço, num só lugar */}
+      <ActionNeededCard blockers={flow.blockers} />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         {/* Fases */}
