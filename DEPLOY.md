@@ -5,6 +5,39 @@ A Vercel não roda servidor Express "sempre ligado", por isso a API vai no Rende
 
 ---
 
+## Fluxo seguro para publicar
+
+1. Trabalhe na branch `main` quando quiser publicar em produção.
+2. Antes de subir, rode:
+
+```bash
+npm run verify
+```
+
+3. Confira o que vai ser enviado:
+
+```bash
+git status --short --branch
+git diff --stat
+```
+
+4. Faça commit e push:
+
+```bash
+git add .
+git commit -m "sua mensagem"
+git push origin main
+```
+
+5. Depois do push:
+   - mudanças em `src/`, `public/`, `index.html`, `vite.config.ts` e `vercel.json` dependem do deploy da **Vercel**;
+   - mudanças em `server/` dependem do deploy do **Render**;
+   - mudanças em ambos precisam dos dois deploys concluídos.
+
+Se a tela não mudou, abra em aba anônima ou use `Ctrl + F5`. Se ainda não mudou, confira se o commit está em `origin/main` e se a Vercel publicou a branch `main`.
+
+---
+
 ## 1. MongoDB Atlas (banco)
 1. **Network Access** → Add IP Address → `0.0.0.0/0` (permite o Render conectar).
    - Em produção de verdade, depois restrinja aos IPs do Render.
