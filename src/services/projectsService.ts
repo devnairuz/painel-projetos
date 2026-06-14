@@ -149,11 +149,8 @@ export async function listProjects(): Promise<Project[]> {
 export async function getProject(id: string): Promise<Project | undefined> {
   try {
     return await fallback(
-      () => api.get<Project>(p(id)).then(normalizeProjectCollections).then(stripScopeFileContent),
-      () => {
-        const found = localProjects().find((project) => project.id === id)
-        return found ? stripScopeFileContent(found) : undefined
-      },
+      () => api.get<Project>(p(id)).then(normalizeProjectCollections),
+      () => localProjects().find((project) => project.id === id),
     )
   } catch {
     return undefined
@@ -750,6 +747,17 @@ export async function addScopeFile(
         }
         return project
       }),
+  )
+}
+
+export async function removeScopeFile(id: string, fileId: string): Promise<Project> {
+  return mutate(
+    () => api.del<Project>(`${p(id)}/scope-files/${fileId}`).then(normalizeProjectCollections),
+    () =>
+      updateLocalProject(id, (project) => ({
+        ...project,
+        scopeFiles: (project.scopeFiles ?? []).filter((file) => file.id !== fileId),
+      })),
   )
 }
 
