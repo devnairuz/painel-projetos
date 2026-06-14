@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Upload, Gauge, FileText, Download } from 'lucide-react'
-import type { DeadlineConfidence, Project, TrackingScopeStatus } from '@/types'
+import { Upload, Gauge, FileText, Download, Eye } from 'lucide-react'
+import type { DeadlineConfidence, Project, ScopeFile, TrackingScopeStatus } from '@/types'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
@@ -35,6 +35,32 @@ function readFileAsDataUrl(file: File): Promise<string> {
     reader.onerror = () => reject(new Error('Não foi possível ler o arquivo.'))
     reader.readAsDataURL(file)
   })
+}
+
+function dataUrlToBlob(dataUrl: string, fallbackMimeType?: string): Blob {
+  const commaIndex = dataUrl.indexOf(',')
+  if (commaIndex < 0) throw new Error('Arquivo inválido.')
+
+  const header = dataUrl.slice(0, commaIndex)
+  const payload = dataUrl.slice(commaIndex + 1)
+  const mimeType = /^data:([^;,]+)/.exec(header)?.[1] || fallbackMimeType || 'application/octet-stream'
+
+  if (header.includes(';base64')) {
+    const binary = window.atob(payload)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i)
+    return new Blob([bytes], { type: mimeType })
+  }
+
+  return new Blob([new TextEncoder().encode(decodeURIComponent(payload))], { type: mimeType })
+}
+
+function createScopeFileHref(file: ScopeFile): { href: string; revoke?: () => void } {
+  if (!file.url) throw new Error('Arquivo sem conteúdo salvo.')
+  if (!file.url.startsWith('data:')) return { href: file.url }
+
+  const objectUrl = URL.createObjectURL(dataUrlToBlob(file.url, file.mimeType))
+  return { href: objectUrl, revoke: () => URL.revokeObjectURL(objectUrl) }
 }
 
 export function ProjectTrackingCard({ project, onProjectChange }: ProjectTrackingCardProps) {
@@ -87,6 +113,37 @@ export function ProjectTrackingCard({ project, onProjectChange }: ProjectTrackin
       notify('Escopo anexado ao projeto.')
     } catch {
       notify('Não foi possível anexar o escopo.', 'error')
+    }
+  }
+
+  function handleViewFile(file: ScopeFile) {
+    try {
+      const { href, revoke } = createScopeFileHref(file)
+      const anchor = document.createElement('a')
+      anchor.href = href
+      anchor.target = '_blank'
+      anchor.rel = 'noreferrer'
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      if (revoke) window.setTimeout(revoke, 60_000)
+    } catch {
+      notify('Este escopo não tem arquivo salvo para visualizar.', 'error')
+    }
+  }
+
+  function handleDownloadFile(file: ScopeFile) {
+    try {
+      const { href, revoke } = createScopeFileHref(file)
+      const anchor = document.createElement('a')
+      anchor.href = href
+      anchor.download = file.name || 'escopo'
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      if (revoke) window.setTimeout(revoke, 60_000)
+    } catch {
+      notify('Este escopo não tem arquivo salvo para baixar.', 'error')
     }
   }
 
@@ -161,19 +218,31 @@ export function ProjectTrackingCard({ project, onProjectChange }: ProjectTrackin
         <ul className="mt-3 space-y-1">
           {(project.scopeFiles ?? []).slice(0, 3).map((file) =>
             file.url ? (
-              <li key={file.id}>
-                <a
-                  href={file.url}
-                  download={file.name}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-2 text-xs text-slate-600 transition-colors hover:bg-slate-100 hover:text-brand-600"
+              <li
+                key={file.id}
+                className="flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-2 text-xs text-slate-600"
+              >
+                <FileText className="size-3.5 shrink-0 text-slate-400" />
+                <span className="min-w-0 flex-1 truncate">{file.name}</span>
+                <span className="shrink-0 text-slate-400">{formatDate(file.uploadedAt)}</span>
+                <button
+                  type="button"
+                  onClick={() => handleViewFile(file)}
+                  className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-white hover:text-brand-600 focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:outline-none"
+                  title={`Visualizar ${file.name}`}
+                >
+                  <Eye className="size-3.5" />
+                  <span className="sr-only">Visualizar</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadFile(file)}
+                  className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-white hover:text-brand-600 focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:outline-none"
                   title={`Baixar ${file.name}`}
                 >
-                  <Download className="size-3.5 text-slate-400" />
-                  <span className="min-w-0 flex-1 truncate">{file.name}</span>
-                  <span className="text-slate-400">{formatDate(file.uploadedAt)}</span>
-                </a>
+                  <Download className="size-3.5" />
+                  <span className="sr-only">Baixar</span>
+                </button>
               </li>
             ) : (
               <li
@@ -181,9 +250,12 @@ export function ProjectTrackingCard({ project, onProjectChange }: ProjectTrackin
                 className="flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-2 text-xs text-slate-600"
                 title="Anexo antigo sem arquivo salvo — reenvie para poder baixar."
               >
-                <FileText className="size-3.5 text-slate-400" />
+                <FileText className="size-3.5 shrink-0 text-slate-400" />
                 <span className="min-w-0 flex-1 truncate">{file.name}</span>
-                <span className="text-slate-400">{formatDate(file.uploadedAt)}</span>
+                <span className="shrink-0 text-slate-400">{formatDate(file.uploadedAt)}</span>
+                <span className="shrink-0 rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">
+                  Sem arquivo salvo
+                </span>
               </li>
             ),
           )}
