@@ -149,8 +149,11 @@ export async function listProjects(): Promise<Project[]> {
 export async function getProject(id: string): Promise<Project | undefined> {
   try {
     return await fallback(
-      () => api.get<Project>(p(id)).then(normalizeProjectCollections),
-      () => localProjects().find((project) => project.id === id),
+      () => api.get<Project>(p(id)).then(normalizeProjectCollections).then(stripScopeFileContent),
+      () => {
+        const found = localProjects().find((project) => project.id === id)
+        return found ? stripScopeFileContent(found) : undefined
+      },
     )
   } catch {
     return undefined

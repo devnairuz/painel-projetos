@@ -126,7 +126,7 @@ async function listProjects() {
 }
 
 async function getProject(id) {
-  return normalizeProject(await getRepo().getProject(id));
+  return stripScopeContent(normalizeProject(await getRepo().getProject(id)));
 }
 
 async function listProjectsForClient(email) {
@@ -145,7 +145,7 @@ async function getProjectForClient(id, email) {
   const p = normalizeProject(await getRepo().getProject(id));
   if (!p) return null;
   const allowed = (p.clientEmails || []).some((e) => norm(e) === target);
-  return allowed ? toClientProject(p, target) : null;
+  return allowed ? stripScopeContent(toClientProject(p, target)) : null;
 }
 
 /** Recorte seguro do projeto para o portal do cliente. */
@@ -249,7 +249,8 @@ async function mutateProject(id, fn) {
   // Persiste apenas a fonte de verdade (checklist + tarefas manuais); as tarefas
   // de checklist são reconstruídas na próxima leitura.
   await repo.updateProject({ ...project, tasks: persistableTasks(project) });
-  return project;
+  // Persistência guarda tudo; a resposta vai sem o conteúdo do escopo (peso).
+  return stripScopeContent(project);
 }
 
 async function updateProjectStatus(id, status) {

@@ -14,7 +14,7 @@ export function AppShell() {
 
   return (
     <ToastProvider>
-      <div className="flex h-dvh overflow-hidden bg-surface">
+      <div className="fixed inset-0 flex overflow-hidden bg-surface">
         {/* Sidebar lateral apenas no desktop */}
         <div className="hidden md:flex">
           <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
