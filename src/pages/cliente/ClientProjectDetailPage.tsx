@@ -24,6 +24,7 @@ import { NpsGate } from '@/components/cliente/NpsGate'
 import { FinalizationUpsell } from '@/components/cliente/FinalizationUpsell'
 import { HoursBreakdown } from '@/components/cliente/HoursBreakdown'
 import { ClientGameHub } from '@/components/cliente/ClientGameHub'
+import { buildClientGameState } from '@/utils/gamification'
 import { CommentThread } from '@/components/ui/CommentThread'
 import { PLATFORM_META, STATUS_META } from '@/constants'
 import type { CommentAttachment, Phase } from '@/types'
@@ -111,9 +112,9 @@ export function ClientProjectDetailPage() {
     .filter(isVisible)
     .sort((a, b) => a.order - b.order)
   const isClosed = project.status === 'encerrado'
-  const earnedPoints = project.phases
-    .filter((ph) => isVisible(ph) && ph.status === 'concluida')
-    .reduce((sum, ph) => sum + (ph.points ?? 0), 0)
+  // Placar único do cliente: o mesmo XP do hub de gamificação (premia ação:
+  // aprovações, tarefas, NPS), evitando dois números diferentes na tela.
+  const game = buildClientGameState(project)
 
   // Subtarefas que são responsabilidade do cliente (em etapas visíveis).
   const clientTasks = orderedPhases.flatMap((ph) =>
@@ -135,7 +136,7 @@ export function ClientProjectDetailPage() {
 
       {isClosed && (
         <div className="mb-5">
-          <HoursBreakdown project={project} earnedPoints={earnedPoints} />
+          <HoursBreakdown project={project} earnedPoints={game.phasePoints} />
         </div>
       )}
 
@@ -169,8 +170,8 @@ export function ClientProjectDetailPage() {
             <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
               <Star className="size-5 text-amber-500" />
               <div>
-                <div className="text-base font-bold leading-none text-amber-700">{earnedPoints}</div>
-                <div className="text-[11px] font-medium text-amber-600">pontos</div>
+                <div className="text-base font-bold leading-none text-amber-700">{game.xp}</div>
+                <div className="text-[11px] font-medium text-amber-600">XP</div>
               </div>
             </div>
             <div className="flex items-center gap-2.5">

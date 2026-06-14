@@ -98,11 +98,14 @@ export function buildClientGameState(project: Project): ClientGameState {
   const clientTasks = phases.flatMap((phase) => phase.checklist.filter((item) => item.clientResponsibility))
   const clientTasksDone = clientTasks.filter((item) => item.done).length
   const pendingClientTasks = clientTasks.length - clientTasksDone
+  // Pontos de etapa só são creditados quando o cliente fez a parte dele: etapas
+  // que exigem aprovação só pontuam depois de aprovadas. Assim o placar premia
+  // AÇÃO do cliente, não apenas a entrega da Nairuz.
   const phasePoints = phases
-    .filter((phase) => phase.status === 'concluida')
+    .filter((phase) => phase.status === 'concluida' && (!phase.requiresApproval || phase.clientApproved))
     .reduce((sum, phase) => sum + (phase.points ?? 0), 0)
-  const approvalXp = approvedPhases * 18
-  const taskXp = clientTasksDone * 10
+  const approvalXp = approvedPhases * 25
+  const taskXp = clientTasksDone * 15
   const npsXp = project.nps ? 70 : 0
   const cleanDeskXp = pendingApprovalPhases.length === 0 && pendingClientTasks === 0 && phases.length > 0 ? 35 : 0
   const streak = consecutiveMomentum(phases)
@@ -117,7 +120,7 @@ export function buildClientGameState(project: Project): ClientGameState {
       pendingApprovalPhases.length > 0
         ? `${pendingApprovalPhases.length} etapa${pendingApprovalPhases.length > 1 ? 's' : ''} aguardando sua aprovação`
         : 'Nenhuma aprovação pendente no momento',
-      18,
+      25,
       pendingApprovalPhases.length > 0 ? 'active' : 'done',
     ),
     mission(
@@ -126,7 +129,7 @@ export function buildClientGameState(project: Project): ClientGameState {
       clientTasks.length > 0
         ? `${clientTasksDone}/${clientTasks.length} tarefas concluídas`
         : 'Quando houver tarefas do cliente, elas entram aqui',
-      10,
+      15,
       clientTasks.length === 0 ? 'locked' : pendingClientTasks > 0 ? 'active' : 'done',
     ),
     mission(
