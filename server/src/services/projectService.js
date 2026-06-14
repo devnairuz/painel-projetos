@@ -104,9 +104,25 @@ function normalizeProject(project) {
   return project;
 }
 
+/**
+ * Remove o conteúdo (base64) dos arquivos de escopo, mantendo só os metadados.
+ * Usado nas LISTAGENS: o conteúdo pesa muito e só é preciso no detalhe/download.
+ * `hasFile` sinaliza que existe arquivo salvo (sem trafegar os bytes).
+ */
+function stripScopeContent(project) {
+  if (!project || !Array.isArray(project.scopeFiles)) return project;
+  project.scopeFiles = project.scopeFiles.map((file) => {
+    if (!file || !file.url) return file;
+    const rest = { ...file };
+    delete rest.url;
+    return { ...rest, hasFile: true };
+  });
+  return project;
+}
+
 async function listProjects() {
   const projects = await getRepo().listProjects();
-  return projects.map(normalizeProject);
+  return projects.map(normalizeProject).map(stripScopeContent);
 }
 
 async function getProject(id) {
@@ -119,7 +135,8 @@ async function listProjectsForClient(email) {
   return all
     .map(normalizeProject)
     .filter((p) => (p.clientEmails || []).some((e) => norm(e) === target))
-    .map((p) => toClientProject(p, target));
+    .map((p) => toClientProject(p, target))
+    .map(stripScopeContent);
 }
 
 /** Projeto específico, só se o e-mail do cliente tiver acesso liberado. */

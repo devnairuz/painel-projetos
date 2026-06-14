@@ -125,10 +125,24 @@ function findLocalChecklistItem(phase: Phase, itemId: string): ChecklistItem {
   return item
 }
 
+/** Remove o conteúdo (base64) dos arquivos de escopo — usado só nas listagens. */
+function stripScopeFileContent(project: Project): Project {
+  if (!project.scopeFiles?.length) return project
+  return {
+    ...project,
+    scopeFiles: project.scopeFiles.map((file) =>
+      file.url ? { ...file, url: undefined, hasFile: true } : file,
+    ),
+  }
+}
+
 export async function listProjects(): Promise<Project[]> {
   return fallback(
-    () => api.get<Project[]>('/api/projects').then((projects) => projects.map(normalizeProjectCollections)),
-    () => localProjects(),
+    () =>
+      api
+        .get<Project[]>('/api/projects')
+        .then((projects) => projects.map(normalizeProjectCollections).map(stripScopeFileContent)),
+    () => localProjects().map(stripScopeFileContent),
   )
 }
 

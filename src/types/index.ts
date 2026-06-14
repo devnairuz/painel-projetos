@@ -221,6 +221,8 @@ export interface ScopeFile {
   size?: number
   mimeType?: string
   url?: string
+  /** Nas listagens o conteúdo (url) é omitido; isto sinaliza que há arquivo salvo. */
+  hasFile?: boolean
   notes?: string
   uploadedAt: string
   uploadedBy?: string

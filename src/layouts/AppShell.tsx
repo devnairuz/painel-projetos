@@ -14,12 +14,12 @@ export function AppShell() {
 
   return (
     <ToastProvider>
-      <div className="flex h-screen overflow-hidden bg-surface">
+      <div className="flex h-dvh overflow-hidden bg-surface">
         {/* Sidebar lateral apenas no desktop */}
         <div className="hidden md:flex">
           <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
         </div>
-        <main className="flex-1 overflow-y-auto">
+        <main className="min-w-0 flex-1 overflow-y-auto">
           {/* Menu no topo apenas no mobile */}
           <MobileTopNav />
           {/* Barra de notificações apenas no desktop */}
