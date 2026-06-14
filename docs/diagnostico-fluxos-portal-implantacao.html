@@ -1,0 +1,682 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Diagnostico de Fluxos - Painel de Projetos Nairuz</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 16mm 14mm;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #f4f7fb;
+      color: #132033;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .page {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 36px;
+    }
+
+    .cover {
+      min-height: 930px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: linear-gradient(145deg, #061a50 0%, #0b2a66 55%, #13b884 140%);
+      color: #fff;
+      margin: -36px -36px 34px;
+      padding: 56px 48px;
+    }
+
+    .brand {
+      font-size: 36px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      color: #5ee0ad;
+    }
+
+    .cover h1 {
+      margin: 120px 0 16px;
+      font-size: 42px;
+      line-height: 1.08;
+      max-width: 720px;
+    }
+
+    .cover p {
+      max-width: 620px;
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 15px;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 36px;
+    }
+
+    .meta div {
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 14px;
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .meta strong {
+      display: block;
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.66);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+
+    h2 {
+      margin: 34px 0 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #e7edf5;
+      color: #061a50;
+      font-size: 24px;
+      line-height: 1.2;
+      page-break-after: avoid;
+    }
+
+    h3 {
+      margin: 24px 0 8px;
+      color: #0b2a66;
+      font-size: 16px;
+      page-break-after: avoid;
+    }
+
+    h4 {
+      margin: 16px 0 6px;
+      color: #223149;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    p {
+      margin: 0 0 10px;
+    }
+
+    ul, ol {
+      margin: 8px 0 14px 18px;
+      padding: 0;
+    }
+
+    li {
+      margin: 4px 0;
+    }
+
+    .lead {
+      color: #44546a;
+      font-size: 13px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin: 12px 0 18px;
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .card {
+      border: 1px solid #dfe7f1;
+      border-radius: 12px;
+      padding: 14px;
+      background: #fbfdff;
+      page-break-inside: avoid;
+    }
+
+    .card strong {
+      color: #061a50;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #e7f8f1;
+      color: #087653;
+      font-size: 10px;
+      font-weight: 700;
+      margin: 1px 3px 1px 0;
+    }
+
+    .tag.blue {
+      background: #e9f1ff;
+      color: #164aa5;
+    }
+
+    .tag.amber {
+      background: #fff4d8;
+      color: #966400;
+    }
+
+    .tag.red {
+      background: #ffe8e8;
+      color: #a82424;
+    }
+
+    .flow {
+      border-left: 3px solid #13b884;
+      padding-left: 14px;
+      margin: 12px 0 18px;
+    }
+
+    .flow .step {
+      margin-bottom: 12px;
+      page-break-inside: avoid;
+    }
+
+    .step-title {
+      font-weight: 700;
+      color: #061a50;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 18px;
+      page-break-inside: avoid;
+    }
+
+    th, td {
+      border: 1px solid #dfe7f1;
+      padding: 8px 9px;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      background: #f0f5fb;
+      color: #061a50;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .note {
+      border-left: 4px solid #13b884;
+      background: #eefbf6;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin: 14px 0 18px;
+      color: #164537;
+    }
+
+    .warn {
+      border-left-color: #e6a700;
+      background: #fff8e7;
+      color: #624400;
+    }
+
+    .break {
+      page-break-before: always;
+    }
+
+    .small {
+      color: #607089;
+      font-size: 11px;
+    }
+
+    .toc {
+      columns: 2;
+      column-gap: 28px;
+    }
+
+    .toc li {
+      break-inside: avoid;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="cover">
+      <div>
+        <div class="brand">nairuz</div>
+        <p>Sustentacao & Evolucao</p>
+        <h1>Diagnostico de fluxo do Painel de Projetos</h1>
+        <p>
+          Leitura funcional do projeto: o que cada tela, estado e etapa parecem querer resolver no fluxo real de acompanhamento de implantacoes, evolucoes e projetos sob medida.
+        </p>
+        <div class="meta">
+          <div><strong>Projeto</strong>painel-projetos</div>
+          <div><strong>Data</strong>14/06/2026 (rev. 2)</div>
+          <div><strong>Foco</strong>Fluxo de produto, nao codigo</div>
+        </div>
+      </div>
+      <p class="small">Documento gerado a partir da leitura das rotas, telas, servicos, tipos de dominio, templates, regras do servidor e especificacao existente.</p>
+    </section>
+
+    <h2>Resumo Executivo</h2>
+    <p class="lead">
+      O projeto foi pensado como um portal operacional para a Nairuz acompanhar implantacoes e evolucoes de clientes, com uma segunda experiencia voltada ao cliente final. A intencao central e reduzir desalinhamento: a equipe interna controla etapas, responsaveis, status, riscos e liberacoes; o cliente enxerga uma versao filtrada do projeto, responde pendencias/aprovacoes e passa por um encerramento com NPS e ofertas de continuidade.
+    </p>
+
+    <div class="grid three">
+      <div class="card">
+        <strong>Visao interna</strong>
+        <p>Dashboard, lista de projetos, detalhe operacional, organizacoes, acesso do cliente, responsaveis, etapas e finalizacao.</p>
+      </div>
+      <div class="card">
+        <strong>Visao cliente</strong>
+        <p>Login por e-mail liberado, lista de projetos autorizados, linha do tempo, pendencias, NPS e upsell.</p>
+      </div>
+      <div class="card">
+        <strong>Motor do fluxo</strong>
+        <p>Projeto -> fases -> checklist -> progresso -> risco -> pendencias -> aprovacoes -> encerramento.</p>
+      </div>
+    </div>
+
+    <div class="note">
+      O desenho nao e apenas um CRUD de projetos. Ele se comporta como um sistema de governanca de implantacao: cria trilhas padrao, mostra onde o projeto esta parado, separa o que e interno do que o cliente pode ver e transforma encerramento em oportunidade comercial.
+    </div>
+
+    <h2>Sumario</h2>
+    <ol class="toc">
+      <li>Proposta do produto</li>
+      <li>Atores e responsabilidades</li>
+      <li>Mapa de navegacao</li>
+      <li>Fluxo interno Nairuz</li>
+      <li>Fluxo do cliente</li>
+      <li>Ciclo de vida do projeto</li>
+      <li>Logica das etapas</li>
+      <li>Templates por produto</li>
+      <li>Progresso, risco e status</li>
+      <li>Aprovacoes, NPS e upsell</li>
+      <li>Modulos planejados</li>
+      <li>Observacoes de produto</li>
+    </ol>
+
+    <h2 class="break">1. Proposta do Produto</h2>
+    <p>
+      A solucao parece ter sido desenhada para empresas que executam projetos recorrentes com muitos pontos de espera: implantacao de e-commerce, landing pages, blogs institucionais e desenvolvimento proprio. A Nairuz precisa enxergar carteira, risco, etapa atual, responsaveis e proximos go lives. O cliente precisa entender o andamento sem receber toda a complexidade interna.
+    </p>
+    <p>
+      A logica de produto se organiza em tres camadas:
+    </p>
+    <ul>
+      <li><strong>Operacao:</strong> equipe Nairuz gerencia projetos, etapas, checklists, responsaveis, status, prazos e risco.</li>
+      <li><strong>Transparencia:</strong> cliente acompanha somente etapas visiveis, status, progresso, proximo passo e pendencias dele.</li>
+      <li><strong>Continuidade:</strong> ao encerrar o projeto, o cliente responde NPS e recebe caminhos comerciais de Sustentacao ou Evolucao.</li>
+    </ul>
+
+    <h2>2. Atores e Responsabilidades</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Ator</th>
+          <th>Papel no fluxo</th>
+          <th>O que controla ou visualiza</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Nairuz / time interno</td>
+          <td>Dono da operacao e da estrutura do projeto.</td>
+          <td>Cria projetos, altera status, edita etapas, define responsaveis, controla acesso do cliente, configura finalizacao e acompanha riscos.</td>
+        </tr>
+        <tr>
+          <td>CS</td>
+          <td>Ponte com cliente e acompanhamento do andamento.</td>
+          <td>Aparece como responsavel, acompanha aguardando cliente, pendencias, aprovacoes e comunicacao.</td>
+        </tr>
+        <tr>
+          <td>Tech Lead / Dev / Designer / PM</td>
+          <td>Responsaveis tecnicos ou de entrega.</td>
+          <td>Podem ser atribuídos ao projeto ou a etapas especificas.</td>
+        </tr>
+        <tr>
+          <td>Cliente</td>
+          <td>Acompanha andamento e aprova etapas liberadas.</td>
+          <td>Ve projetos liberados por e-mail, etapas visiveis, pendencias, progresso, historico, NPS e upsell.</td>
+        </tr>
+        <tr>
+          <td>Organizacao</td>
+          <td>Conta/cliente empresarial ligada ao projeto.</td>
+          <td>Serve para cadastro, agrupamento, segmento e relacao com projetos.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>3. Mapa de Navegacao</h2>
+    <h3>Area interna</h3>
+    <div class="grid">
+      <div class="card"><strong>Dashboard</strong><p>Panorama operacional: ativos, risco, aguardando cliente/Nairuz, go lives proximos e prontos para go live.</p></div>
+      <div class="card"><strong>Projetos</strong><p>Lista consolidada com filtros por status, plataforma, tipo e busca por codigo, cliente ou acao.</p></div>
+      <div class="card"><strong>Detalhe do projeto</strong><p>Centro da operacao: status, progresso, etapas, responsaveis, acesso do cliente, finalizacao e historico.</p></div>
+      <div class="card"><strong>Organizacoes</strong><p>Cadastro e visao de clientes/contas, com quantidade de projetos por organizacao.</p></div>
+    </div>
+
+    <h3>Area do cliente</h3>
+    <div class="grid">
+      <div class="card"><strong>Login</strong><p>Entrada por e-mail; qualquer senha funciona no prototipo. Acesso real depende do e-mail estar liberado em algum projeto.</p></div>
+      <div class="card"><strong>Seus projetos</strong><p>Lista somente os projetos em que aquele e-mail consta como autorizado.</p></div>
+      <div class="card"><strong>Detalhe do cliente</strong><p>Linha do tempo filtrada, pendencias de aprovacao, progresso, pontos e encerramento.</p></div>
+      <div class="card"><strong>Finalizacao</strong><p>NPS obrigatorio quando encerrado; depois aparecem Sustentacao e Evolucao com WhatsApp.</p></div>
+    </div>
+
+    <h2 class="break">4. Fluxo Interno Nairuz</h2>
+    <div class="flow">
+      <div class="step">
+        <div class="step-title">1. Criar organizacao</div>
+        <p>Antes de abrir um projeto, a equipe pode cadastrar a organizacao do cliente. A organizacao guarda nome e segmento, e depois serve para vincular projetos.</p>
+      </div>
+      <div class="step">
+        <div class="step-title">2. Criar projeto</div>
+        <p>A equipe informa cliente, organizacao, plataforma, tipo de engajamento, produto e go live previsto. O produto escolhido gera automaticamente uma sequencia inicial de etapas com checklist.</p>
+      </div>
+      <div class="step">
+        <div class="step-title">3. Acompanhar carteira</div>
+        <p>Dashboard e lista ajudam a encontrar projetos em risco, atrasados, aguardando cliente, aguardando Nairuz ou perto do go live.</p>
+      </div>
+      <div class="step">
+        <div class="step-title">4. Operar o projeto</div>
+        <p>No detalhe, a equipe altera status geral, marca checklist, edita etapas, define responsaveis, ajusta visibilidade para cliente e registra aprovacoes.</p>
+      </div>
+      <div class="step">
+        <div class="step-title">5. Liberar cliente</div>
+        <p>O acesso externo e concedido por e-mail e por projeto. Isso evita que uma organizacao veja projetos errados e permite liberar multiplos contatos.</p>
+      </div>
+      <div class="step">
+        <div class="step-title">6. Encerrar e converter continuidade</div>
+        <p>Quando o projeto vira encerrado, o cliente responde NPS. Depois ve uma tela de conclusao com caminhos para Sustentacao ou Evolucao.</p>
+      </div>
+    </div>
+
+    <h2>5. Fluxo do Cliente</h2>
+    <div class="flow">
+      <div class="step">
+        <div class="step-title">1. Login simplificado</div>
+        <p>O cliente entra com e-mail. No prototipo, senha e apenas ilustrativa. A validacao relevante e se o e-mail esta em algum projeto liberado.</p>
+      </div>
+      <div class="step">
+        <div class="step-title">2. Lista autorizada</div>
+        <p>O cliente ve apenas projetos cujo campo de acesso contem o e-mail dele. A lista mostra status, plataforma, progresso, fase atual e previsao de go live.</p>
+      </div>
+      <div class="step">
+        <div class="step-title">3. Acompanhamento filtrado</div>
+        <p>No detalhe, o cliente ve somente etapas marcadas como visiveis. Etapas ocultas ficam internas para a Nairuz.</p>
+      </div>
+      <div class="step">
+        <div class="step-title">4. Pendencias e aprovacoes</div>
+        <p>A secao "Precisa de voce" centraliza etapas visiveis que exigem aprovacao e ainda nao foram aprovadas.</p>
+      </div>
+      <div class="step">
+        <div class="step-title">5. Gamificacao</div>
+        <p>Etapas concluidas e visiveis somam pontos. A interface sugere que esses pontos podem ser trocados por horas de acompanhamento no futuro.</p>
+      </div>
+      <div class="step">
+        <div class="step-title">6. Encerramento</div>
+        <p>Quando o projeto esta encerrado, o cliente precisa responder NPS. So depois a tela de continuidade comercial e liberada.</p>
+      </div>
+    </div>
+
+    <h2 class="break">6. Ciclo de Vida do Projeto</h2>
+    <p>O ciclo de vida pensado para cada projeto e:</p>
+    <ol>
+      <li><strong>Cadastro:</strong> criacao do projeto com produto, plataforma, tipo, organizacao e data de go live.</li>
+      <li><strong>Planejamento:</strong> etapas e checklists sao gerados pelo template e podem ser ajustados.</li>
+      <li><strong>Execucao:</strong> checklist avanca, responsaveis sao atribuidos e o status do projeto muda.</li>
+      <li><strong>Interacao com cliente:</strong> e-mail e liberado, etapas visiveis aparecem, aprovacoes sao solicitadas.</li>
+      <li><strong>Controle de risco:</strong> sistema destaca bloqueios, prazos vencidos e proximidade do go live.</li>
+      <li><strong>Go live / publicacao:</strong> o projeto passa por homologacao, go live e acompanhamento.</li>
+      <li><strong>Encerramento:</strong> projeto e marcado como encerrado, NPS e solicitado e upsell aparece.</li>
+      <li><strong>Continuidade:</strong> cliente e direcionado para Sustentacao ou Evolucao.</li>
+    </ol>
+
+    <h2>7. Logica das Etapas</h2>
+    <p>
+      As etapas sao o coracao operacional do produto. Cada etapa tem ordem, nome, status, checklist, responsavel, visibilidade para o cliente, exigencia de aprovacao, pontos e possivel registro de aprovacao.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Elemento</th>
+          <th>Intencao no fluxo</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Ordem</td>
+          <td>Cria linha do tempo e define a fase atual como a primeira ainda nao concluida.</td>
+        </tr>
+        <tr>
+          <td>Checklist</td>
+          <td>Materializa o trabalho real. O progresso geral e calculado por itens concluidos sobre itens totais.</td>
+        </tr>
+        <tr>
+          <td>Status da etapa</td>
+          <td>Mostra se a etapa nao iniciou, esta em andamento, aguarda cliente, esta bloqueada ou foi concluida.</td>
+        </tr>
+        <tr>
+          <td>Visibilidade ao cliente</td>
+          <td>Permite separar controle interno da narrativa externa. Nem tudo que a equipe gerencia precisa aparecer para o cliente.</td>
+        </tr>
+        <tr>
+          <td>Exige aprovacao</td>
+          <td>Transforma a etapa em pendencia do cliente quando estiver aguardando retorno ou concluida sem aceite.</td>
+        </tr>
+        <tr>
+          <td>Pontos</td>
+          <td>Base de gamificacao e possivel troca por horas ou beneficios apos conclusao.</td>
+        </tr>
+        <tr>
+          <td>Responsavel</td>
+          <td>Da dono operacional para a etapa, alem dos responsaveis gerais do projeto.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>8. Templates por Produto</h2>
+    <p>
+      O produto selecionado na criacao define a trilha inicial. Isso reduz retrabalho e padroniza o kickoff de cada tipo de entrega.
+    </p>
+
+    <h3>E-commerce</h3>
+    <p><span class="tag">14 etapas</span><span class="tag blue">Fluxo mais completo</span></p>
+    <ol>
+      <li>Kickoff e acessos</li>
+      <li>Escopo e alinhamento</li>
+      <li>Design e UX</li>
+      <li>Desenvolvimento</li>
+      <li>Catalogo e conteudo</li>
+      <li>Pagamentos</li>
+      <li>Frete e logistica</li>
+      <li>Integracoes</li>
+      <li>SEO e tracking</li>
+      <li>QA interno</li>
+      <li>Homologacao cliente</li>
+      <li>Go live</li>
+      <li>Acompanhamento pos-go live</li>
+      <li>Encerramento tecnico</li>
+    </ol>
+    <p>A logica e cobrir a jornada inteira de loja virtual: preparacao, UX, desenvolvimento, operacao comercial, checkout, integracoes, rastreamento, testes, homologacao, publicacao e estabilizacao.</p>
+
+    <h3>Blog Institucional</h3>
+    <p><span class="tag">9 etapas</span><span class="tag blue">Conteudo e SEO</span></p>
+    <ol>
+      <li>Kickoff e acessos</li>
+      <li>Escopo e conteudo</li>
+      <li>Design e UX</li>
+      <li>Desenvolvimento</li>
+      <li>SEO e tracking</li>
+      <li>QA interno</li>
+      <li>Homologacao cliente</li>
+      <li>Go live</li>
+      <li>Encerramento tecnico</li>
+    </ol>
+    <p>A trilha e mais enxuta, focada em estrutura de paginas, conteudo, layout, publicacao e medicao.</p>
+
+    <h3>Desenvolvimento Proprio</h3>
+    <p><span class="tag">11 etapas</span><span class="tag blue">Projeto sob medida</span></p>
+    <ol>
+      <li>Kickoff e acessos</li>
+      <li>Descoberta e requisitos</li>
+      <li>Arquitetura</li>
+      <li>Design e UX</li>
+      <li>Desenvolvimento</li>
+      <li>Integracoes</li>
+      <li>QA interno</li>
+      <li>Homologacao cliente</li>
+      <li>Deploy / Go live</li>
+      <li>Acompanhamento</li>
+      <li>Encerramento tecnico</li>
+    </ol>
+    <p>Esse fluxo reconhece que desenvolvimento sob medida precisa de descoberta e arquitetura antes da execucao, e de estabilizacao depois do deploy.</p>
+
+    <h3>Landing Page</h3>
+    <p><span class="tag">7 etapas</span><span class="tag blue">Campanha e conversao</span></p>
+    <ol>
+      <li>Kickoff e briefing</li>
+      <li>Copy e conteudo</li>
+      <li>Design</li>
+      <li>Desenvolvimento</li>
+      <li>Tracking</li>
+      <li>QA interno</li>
+      <li>Publicacao</li>
+    </ol>
+    <p>Fluxo curto e voltado a campanha: briefing, copy, design, build, rastreamento e publicacao.</p>
+
+    <h2 class="break">9. Status, Progresso e Risco</h2>
+    <h3>Status do projeto</h3>
+    <p>Os status cobrem desde planejamento ate encerramento: nao iniciado, em andamento, aguardando cliente, aguardando Nairuz, aguardando terceiro, homologacao, QA, pronto para go live, publicado, pausado, cancelado e encerrado.</p>
+    <p>A intencao e permitir leitura operacional rapida: quem esta bloqueando, em que ambiente esta, e se ja pode publicar.</p>
+
+    <h3>Status da etapa</h3>
+    <p>As etapas usam estados mais simples: nao iniciada, em andamento, aguardando cliente, bloqueada e concluida. Isso sustenta tanto o painel interno quanto a linha do tempo do cliente.</p>
+
+    <h3>Progresso</h3>
+    <p>O progresso e calculado pela soma de itens de checklist concluidos dividido pelo total de itens de todas as etapas. Ou seja: o avanco nao depende apenas do status manual, mas do trabalho granular registrado.</p>
+
+    <h3>Fase atual</h3>
+    <p>A fase atual e a primeira etapa ordenada que ainda nao esta concluida. Se todas estiverem concluidas, a fase atual passa a ser a ultima.</p>
+
+    <h3>Risco</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Condicao</th>
+          <th>Risco resultante</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Projeto cancelado ou encerrado</td><td><span class="tag">Baixo</span></td></tr>
+        <tr><td>Existe etapa bloqueada</td><td><span class="tag red">Critico</span></td></tr>
+        <tr><td>Go live vencido</td><td><span class="tag red">Critico</span></td></tr>
+        <tr><td>Go live em ate 7 dias</td><td><span class="tag amber">Alto</span></td></tr>
+        <tr><td>Status aguardando cliente ou terceiro</td><td><span class="tag amber">Medio</span></td></tr>
+        <tr><td>Sem sinal de risco</td><td><span class="tag">Baixo</span></td></tr>
+      </tbody>
+    </table>
+
+    <h2>10. Aprovacoes, Acesso, NPS e Upsell</h2>
+    <h3>Acesso por e-mail</h3>
+    <p>O projeto abandona a ideia de que todo cliente da organizacao ve tudo. O acesso real e por e-mail, dentro de cada projeto. Isso permite liberar um contato para um projeto especifico e remover quando necessario.</p>
+
+    <h3>Aprovacoes</h3>
+    <p>A aprovacao e uma propriedade da etapa. A Nairuz decide se uma etapa exige aprovacao e se ela aparece para o cliente. Quando a etapa exige aprovacao e ainda nao foi aprovada, ela aparece na area "Precisa de voce".</p>
+
+    <h3>Historico estrutural</h3>
+    <p>O historico registra mudancas estruturais, como etapa adicionada, removida ou renomeada. A ideia e dar transparencia ao cliente sem criar um log tecnico completo demais.</p>
+
+    <h3>NPS como portao</h3>
+    <p>Ao encerrar um projeto, o cliente precisa responder NPS de 0 a 10, com comentario opcional. O texto da interface indica que responder libera a finalizacao e aumenta horas de suporte.</p>
+
+    <h3>Upsell pos-projeto</h3>
+    <p>Depois do NPS, o cliente ve a mensagem de conclusao e duas trilhas comerciais:</p>
+    <ul>
+      <li><strong>Programa de Sustentacao:</strong> continuidade tecnica, suporte, correcoes e atendimento prioritario.</li>
+      <li><strong>Programa de Evolucao:</strong> melhorias continuas, CRO e novas funcionalidades para crescer resultados.</li>
+    </ul>
+    <p>A Nairuz consegue configurar mensagem, apresentacoes, links de WhatsApp e horas antes/depois do NPS por projeto.</p>
+
+    <h2 class="break">11. Modulos Planejados</h2>
+    <p>Estado atual dos modulos que antes eram apenas direcao futura:</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Modulo</th>
+          <th>Intencao</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Cobrancas e pendencias</td>
+          <td>Tratativas formais com cliente/time, prazos, impacto e visibilidade.</td>
+          <td><strong>Implementado</strong> (pagina Pendencias + cards de cobranca por projeto).</td>
+        </tr>
+        <tr>
+          <td>Relatorios</td>
+          <td>Indicadores de acompanhamento, desempenho e exportacoes.</td>
+          <td><strong>Implementado</strong> (Acompanhamento de Projetos: series mensais Finalizado e Go-live com meta e media movel; metas editaveis).</td>
+        </tr>
+        <tr>
+          <td>Minha visao</td>
+          <td>Recorte do que e do usuario logado (tarefas, pendencias).</td>
+          <td><strong>Implementado</strong>.</td>
+        </tr>
+        <tr>
+          <td>Chamados</td>
+          <td>Fila de solicitacoes, filtros, estimativas e SLA.</td>
+          <td>Planejado.</td>
+        </tr>
+        <tr>
+          <td>Aprovacoes (central)</td>
+          <td>Centralizar aprovacoes que hoje vivem dentro das fases.</td>
+          <td>Planejado (hoje aparecem agregadas no bloco "Precisa de acao").</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>12. Observacoes de Produto</h2>
+    <div class="note">
+      As etapas continuam planas no modelo de dados, mas agora sao agrupadas em blocos de jornada (Descoberta, Construcao, Homologacao, Go-live, Pos) derivados do nome, tanto na visao interna quanto na linha do tempo do cliente. O agrupamento por nome e um primeiro passo; um campo de bloco editavel por etapa fica como evolucao.
+    </div>
+    <ul>
+      <li>O MVP atual ja comunica muito bem "onde o projeto esta", "quem precisa agir" e "qual o risco".</li>
+      <li>O portal do cliente tem boa separacao de informacao: mostra andamento sem expor tudo que e interno.</li>
+      <li>Acesso por e-mail por projeto e uma decisao forte, porque evita vazamento entre contas e permite multiplos contatos por projeto.</li>
+      <li>O NPS no encerramento cria um momento natural para medir satisfacao e abrir continuidade comercial.</li>
+      <li><strong>A intencao principal do produto e a melhoria operacional interna.</strong> A gamificacao do cliente premia a acao dele (aprovacoes, tarefas, NPS), mas e um reforco, nao a base: mesmo sem engajamento do cliente, a equipe formaliza as aprovacoes pelo painel e o fluxo segue. O cliente que participa acelera; o que nao participa nao trava a operacao.</li>
+      <li>Para virar produto real compartilhado entre usuarios, o proximo passo natural e persistencia em banco e autenticacao real.</li>
+    </ul>
+
+    <h2 class="break">13. Evolucao recente de fluxo (rev. 2)</h2>
+    <p>Ajustes aplicados para tornar o painel menos "cadastro" e mais "sistema que sabe onde cada projeto esta":</p>
+    <ul>
+      <li><strong>Status e proxima acao derivados.</strong> O sistema le etapas, itens do cliente e cobrancas e sugere o status e calcula a proxima acao real, em vez de depender de campos digitados a mao (chip "Sugerido: X - aplicar").</li>
+      <li><strong>Checklist como fonte unica das tarefas.</strong> As tarefas operacionais sao derivadas do checklist; o servidor persiste apenas as tarefas manuais, evitando duplicar a fonte de verdade.</li>
+      <li><strong>Bloco "Precisa de acao" (interno).</strong> Espelho do "Precisa de voce" do cliente: reune num so lugar tudo que trava o avanco, ordenado por severidade e com o lado responsavel.</li>
+      <li><strong>Operacao x Configuracao.</strong> A coluna do projeto separa o dia a dia (responsaveis, colaboradores, tracking) do setup raro (acesso do cliente, finalizacao, exclusao), que fica recolhido.</li>
+      <li><strong>Gamificacao ancorada na acao + placar unico.</strong> Pontos de etapa so creditam apos a aprovacao do cliente quando ela e exigida; o mesmo numero (XP) aparece no hub, no cabecalho e na barra do cliente.</li>
+      <li><strong>Relatorio de Acompanhamento de Projetos.</strong> Series mensais de Finalizado e Go-live (realizado sobre o previsto), com linha de meta (Objetivo) e media movel, periodo de 6/12 meses e <strong>metas editaveis</strong>.</li>
+    </ul>
+
+    <h2>Conclusao</h2>
+    <p>
+      O Painel de Projetos foi pensado como uma ferramenta de acompanhamento com duas camadas: gestao interna (o foco principal) e experiencia controlada do cliente. A logica de cada etapa nao esta so em nomes de fases, mas em uma cadeia de operacao: template cria trilha, checklist mede trabalho, status indica bloqueio, risco prioriza atencao, visibilidade controla transparencia, aprovacao chama o cliente para agir e encerramento transforma entrega em relacionamento continuo.
+    </p>
+  </main>
+</body>
+</html>

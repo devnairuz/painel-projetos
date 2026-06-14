@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { BarChart3, ClipboardCopy, ShieldCheck, Star, Timer, Upload, TrendingUp } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/Card'
@@ -8,6 +8,7 @@ import { useProjects } from '@/hooks/useProjects'
 import { useToast } from '@/components/ui/Toast'
 import { TrackingChart } from '@/components/reports/TrackingChart'
 import { buildMonthlyReport, type ReportSeries } from '@/utils/reports'
+import { useReportTargets, type ReportTargets } from '@/hooks/useReportTargets'
 import type { Project } from '@/types'
 import { cn } from '@/utils/cn'
 
@@ -18,8 +19,17 @@ export function RelatoriosPage() {
   const { notify } = useToast()
   const list = projects ?? []
   const [months, setMonths] = useState(12)
+  const { targets, setTargets } = useReportTargets()
 
-  const report = useMemo(() => buildMonthlyReport(list, { months }), [list, months])
+  const report = useMemo(
+    () =>
+      buildMonthlyReport(list, {
+        months,
+        targetFinalizado: targets.finalizado,
+        targetGoLive: targets.goLive,
+      }),
+    [list, months, targets],
+  )
 
   const active = list.filter((project) => !['encerrado', 'cancelado'].includes(project.status))
   const charges = list.flatMap((project) => project.charges ?? [])
@@ -74,19 +84,22 @@ export function RelatoriosPage() {
                   <TrendingUp className="size-5 text-brand-300" />
                   Acompanhamento de Projetos
                 </h2>
-                <div className="flex items-center gap-1 rounded-lg border border-white/15 bg-white/5 p-0.5">
-                  {[6, 12].map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => setMonths(m)}
-                      className={cn(
-                        'rounded-md px-2.5 py-1 text-xs font-semibold transition-colors',
-                        months === m ? 'bg-white/90 text-navy-900' : 'text-slate-300 hover:text-white',
-                      )}
-                    >
-                      {m} meses
-                    </button>
-                  ))}
+                <div className="flex flex-wrap items-center gap-3">
+                  <MetasEditor targets={targets} onChange={setTargets} />
+                  <div className="flex items-center gap-1 rounded-lg border border-white/15 bg-white/5 p-0.5">
+                    {[6, 12].map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => setMonths(m)}
+                        className={cn(
+                          'rounded-md px-2.5 py-1 text-xs font-semibold transition-colors',
+                          months === m ? 'bg-white/90 text-navy-900' : 'text-slate-300 hover:text-white',
+                        )}
+                      >
+                        {m} meses
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -128,6 +141,57 @@ export function RelatoriosPage() {
         </>
       )}
     </>
+  )
+}
+
+/** Editor inline das metas (Objetivo) de cada série. */
+function MetasEditor({ targets, onChange }: { targets: ReportTargets; onChange: (next: ReportTargets) => void }) {
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1">
+      <span className="text-[11px] font-semibold tracking-wide text-slate-400 uppercase">Metas</span>
+      <TargetInput
+        label="Finalizado"
+        value={targets.finalizado}
+        onCommit={(v) => onChange({ ...targets, finalizado: v })}
+      />
+      <TargetInput
+        label="Go-live"
+        value={targets.goLive}
+        onCommit={(v) => onChange({ ...targets, goLive: v })}
+      />
+    </div>
+  )
+}
+
+function TargetInput({ label, value, onCommit }: { label: string; value: number; onCommit: (value: number) => void }) {
+  const [text, setText] = useState(String(value))
+
+  // Sincroniza quando o valor muda por fora.
+  useEffect(() => {
+    setText(String(value))
+  }, [value])
+
+  function commit() {
+    const parsed = Number(text)
+    if (Number.isFinite(parsed) && parsed !== value) onCommit(parsed)
+    else setText(String(value))
+  }
+
+  return (
+    <label className="flex items-center gap-1 text-[11px] text-slate-300" title={`Meta de ${label}`}>
+      {label}
+      <input
+        type="number"
+        min={0}
+        max={300}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+        className="w-12 rounded-md border border-white/15 bg-white/10 px-1.5 py-0.5 text-center text-xs font-semibold text-white outline-none focus:border-brand-300"
+      />
+      <span className="text-slate-400">%</span>
+    </label>
   )
 }
 
