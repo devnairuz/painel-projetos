@@ -21,7 +21,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'relative z-40 flex h-screen flex-col bg-gradient-to-b from-navy-900 to-navy-950 text-slate-200 transition-all duration-300',
+        'relative z-40 flex h-screen flex-col bg-gradient-to-b from-red-600 to-red-700 text-slate-200 transition-all duration-300',
         collapsed ? 'w-20' : 'w-64',
       )}
     >
