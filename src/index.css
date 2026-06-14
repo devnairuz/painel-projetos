@@ -55,3 +55,26 @@ body {
   scrollbar-width: thin;
   scrollbar-color: #cbd3df transparent;
 }
+
+/* Loader de pontos pulsantes — espelha o "infinite-loader" do suporte-nairuz. */
+.nz-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569; /* slate-600 */
+  font-size: 13px;
+}
+.nz-dots .dot {
+  width: 8px;
+  height: 8px;
+  margin-right: 28px; /* espaço para os 2 pontos extras do box-shadow */
+  border-radius: 9999px;
+  background: #034c8c; /* navy-2 */
+  box-shadow: 12px 0 0 rgba(3, 76, 140, 0.45), 24px 0 0 rgba(3, 76, 140, 0.2);
+  animation: nz-pulse-dots 1.2s infinite ease-in-out;
+}
+@keyframes nz-pulse-dots {
+  0% { opacity: 0.4; transform: translateX(0); }
+  50% { opacity: 1; transform: translateX(2px); }
+  100% { opacity: 0.4; transform: translateX(0); }
+}
