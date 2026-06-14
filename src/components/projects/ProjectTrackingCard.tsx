@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Upload, Gauge, FileText } from 'lucide-react'
+import { Upload, Gauge, FileText, Download } from 'lucide-react'
 import type { DeadlineConfidence, Project, TrackingScopeStatus } from '@/types'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -23,6 +23,19 @@ const DEADLINE_OPTIONS: Array<{ value: DeadlineConfidence; label: string }> = [
   { value: 'atencao', label: 'Atenção' },
   { value: 'atrasado', label: 'Atrasado' },
 ]
+
+/** Teto prático de upload: o corpo da API é 8 MB e o base64 infla ~33%. */
+const MAX_SCOPE_BYTES = 6 * 1024 * 1024
+
+/** Lê o arquivo como data URL (base64) para guardar/baixar o conteúdo. */
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error('Não foi possível ler o arquivo.'))
+    reader.readAsDataURL(file)
+  })
+}
 
 export function ProjectTrackingCard({ project, onProjectChange }: ProjectTrackingCardProps) {
   const { notify } = useToast()
@@ -55,14 +68,26 @@ export function ProjectTrackingCard({ project, onProjectChange }: ProjectTrackin
 
   async function handleFile(file?: File) {
     if (!file) return
-    const updated = await addScopeFile(project.id, {
-      name: file.name,
-      size: file.size,
-      mimeType: file.type,
-      uploadedBy: 'Nairuz',
-    })
-    onProjectChange(updated)
-    notify('Escopo anexado ao projeto.')
+    // O backend limita o corpo a 8 MB; base64 infla ~33%, então o teto real é ~6 MB.
+    if (file.size > MAX_SCOPE_BYTES) {
+      notify('Arquivo muito grande (máx. ~6 MB). Compacte o PDF e tente novamente.', 'error')
+      return
+    }
+    try {
+      // Lê o conteúdo do arquivo para um data URL, senão não há o que baixar depois.
+      const url = await readFileAsDataUrl(file)
+      const updated = await addScopeFile(project.id, {
+        name: file.name,
+        size: file.size,
+        mimeType: file.type,
+        url,
+        uploadedBy: 'Nairuz',
+      })
+      onProjectChange(updated)
+      notify('Escopo anexado ao projeto.')
+    } catch {
+      notify('Não foi possível anexar o escopo.', 'error')
+    }
   }
 
   return (
@@ -134,13 +159,34 @@ export function ProjectTrackingCard({ project, onProjectChange }: ProjectTrackin
 
       {(project.scopeFiles ?? []).length > 0 && (
         <ul className="mt-3 space-y-1">
-          {(project.scopeFiles ?? []).slice(0, 3).map((file) => (
-            <li key={file.id} className="flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-2 text-xs text-slate-600">
-              <FileText className="size-3.5 text-slate-400" />
-              <span className="min-w-0 flex-1 truncate">{file.name}</span>
-              <span className="text-slate-400">{formatDate(file.uploadedAt)}</span>
-            </li>
-          ))}
+          {(project.scopeFiles ?? []).slice(0, 3).map((file) =>
+            file.url ? (
+              <li key={file.id}>
+                <a
+                  href={file.url}
+                  download={file.name}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-2 text-xs text-slate-600 transition-colors hover:bg-slate-100 hover:text-brand-600"
+                  title={`Baixar ${file.name}`}
+                >
+                  <Download className="size-3.5 text-slate-400" />
+                  <span className="min-w-0 flex-1 truncate">{file.name}</span>
+                  <span className="text-slate-400">{formatDate(file.uploadedAt)}</span>
+                </a>
+              </li>
+            ) : (
+              <li
+                key={file.id}
+                className="flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-2 text-xs text-slate-600"
+                title="Anexo antigo sem arquivo salvo — reenvie para poder baixar."
+              >
+                <FileText className="size-3.5 text-slate-400" />
+                <span className="min-w-0 flex-1 truncate">{file.name}</span>
+                <span className="text-slate-400">{formatDate(file.uploadedAt)}</span>
+              </li>
+            ),
+          )}
         </ul>
       )}
     </Card>
