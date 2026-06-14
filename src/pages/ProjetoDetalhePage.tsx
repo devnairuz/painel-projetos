@@ -46,6 +46,7 @@ import {
 } from '@/services/projectsService'
 import { currentPhase, syncPhaseStatus, computeProgress, normalizedTasks } from '@/utils/projects'
 import { deriveProjectFlow } from '@/utils/flow'
+import { groupByStage } from '@/utils/journey'
 import { formatDate, relativeDeadlineLabel } from '@/utils/dates'
 import { cn } from '@/utils/cn'
 
@@ -371,26 +372,36 @@ export function ProjetoDetalhePage() {
                 onRemoveItem={handleRemoveItem}
               />
             ) : (
-              <div className="space-y-2.5">
-                {project.phases
-                  .slice()
-                  .sort((a, b) => a.order - b.order)
-                  .map((phase) => (
-                    <PhaseCard
-                      key={phase.id}
-                      phase={phase}
-                      owner={getMember(phase.ownerId)}
-                      defaultOpen={phase.id === phaseNow?.id}
-                      onToggleItem={handleToggle}
-                      onApprove={handleApprove}
-                      onToggleResponsibility={handleToggleResponsibility}
-                      onUpdateItemOwner={handleUpdateItemOwner}
-                      onAddComment={handleAddComment}
-                      onUpdateDates={handleUpdateDates}
-                      currentUser={{ id: companyUser?.id, name: companyUser?.name }}
-                      users={mentionUsers ?? []}
-                    />
-                  ))}
+              <div className="space-y-5">
+                {groupByStage(project.phases).map((group) => (
+                  <div key={group.stage}>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className={cn('text-xs font-bold tracking-wide uppercase', group.meta.accent)}>
+                        {group.meta.label}
+                      </span>
+                      <span className="text-xs text-slate-400">{group.meta.description}</span>
+                      <span className="h-px flex-1 bg-slate-100" />
+                    </div>
+                    <div className="space-y-2.5">
+                      {group.phases.map((phase) => (
+                        <PhaseCard
+                          key={phase.id}
+                          phase={phase}
+                          owner={getMember(phase.ownerId)}
+                          defaultOpen={phase.id === phaseNow?.id}
+                          onToggleItem={handleToggle}
+                          onApprove={handleApprove}
+                          onToggleResponsibility={handleToggleResponsibility}
+                          onUpdateItemOwner={handleUpdateItemOwner}
+                          onAddComment={handleAddComment}
+                          onUpdateDates={handleUpdateDates}
+                          currentUser={{ id: companyUser?.id, name: companyUser?.name }}
+                          users={mentionUsers ?? []}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </Card>

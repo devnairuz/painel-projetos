@@ -25,6 +25,7 @@ import { FinalizationUpsell } from '@/components/cliente/FinalizationUpsell'
 import { HoursBreakdown } from '@/components/cliente/HoursBreakdown'
 import { ClientGameHub } from '@/components/cliente/ClientGameHub'
 import { buildClientGameState } from '@/utils/gamification'
+import { stageOfPhase, STAGE_META } from '@/utils/journey'
 import { CommentThread } from '@/components/ui/CommentThread'
 import { PLATFORM_META, STATUS_META } from '@/constants'
 import type { CommentAttachment, Phase } from '@/types'
@@ -298,8 +299,16 @@ export function ClientProjectDetailPage() {
             const { done, total } = phaseProgress(phase)
             const isDone = phase.status === 'concluida'
             const isCurrent = !isDone && phase.status !== 'nao_iniciada'
+            const stage = stageOfPhase(phase)
+            const showStage = idx === 0 || stageOfPhase(orderedPhases[idx - 1]) !== stage
             return (
-              <li key={phase.id} className="flex gap-3">
+              <li key={phase.id} className="flex flex-col">
+                {showStage && (
+                  <span className={cn('mb-1 text-[11px] font-bold tracking-wide uppercase', STAGE_META[stage].accent)}>
+                    {STAGE_META[stage].label}
+                  </span>
+                )}
+                <div className="flex gap-3">
                 {/* Marcador + linha */}
                 <div className="flex flex-col items-center">
                   {isDone ? (
@@ -345,6 +354,7 @@ export function ClientProjectDetailPage() {
                       <Check className="size-3" /> Aprovada por você
                     </span>
                   )}
+                  </div>
                 </div>
               </li>
             )
