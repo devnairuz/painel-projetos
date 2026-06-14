@@ -43,7 +43,7 @@ import {
   updateProjectStatus,
   type PhaseSettingsPatch,
 } from '@/services/projectsService'
-import { currentPhase, syncPhaseStatus, computeProgress } from '@/utils/projects'
+import { currentPhase, syncPhaseStatus, computeProgress, normalizedTasks } from '@/utils/projects'
 import { deriveProjectFlow } from '@/utils/flow'
 import { formatDate, relativeDeadlineLabel } from '@/utils/dates'
 import { cn } from '@/utils/cn'
@@ -128,12 +128,9 @@ export function ProjetoDetalhePage() {
           }
         : ph,
     )
-    const tasks = (p.tasks ?? []).map((task) =>
-      task.phaseId === phaseId && task.checklistItemId === itemId
-        ? { ...task, ownerId: normalizedOwnerId }
-        : task,
-    )
-    return { ...p, phases, tasks }
+    // Checklist é a fonte única: as tarefas derivam dele (sem dual-write).
+    const next = { ...p, phases }
+    return { ...next, tasks: normalizedTasks(next) }
   }
 
   async function handleToggle(phaseId: string, itemId: string) {

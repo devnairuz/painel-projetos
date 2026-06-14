@@ -203,7 +203,7 @@ async function createProject(input) {
   normalizeProject(project);
   const cp = currentPhase(phases);
   project.currentPhaseId = cp ? cp.id : undefined;
-  await repo.insertProject(project);
+  await repo.insertProject({ ...project, tasks: persistableTasks(project) });
   return project;
 }
 
@@ -211,6 +211,14 @@ async function createProject(input) {
 async function deleteProject(id) {
   await getRepo().deleteProject(id);
   return { id, deleted: true };
+}
+
+/**
+ * Só tarefas manuais vão pro banco. As de checklist são derivadas na leitura
+ * (syncTasksFromChecklist), então gravá-las duplicaria a fonte de verdade.
+ */
+function persistableTasks(project) {
+  return (project.tasks || []).filter((task) => task.source !== "checklist");
 }
 
 /** Helper: carrega, aplica `fn(project)`, persiste e retorna o projeto. */
@@ -221,7 +229,9 @@ async function mutateProject(id, fn) {
   normalizeProject(project);
   fn(project);
   normalizeProject(project);
-  await repo.updateProject(project);
+  // Persiste apenas a fonte de verdade (checklist + tarefas manuais); as tarefas
+  // de checklist são reconstruídas na próxima leitura.
+  await repo.updateProject({ ...project, tasks: persistableTasks(project) });
   return project;
 }
 
