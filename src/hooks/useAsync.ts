@@ -25,7 +25,17 @@ const POLL_MS = 20000
  * - só troca o estado se o resultado realmente mudou (compara serializado),
  *   evitando re-render e flicker desnecessários.
  */
-export function useAsync<T>(fn: () => Promise<T>, deps: unknown[] = []): AsyncState<T> {
+interface AsyncOptions {
+  /** Liga o poll leve de ~20s. Desligue em telas que só precisam buscar ao abrir (ex.: relatórios). */
+  poll?: boolean
+}
+
+export function useAsync<T>(
+  fn: () => Promise<T>,
+  deps: unknown[] = [],
+  options: AsyncOptions = {},
+): AsyncState<T> {
+  const { poll = true } = options
   const [data, setData] = useState<T>()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error>()
@@ -41,14 +51,14 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[] = []): AsyncSt
     }
     window.addEventListener('focus', onFocus)
     document.addEventListener('visibilitychange', onVisible)
-    const interval = window.setInterval(reload, POLL_MS)
+    const interval = poll ? window.setInterval(reload, POLL_MS) : undefined
     return () => {
       unsub()
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisible)
-      window.clearInterval(interval)
+      if (interval !== undefined) window.clearInterval(interval)
     }
-  }, [reload])
+  }, [reload, poll])
 
   const depsKey = JSON.stringify(deps)
   const prevDepsKey = useRef<string | undefined>(undefined)

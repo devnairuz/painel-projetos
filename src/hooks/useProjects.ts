@@ -2,8 +2,9 @@ import { getProject, listOrganizations, listProjects, listTeam } from '@/service
 import { getClientProject, getClientProjects } from '@/services/clientProjectsService'
 import { useAsync } from './useAsync'
 
-export function useProjects() {
-  return useAsync(() => listProjects(), [])
+/** `poll: false` busca só ao abrir a tela (sem refetch de 20s) — ideal p/ relatórios. */
+export function useProjects(options?: { poll?: boolean }) {
+  return useAsync(() => listProjects(), [], options)
 }
 
 /** Projetos do cliente logado (portal externo, via token de cliente). */
