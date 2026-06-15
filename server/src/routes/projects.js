@@ -138,15 +138,6 @@ router.patch("/:id/tracking", h(async (req, res) => {
   return p ? res.json(p) : notFound(res);
 }));
 
-router.post("/:id/scope-files", h(async (req, res) => {
-  const p = await svc.addScopeFile(req.params.id, req.body);
-  return p ? res.json(p) : notFound(res);
-}));
-
-router.delete("/:id/scope-files/:fileId", h(async (req, res) => {
-  const p = await svc.removeScopeFile(req.params.id, req.params.fileId);
-  return p ? res.json(p) : notFound(res);
-}));
 
 router.post("/:id/time-entries", h(async (req, res) => {
   const p = await svc.addTimeEntry(req.params.id, req.body);

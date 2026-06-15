@@ -594,35 +594,6 @@ async function updateTracking(id, patch = {}) {
   });
 }
 
-async function addScopeFile(id, input = {}) {
-  const name = String(input.name || "").trim();
-  if (!name) return getProject(id);
-  return mutateProject(id, (p) => {
-    p.scopeFiles.push({
-      id: uid("scp"),
-      name,
-      size: Number(input.size) || undefined,
-      mimeType: input.mimeType || undefined,
-      url: String(input.url || "").trim() || undefined,
-      notes: String(input.notes || "").trim() || undefined,
-      uploadedAt: nowIso(),
-      uploadedBy: input.uploadedBy || "Nairuz"
-    });
-    if (p.tracking.scopeStatus === "pendente") p.tracking.scopeStatus = "recebido";
-    p.tracking.updatedAt = nowIso();
-    p.updatedAt = nowIso();
-  });
-}
-
-/** Remove um arquivo de escopo pelo id. */
-async function removeScopeFile(id, fileId) {
-  return mutateProject(id, (p) => {
-    p.scopeFiles = (p.scopeFiles || []).filter((file) => file.id !== fileId);
-    p.tracking.updatedAt = nowIso();
-    p.updatedAt = nowIso();
-  });
-}
-
 async function addTimeEntry(id, input = {}) {
   const hours = Math.max(0, Number(input.hours) || 0);
   const label = String(input.label || "").trim();
@@ -692,8 +663,6 @@ module.exports = {
   addCharge,
   updateCharge,
   updateTracking,
-  addScopeFile,
-  removeScopeFile,
   addTimeEntry,
   updateSecurity
 };
