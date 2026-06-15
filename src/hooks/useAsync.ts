@@ -28,6 +28,12 @@ const POLL_MS = 20000
 interface AsyncOptions {
   /** Liga o poll leve de ~20s. Desligue em telas que só precisam buscar ao abrir (ex.: relatórios). */
   poll?: boolean
+  /**
+   * Recarrega a cada mutação (notifyChange). Desligue em dados de referência
+   * (equipe, usuários) que não mudam quando se edita um projeto — evita refetch
+   * desnecessário a cada clique.
+   */
+  revalidateOnChange?: boolean
 }
 
 export function useAsync<T>(
@@ -35,7 +41,7 @@ export function useAsync<T>(
   deps: unknown[] = [],
   options: AsyncOptions = {},
 ): AsyncState<T> {
-  const { poll = true } = options
+  const { poll = true, revalidateOnChange = true } = options
   const [data, setData] = useState<T>()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error>()
@@ -44,7 +50,7 @@ export function useAsync<T>(
   const reload = useCallback(() => setNonce((n) => n + 1), [])
 
   useEffect(() => {
-    const unsub = subscribe(reload)
+    const unsub = revalidateOnChange ? subscribe(reload) : undefined
     const onFocus = () => reload()
     const onVisible = () => {
       if (document.visibilityState === 'visible') reload()
@@ -53,12 +59,12 @@ export function useAsync<T>(
     document.addEventListener('visibilitychange', onVisible)
     const interval = poll ? window.setInterval(reload, POLL_MS) : undefined
     return () => {
-      unsub()
+      unsub?.()
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisible)
       if (interval !== undefined) window.clearInterval(interval)
     }
-  }, [reload, poll])
+  }, [reload, poll, revalidateOnChange])
 
   const depsKey = JSON.stringify(deps)
   const prevDepsKey = useRef<string | undefined>(undefined)
