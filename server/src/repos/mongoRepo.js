@@ -25,7 +25,10 @@ const mongoRepo = {
     }
   },
   async listProjects() {
-    const docs = await Project.find().sort({ updatedAt: -1 }).lean();
+    // Exclui o conteúdo (base64) do escopo já na consulta: não é usado nas
+    // listagens e pesava MUITO no transfer do Atlas (M0 free). O detalhe
+    // (getProject) ainda traz o conteúdo completo para download.
+    const docs = await Project.find({}, { "scopeFiles.url": 0 }).sort({ updatedAt: -1 }).lean();
     return docs.map(toPlain);
   },
   async getProject(id) {
