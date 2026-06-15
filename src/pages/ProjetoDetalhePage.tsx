@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react'
+import { useState, useEffect, useMemo, type ReactNode } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, FolderKanban, Flag, Pencil, Check, Trash2, CalendarRange, Settings, ChevronDown, Sparkles } from 'lucide-react'
 import { useProject } from '@/hooks/useProjects'
@@ -69,6 +69,12 @@ export function ProjetoDetalhePage() {
     if (fetched) setProject(fetched)
   }, [fetched])
 
+  // Cálculos pesados memoizados: só recalculam quando o projeto muda, não a
+  // cada re-render (ex.: abrir o Gantt, editar etapas).
+  const phaseNow = useMemo(() => (project ? currentPhase(project.phases) : undefined), [project])
+  const flow = useMemo(() => (project ? deriveProjectFlow(project) : undefined), [project])
+  const journeyGroups = useMemo(() => (project ? groupByStage(project.phases) : []), [project])
+
   if (!project) {
     if (loading || fetched) {
       return (
@@ -95,8 +101,9 @@ export function ProjetoDetalhePage() {
     )
   }
 
-  const phaseNow = currentPhase(project.phases)
-  const flow = deriveProjectFlow(project)
+  // project definido aqui ⇒ flow também (memo guardado acima); guard só p/ o TS.
+  if (!flow) return null
+
   const statusSuggested =
     flow.shouldSuggestStatus && flow.suggestedStatus !== project.status
       ? flow.suggestedStatus
@@ -373,7 +380,7 @@ export function ProjetoDetalhePage() {
               />
             ) : (
               <div className="space-y-5">
-                {groupByStage(project.phases).map((group) => (
+                {journeyGroups.map((group) => (
                   <div key={group.stage}>
                     <div className="mb-2 flex items-center gap-2">
                       <span className={cn('text-xs font-bold tracking-wide uppercase', group.meta.accent)}>
