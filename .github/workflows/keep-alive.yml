@@ -1,0 +1,38 @@
+# Keep-alive do backend no Render.
+# O plano free do Render "dorme" após ~15 min de inatividade; a primeira
+# requisição depois disso trava ~50s (cold start). Este workflow pinga o
+# /health periodicamente para manter o servidor acordado.
+#
+# COMO REVERTER (qualquer uma):
+#   - Desligar temporariamente: GitHub → aba Actions → "Keep Render awake"
+#     → menu "..." → Disable workflow
+#   - Remover de vez: apague este arquivo (.github/workflows/keep-alive.yml)
+#
+# AJUSTES rápidos (uma linha cada):
+#   - URL: troque HEALTH_URL abaixo se o domínio do Render mudar
+#   - Frequência: edite o cron (5 min é seguro contra o spin-down de ~15 min;
+#     o agendador do GitHub free costuma atrasar alguns minutos)
+name: Keep Render awake
+
+on:
+  schedule:
+    - cron: "*/5 * * * *" # a cada 5 minutos (UTC)
+  workflow_dispatch: {} # permite rodar manualmente em Actions → Run workflow
+
+env:
+  HEALTH_URL: https://nairuz-portal-api.onrender.com/health
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping /health (acorda o Render se estiver dormindo)
+        run: |
+          echo "Pingando $HEALTH_URL"
+          # --max-time 120: o primeiro hit pode levar ~50s+ no cold start.
+          # --retry com backoff: tolera o servidor subindo.
+          curl --fail --silent --show-error \
+               --max-time 120 \
+               --retry 3 --retry-delay 20 --retry-all-errors \
+               "$HEALTH_URL" && echo "OK"
