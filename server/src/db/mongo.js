@@ -7,8 +7,11 @@ async function connectMongo(uri) {
   await mongoose.connect(uri, {
     maxPoolSize: 20,
     minPoolSize: 2,
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 20000
+    // Atlas free (M0) às vezes demora a responder/acordar; 5s era curto demais
+    // e derrubava o servidor pro fallback em memória (dados de seed errados).
+    serverSelectionTimeoutMS: 20000,
+    connectTimeoutMS: 20000,
+    socketTimeoutMS: 45000
   });
   return mongoose.connection;
 }
