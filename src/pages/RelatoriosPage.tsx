@@ -15,9 +15,7 @@ import { cn } from '@/utils/cn'
 const ACCENT = { finalizado: '#52d09e', goLive: '#61b6e8' }
 
 export function RelatoriosPage() {
-  // Relatórios busca só ao abrir a aba (sem poll de 20s): o gráfico não precisa
-  // ficar se atualizando em segundo plano.
-  const { data: projects, loading } = useProjects({ poll: false })
+  const { data: projects, loading } = useProjects()
   const { notify } = useToast()
   const list = projects ?? []
   const [months, setMonths] = useState(12)
