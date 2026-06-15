@@ -2,13 +2,9 @@ import { getProject, listOrganizations, listProjects, listTeam } from '@/service
 import { getClientProject, getClientProjects } from '@/services/clientProjectsService'
 import { useAsync } from './useAsync'
 
-/**
- * Sem poll por padrão: as listas (dashboard, projetos, sidebar...) atualizam ao
- * focar a aba e após cada mutação — não precisam refazer fetch a cada 20s.
- * Passe `{ poll: true }` para reativar o poll numa tela específica.
- */
+/** `poll: false` busca só ao abrir a tela (sem refetch de 20s) — ideal p/ relatórios. */
 export function useProjects(options?: { poll?: boolean }) {
-  return useAsync(() => listProjects(), [], { poll: false, ...options })
+  return useAsync(() => listProjects(), [], options)
 }
 
 /** Projetos do cliente logado (portal externo, via token de cliente). */
