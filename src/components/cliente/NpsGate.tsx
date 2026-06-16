@@ -1,16 +1,11 @@
 import { useState } from 'react'
-import { Gift, Star } from 'lucide-react'
+import { Gift, Star, ArrowLeft, ArrowRight, Check } from 'lucide-react'
 import type { Nps } from '@/types'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { clientAnswerNps } from '@/services/clientProjectsService'
-import {
-  SURVEY_SECTIONS,
-  SURVEY_QUESTIONS,
-  FEEDBACK_QUESTION,
-  type SurveyRatingKey,
-} from '@/constants/satisfaction'
+import { SURVEY_SECTIONS, FEEDBACK_QUESTION, type SurveyRatingKey } from '@/constants/satisfaction'
 import { cn } from '@/utils/cn'
 
 interface NpsGateProps {
@@ -20,22 +15,33 @@ interface NpsGateProps {
 }
 
 /**
- * Pesquisa de satisfação (lado cliente): obrigatória para liberar a finalização.
- * Reúne as notas por seção (UX/UI, Desenvolvimento, PMO...) + feedback aberto.
- * Ao responder, as horas de suporte sobem.
+ * Pesquisa de satisfação (lado cliente) em formato de etapas — uma seção por
+ * vez, estilo Google Forms. Obrigatória para liberar a finalização; cada etapa
+ * de notas precisa ser respondida para avançar. Ao concluir, as horas sobem.
  */
 export function NpsGate({ projectId, hoursAfter, onAnswered }: NpsGateProps) {
   const { notify } = useToast()
   const [answers, setAnswers] = useState<Partial<Record<SurveyRatingKey, number>>>({})
   const [feedback, setFeedback] = useState('')
   const [saving, setSaving] = useState(false)
+  const [step, setStep] = useState(0)
 
-  const answeredCount = SURVEY_QUESTIONS.filter((q) => typeof answers[q.key] === 'number').length
-  const total = SURVEY_QUESTIONS.length
-  const complete = answeredCount === total
+  const totalSteps = SURVEY_SECTIONS.length + 1 // seções + feedback
+  const isFeedback = step === SURVEY_SECTIONS.length
+  const section = isFeedback ? null : SURVEY_SECTIONS[step]
+  const isLast = step === totalSteps - 1
+
+  // Só avança quando todas as notas da etapa atual foram dadas (feedback é livre).
+  const canAdvance = section ? section.questions.every((q) => typeof answers[q.key] === 'number') : true
+
+  function goNext() {
+    if (canAdvance && !isLast) setStep((s) => s + 1)
+  }
+  function goBack() {
+    setStep((s) => Math.max(0, s - 1))
+  }
 
   async function handleSubmit() {
-    if (!complete) return
     setSaving(true)
     const survey: Omit<Nps, 'answeredAt'> = {
       score: answers.score ?? 0,
@@ -66,57 +72,85 @@ export function NpsGate({ projectId, hoursAfter, onAnswered }: NpsGateProps) {
         <Star className="size-5 text-brand-600" />
         <h2 className="text-lg font-semibold text-slate-900">Pesquisa de satisfação</h2>
       </div>
-      <p className="text-sm text-slate-500">
-        Sua avaliação nos ajuda a melhorar. Responder libera a finalização e amplia seu suporte para{' '}
-        <strong>{hoursAfter}h</strong>.
-      </p>
 
-      <div className="mt-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-        <Gift className="size-4 shrink-0" />
-        Bônus de avaliação: +70 XP e liberação das horas extras de acompanhamento.
-      </div>
-
-      <div className="mt-6 space-y-7">
-        {SURVEY_SECTIONS.map((sec) => (
-          <div key={sec.section}>
-            <h3 className="mb-3 text-xs font-bold tracking-wide text-brand-700 uppercase">
-              {sec.section}
-            </h3>
-            <div className="space-y-5">
-              {sec.questions.map((q) => (
-                <div key={q.key}>
-                  <p className="mb-2 text-sm text-slate-700">{q.question}</p>
-                  <RatingScale
-                    value={answers[q.key] ?? null}
-                    onChange={(v) => setAnswers((a) => ({ ...a, [q.key]: v }))}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-
-        <div>
-          <h3 className="mb-3 text-xs font-bold tracking-wide text-brand-700 uppercase">Feedback Aberto</h3>
-          <p className="mb-2 text-sm text-slate-700">{FEEDBACK_QUESTION}</p>
-          <textarea
-            value={feedback}
-            onChange={(e) => setFeedback(e.target.value)}
-            rows={3}
-            placeholder="Opcional"
-            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-brand-400 focus:ring-2 focus:ring-brand-100 focus:outline-none"
+      {/* Progresso */}
+      <div className="mt-4">
+        <div className="mb-1.5 flex items-center justify-between text-xs font-medium text-slate-500">
+          <span>
+            Etapa {step + 1} de {totalSteps}
+          </span>
+          <span className="font-semibold text-brand-700">{isFeedback ? 'Feedback Aberto' : section!.section}</span>
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full bg-brand-500 transition-all duration-300"
+            style={{ width: `${((step + 1) / totalSteps) * 100}%` }}
           />
         </div>
       </div>
 
-      <div className="mt-6 flex items-center justify-between gap-3">
-        <span className="text-xs text-slate-400">
-          {answeredCount}/{total} respondidas
-        </span>
-        <Button onClick={handleSubmit} disabled={!complete || saving}>
-          {saving ? 'Enviando…' : 'Enviar avaliação'}
-        </Button>
+      {/* Bônus só na primeira etapa */}
+      {step === 0 && (
+        <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <Gift className="mt-0.5 size-4 shrink-0" />
+          <span>
+            Responder libera a finalização e amplia seu suporte para <strong>{hoursAfter}h</strong> — além de
+            +70 XP de bônus.
+          </span>
+        </div>
+      )}
+
+      {/* Conteúdo da etapa */}
+      <div className="mt-6 min-h-[190px]">
+        {section ? (
+          <div className="space-y-6">
+            {section.questions.map((q) => (
+              <div key={q.key}>
+                <p className="mb-3 text-sm font-medium text-slate-800">{q.question}</p>
+                <RatingScale
+                  value={answers[q.key] ?? null}
+                  onChange={(v) => setAnswers((a) => ({ ...a, [q.key]: v }))}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div>
+            <p className="mb-3 text-sm font-medium text-slate-800">{FEEDBACK_QUESTION}</p>
+            <textarea
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value)}
+              rows={4}
+              placeholder="Opcional"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-brand-400 focus:ring-2 focus:ring-brand-100 focus:outline-none"
+            />
+          </div>
+        )}
       </div>
+
+      {/* Navegação */}
+      <div className="mt-6 flex items-center justify-between gap-3">
+        <Button variant="secondary" onClick={goBack} disabled={step === 0 || saving}>
+          <ArrowLeft className="size-4" />
+          Voltar
+        </Button>
+
+        {isLast ? (
+          <Button onClick={handleSubmit} disabled={saving}>
+            <Check className="size-4" />
+            {saving ? 'Enviando…' : 'Enviar avaliação'}
+          </Button>
+        ) : (
+          <Button onClick={goNext} disabled={!canAdvance}>
+            Próximo
+            <ArrowRight className="size-4" />
+          </Button>
+        )}
+      </div>
+
+      {section && !canAdvance && (
+        <p className="mt-2 text-right text-xs text-slate-400">Responda para avançar.</p>
+      )}
     </Card>
   )
 }
