@@ -22,16 +22,22 @@ interface ClientGameHubProps {
   project: Project
 }
 
+/** Prioridade de exibição das missões: ativas primeiro, depois feitas, por fim bloqueadas. */
+const MISSION_RANK: Record<GameMission['status'], number> = { active: 0, done: 1, locked: 2 }
+
 export function ClientGameHub({ project }: ClientGameHubProps) {
   const game = buildClientGameState(project)
   const activeMissions = game.missions.filter((mission) => mission.status === 'active')
+  const orderedMissions = [...game.missions].sort(
+    (a, b) => MISSION_RANK[a.status] - MISSION_RANK[b.status],
+  )
   const unlocked = game.achievements.filter((achievement) => achievement.unlocked)
   const nextReward = game.nextLevel
     ? `${game.nextLevel.name}: ${game.nextLevel.reward}`
     : 'Todas as recompensas principais desbloqueadas'
 
   return (
-    <Card className="mb-5 overflow-hidden">
+    <Card className="overflow-hidden">
       <div className="bg-navy-950 px-5 py-5 text-white">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
@@ -58,7 +64,7 @@ export function ClientGameHub({ project }: ClientGameHubProps) {
           <ProgressBar value={game.levelProgress} />
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-2 lg:grid-cols-4">
+        <div className="mt-5 grid grid-cols-2 gap-2">
           <HeroMetric icon={Trophy} label="Conquistas" value={`${unlocked.length}/${game.achievements.length}`} />
           <HeroMetric icon={Flame} label="Sequência" value={`${game.streak} etapas`} />
           <HeroMetric icon={Gift} label="Horas ganhas" value={`${formatHours(game.earnedHours)}h`} />
@@ -66,8 +72,8 @@ export function ClientGameHub({ project }: ClientGameHubProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1.05fr)_minmax(340px,0.95fr)]">
-        <div className="border-b border-slate-100 p-5 lg:border-r lg:border-b-0">
+      <div>
+        <div className="border-b border-slate-100 p-5">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <h3 className="text-sm font-bold uppercase tracking-wide text-slate-500">Missões ativas</h3>
@@ -83,7 +89,7 @@ export function ClientGameHub({ project }: ClientGameHubProps) {
           </div>
 
           <div className="space-y-2">
-            {game.missions.map((mission) => (
+            {orderedMissions.map((mission) => (
               <MissionRow key={mission.id} mission={mission} />
             ))}
           </div>
