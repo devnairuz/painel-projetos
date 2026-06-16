@@ -99,7 +99,7 @@ router.delete("/:id/access", h(async (req, res) => {
 }));
 
 router.post("/:id/nps", h(async (req, res) => {
-  const p = await svc.answerNps(req.params.id, req.body.score, req.body.comment);
+  const p = await svc.answerNps(req.params.id, req.body);
   return p ? res.json(p) : notFound(res);
 }));
 

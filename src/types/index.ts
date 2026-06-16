@@ -314,11 +314,33 @@ export interface Project {
   finalization: FinalizationConfig
 }
 
-/** Resposta de NPS do cliente. */
+/**
+ * Pesquisa de satisfação do cliente. `score` (NPS Geral / indicação) e `comment`
+ * (Feedback Aberto) mantêm os nomes antigos para compatibilidade; os demais
+ * campos são as notas (0..10) das outras perguntas da pesquisa.
+ */
 export interface Nps {
-  score: number // 0..10
+  /** NPS Geral — "indicaria nossa empresa para um amigo". 0..10. */
+  score: number
+  /** Feedback Aberto (texto livre). */
   comment?: string
   answeredAt: string
+  /** Pesquisa de Satisfação - Projetos. */
+  satisfacaoProjeto?: number
+  /** UX/UI — recomendação da equipe. */
+  uxRecomendacao?: number
+  /** UX/UI — qualidade das entregas. */
+  uxEntregas?: number
+  /** UX/UI — experiência durante a etapa. */
+  uxExperiencia?: number
+  /** Dev — implantação e configuração da plataforma. */
+  devImplantacao?: number
+  /** Dev — qualidade da implementação do layout. */
+  devLayout?: number
+  /** Dev — estabilidade e funcionamento da entrega. */
+  devEstabilidade?: number
+  /** PMO / Atendimento ao cliente. */
+  pmoAtendimento?: number
 }
 
 /** CTA de finalização (Sustentação ou Evolução). */

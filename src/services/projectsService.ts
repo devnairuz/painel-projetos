@@ -1,6 +1,7 @@
 import type {
   ChecklistItem,
   CommentAttachment,
+  Nps,
   Organization,
   Phase,
   Project,
@@ -584,13 +585,13 @@ export async function revokeClientAccess(id: string, email: string): Promise<Pro
   )
 }
 
-export async function answerNps(id: string, score: number, comment?: string): Promise<Project> {
+export async function answerNps(id: string, survey: Omit<Nps, 'answeredAt'>): Promise<Project> {
   return mutate(
-    () => api.post<Project>(`${p(id)}/nps`, { score, comment }),
+    () => api.post<Project>(`${p(id)}/nps`, survey),
     () =>
       updateLocalProject(id, (project) => ({
         ...project,
-        nps: { score, comment, answeredAt: new Date().toISOString() },
+        nps: { ...survey, answeredAt: new Date().toISOString() },
       })),
   )
 }

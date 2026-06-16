@@ -5,8 +5,10 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useProjects } from '@/hooks/useProjects'
+import { useLookups } from '@/hooks/useLookups'
 import { useToast } from '@/components/ui/Toast'
 import { TrackingChart } from '@/components/reports/TrackingChart'
+import { SatisfactionTable } from '@/components/reports/SatisfactionTable'
 import { buildMonthlyReport, type ReportSeries } from '@/utils/reports'
 import { useReportTargets, type ReportTargets } from '@/hooks/useReportTargets'
 import type { Project } from '@/types'
@@ -16,6 +18,7 @@ const ACCENT = { finalizado: '#52d09e', goLive: '#61b6e8' }
 
 export function RelatoriosPage() {
   const { data: projects, loading } = useProjects()
+  const { getOrg } = useLookups()
   const { notify } = useToast()
   const list = projects ?? []
   const [months, setMonths] = useState(12)
@@ -108,6 +111,15 @@ export function RelatoriosPage() {
                 <ChartBox series={report.goLive} accent={ACCENT.goLive} />
               </div>
             </div>
+          </Card>
+
+          {/* ── Pesquisa de Satisfação (Média NPS) ── */}
+          <Card className="mt-5 overflow-hidden">
+            <div className="flex items-center gap-2 bg-gradient-to-r from-navy-900 to-navy-800 px-6 py-4 text-white">
+              <Star className="size-5 text-brand-300" />
+              <h2 className="text-lg font-bold tracking-wide uppercase">Média NPS — Projetos</h2>
+            </div>
+            <SatisfactionTable projects={list} getOrgName={(id) => getOrg(id)?.name ?? '—'} />
           </Card>
 
           {/* ── Indicadores operacionais ── */}

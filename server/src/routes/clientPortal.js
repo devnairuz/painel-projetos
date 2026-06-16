@@ -48,7 +48,7 @@ router.post("/projects/:id/phases/:phaseId/approve", h(async (req, res) => {
 
 router.post("/projects/:id/nps", h(async (req, res) => {
   if (!(await authorized(req, res))) return;
-  await svc.answerNps(req.params.id, req.body.score, req.body.comment);
+  await svc.answerNps(req.params.id, req.body);
   res.json(await svc.getProjectForClient(req.params.id, req.clientEmail));
 }));
 

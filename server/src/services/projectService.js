@@ -460,20 +460,44 @@ async function revokeClientAccess(id, email) {
   });
 }
 
-async function answerNps(id, score, comment) {
+// Demais notas da pesquisa de satisfação (além do score/comment legados).
+const NPS_RATING_FIELDS = [
+  "satisfacaoProjeto",
+  "uxRecomendacao",
+  "uxEntregas",
+  "uxExperiencia",
+  "devImplantacao",
+  "devLayout",
+  "devEstabilidade",
+  "pmoAtendimento"
+];
+
+function clampScore(value) {
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return undefined;
+  return Math.max(0, Math.min(10, n));
+}
+
+/** Registra a pesquisa de satisfação do cliente (NPS + demais notas). */
+async function answerNps(id, input = {}) {
   const project = await mutateProject(id, (p) => {
-    p.nps = {
-      score: Math.max(0, Math.min(10, Math.round(Number(score) || 0))),
-      comment: (comment && String(comment).trim()) || undefined,
+    const nps = {
+      score: clampScore(input.score) ?? 0,
+      comment: (input.comment && String(input.comment).trim()) || undefined,
       answeredAt: new Date().toISOString()
     };
+    for (const field of NPS_RATING_FIELDS) {
+      const v = clampScore(input[field]);
+      if (v !== undefined) nps[field] = v;
+    }
+    p.nps = nps;
     p.updatedAt = new Date().toISOString();
   });
   if (project && project.nps) {
     await notificationService.notifyProject(project, {
       type: "nps",
-      title: `NPS recebido — ${project.clientName}`,
-      body: `Nota ${project.nps.score}${project.nps.comment ? ` · "${project.nps.comment}"` : ""}`,
+      title: `Pesquisa de satisfação recebida — ${project.clientName}`,
+      body: `NPS ${project.nps.score}${project.nps.comment ? ` · "${project.nps.comment}"` : ""}`,
       link: `/projetos/${project.id}`
     });
   }

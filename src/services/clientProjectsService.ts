@@ -1,4 +1,4 @@
-import type { CommentAttachment, Project } from '@/types'
+import type { CommentAttachment, Nps, Project } from '@/types'
 import { clientApi } from './api'
 import { notifyChange } from './store'
 
@@ -26,8 +26,8 @@ export async function clientApprovePhase(id: string, phaseId: string): Promise<P
   return r
 }
 
-export async function clientAnswerNps(id: string, score: number, comment?: string): Promise<Project> {
-  const r = await clientApi.post<Project>(`${cp(id)}/nps`, { score, comment })
+export async function clientAnswerNps(id: string, survey: Omit<Nps, 'answeredAt'>): Promise<Project> {
+  const r = await clientApi.post<Project>(`${cp(id)}/nps`, survey)
   notifyChange()
   return r
 }
