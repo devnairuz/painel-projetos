@@ -1,40 +1,58 @@
 const dns = require("dns");
+const dnsp = dns.promises;
 const nodemailer = require("nodemailer");
 
-// O Render às vezes resolve o SMTP para IPv6 e não consegue conectar
-// (ENETUNREACH). Preferir IPv4 evita o erro.
 dns.setDefaultResultOrder("ipv4first");
 
-// Envio de e-mail via SMTP (mesmo padrão do suporte-nairuz). As credenciais vêm
-// de variáveis de ambiente; sem elas, o envio é apenas logado (modo dev).
-function getTransporter() {
+function smtpEnv() {
   const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT || 587);
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   if (!host || !user || !pass) return null;
-  const secure = String(process.env.SMTP_SECURE || "false") === "true";
-  return nodemailer.createTransport({
+  return {
     host,
-    port,
-    secure,
-    auth: { user, pass },
-    family: 4, // força IPv4 (Render não conecta no IPv6 do Gmail)
-    // Timeouts curtos: se o SMTP pendurar, falha rápido em vez de travar.
+    port: Number(process.env.SMTP_PORT || 587),
+    user,
+    pass,
+    secure: String(process.env.SMTP_SECURE || "false") === "true"
+  };
+}
+
+/** Há SMTP configurado? */
+function isMailerConfigured() {
+  return !!smtpEnv();
+}
+
+/**
+ * Transporter SMTP conectando num IP **IPv4** resolvido do host. O Render não
+ * roteia IPv6 (ENETUNREACH), e o nodemailer ignora `family`/`ipv4first`; então
+ * resolvemos o IPv4 aqui e mantemos o `servername` para validar o certificado.
+ */
+async function getTransporter() {
+  const env = smtpEnv();
+  if (!env) return null;
+  let connectHost = env.host;
+  try {
+    const [ipv4] = await dnsp.resolve4(env.host);
+    if (ipv4) connectHost = ipv4;
+  } catch {
+    // se a resolução falhar, mantém o hostname
+  }
+  return nodemailer.createTransport({
+    host: connectHost,
+    port: env.port,
+    secure: env.secure,
+    auth: { user: env.user, pass: env.pass },
+    tls: { servername: env.host },
     connectionTimeout: 10000,
     greetingTimeout: 10000,
     socketTimeout: 15000
   });
 }
 
-/** Há SMTP configurado? */
-function isMailerConfigured() {
-  return !!getTransporter();
-}
-
 /** Testa conexão + autenticação no SMTP, sem enviar e-mail. Para diagnóstico. */
 async function verifyMailer() {
-  const transporter = getTransporter();
+  const transporter = await getTransporter();
   if (!transporter) {
     return { configured: false, ok: false, error: "SMTP não configurado (faltam variáveis)" };
   }
@@ -47,7 +65,7 @@ async function verifyMailer() {
 }
 
 async function sendEmail({ to, subject, html, text }) {
-  const transporter = getTransporter();
+  const transporter = await getTransporter();
   const from = process.env.SMTP_FROM || "Portal Nairuz <no-reply@nairuz.com.br>";
   if (!transporter) {
     console.log("[mailer] SMTP não configurado — e-mail não enviado:", subject, "→", to);
