@@ -52,31 +52,58 @@ async function getTransporter() {
 
 /** Testa conexão + autenticação no SMTP, sem enviar e-mail. Para diagnóstico. */
 async function verifyMailer() {
+  // Resend (HTTP) — preferido no Render, que bloqueia SMTP.
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const res = await fetch("https://api.resend.com/domains", {
+        headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` }
+      });
+      if (res.ok) return { configured: true, mode: "resend", ok: true };
+      const data = await res.json().catch(() => ({}));
+      return { configured: true, mode: "resend", ok: false, error: `Resend ${res.status}: ${JSON.stringify(data)}` };
+    } catch (e) {
+      return { configured: true, mode: "resend", ok: false, error: String(e && e.message ? e.message : e) };
+    }
+  }
   const transporter = await getTransporter();
   if (!transporter) {
-    return { configured: false, ok: false, error: "SMTP não configurado (faltam variáveis)" };
+    return { configured: false, ok: false, error: "Nenhum provedor configurado (RESEND_API_KEY ou SMTP_*)" };
   }
   try {
     await transporter.verify();
-    return { configured: true, ok: true };
+    return { configured: true, mode: "smtp", ok: true };
   } catch (e) {
-    return { configured: true, ok: false, error: String(e && e.message ? e.message : e) };
+    return { configured: true, mode: "smtp", ok: false, error: String(e && e.message ? e.message : e) };
   }
 }
 
 async function sendEmail({ to, subject, html, text }) {
+  const from = process.env.MAIL_FROM || process.env.SMTP_FROM || "Portal Nairuz <onboarding@resend.dev>";
+
+  // 1) Resend (HTTP/HTTPS) — funciona no Render, que bloqueia portas SMTP.
+  if (process.env.RESEND_API_KEY) {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ from, to, subject, html, text })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(`Resend ${res.status}: ${JSON.stringify(data)}`);
+    console.log(`[mailer] OK (Resend) | from="${from}" to=${to} | id=${data && data.id}`);
+    return true;
+  }
+
+  // 2) SMTP (fallback; tende a ser bloqueado no Render).
   const transporter = await getTransporter();
-  const from = process.env.SMTP_FROM || "Portal Nairuz <no-reply@nairuz.com.br>";
   if (!transporter) {
-    console.log("[mailer] SMTP não configurado — e-mail não enviado:", subject, "→", to);
+    console.log("[mailer] Nenhum provedor configurado (RESEND_API_KEY ou SMTP_*):", subject, "→", to);
     return false;
   }
   const info = await transporter.sendMail({ from, to, subject, html, text });
-  console.log(
-    `[mailer] OK | from="${from}" to=${to} | response="${info.response}" | accepted=${JSON.stringify(
-      info.accepted,
-    )} | rejected=${JSON.stringify(info.rejected)} | messageId=${info.messageId}`,
-  );
+  console.log(`[mailer] OK (SMTP) | from="${from}" to=${to} | response="${info.response}"`);
   return true;
 }
 
