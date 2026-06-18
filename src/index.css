@@ -63,6 +63,9 @@ body {
 .liquid-glass {
   position: relative;
   isolation: isolate;
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.28),
+    inset 0 1px 1px rgba(255, 255, 255, 0.45);
 }
 .liquid-glass::before {
   content: '';
@@ -70,13 +73,13 @@ body {
   inset: 0;
   z-index: 0;
   border-radius: inherit;
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(7px) saturate(160%) brightness(1.05);
-  -webkit-backdrop-filter: blur(7px) saturate(160%) brightness(1.05);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06));
+  backdrop-filter: blur(8px) saturate(180%) brightness(1.12);
+  -webkit-backdrop-filter: blur(8px) saturate(180%) brightness(1.12);
 }
 @supports (backdrop-filter: url("#liquid")) {
   .liquid-glass::before {
-    backdrop-filter: blur(3px) saturate(170%) brightness(1.08) url("#liquid");
+    backdrop-filter: blur(4px) saturate(180%) brightness(1.12) url("#liquid");
   }
 }
 .liquid-glass::after {

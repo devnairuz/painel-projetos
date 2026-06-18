@@ -27,8 +27,9 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     >
       {/* Brilho ambiente — dá cor para o vidro do item ativo refratar */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-8 top-28 size-40 rounded-full bg-brand-500/20 blur-3xl" />
-        <div className="absolute -right-10 bottom-40 size-44 rounded-full bg-sky-500/15 blur-2xl" />
+        <div className="absolute -left-12 top-20 size-64 rounded-full bg-brand-500/35 blur-3xl" />
+        <div className="absolute -right-16 top-1/2 size-72 rounded-full bg-sky-500/30 blur-3xl" />
+        <div className="absolute -left-10 bottom-12 size-56 rounded-full bg-violet-500/25 blur-3xl" />
       </div>
 
       {/* Cabeçalho / logo */}
