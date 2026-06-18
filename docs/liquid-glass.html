@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Liquid Glass · Nairuz Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --mint: #61dcab;
+    --mint-d: #2bb583;
+    --navy: #00175d;
+    --r: 26px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Poppins', system-ui, sans-serif;
+    color: #fff;
+    background: #04113a;
+    overflow-x: hidden;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- Fundo colorido (pra o vidro refratar) ---------- */
+  .bg { position: fixed; inset: 0; z-index: -2; overflow: hidden; background:
+        radial-gradient(120% 120% at 50% -10%, #0a2068 0%, #050f37 55%, #02091f 100%); }
+  .orb { position: absolute; border-radius: 50%; filter: blur(60px); opacity: .85; mix-blend-mode: screen; }
+  .orb.a { width: 46vw; height: 46vw; background: #52d09e; top: -8vw; left: -6vw; animation: drift1 18s ease-in-out infinite; }
+  .orb.b { width: 42vw; height: 42vw; background: #4f8cff; bottom: -12vw; right: -6vw; animation: drift2 22s ease-in-out infinite; }
+  .orb.c { width: 34vw; height: 34vw; background: #ff7a59; top: 30vh; right: 18vw; animation: drift3 26s ease-in-out infinite; }
+  .orb.d { width: 30vw; height: 30vw; background: #9b6bff; bottom: 12vh; left: 14vw; animation: drift1 24s ease-in-out infinite reverse; }
+  @keyframes drift1 { 50% { transform: translate(6vw, 5vw) scale(1.1); } }
+  @keyframes drift2 { 50% { transform: translate(-7vw, -4vw) scale(1.15); } }
+  @keyframes drift3 { 50% { transform: translate(-5vw, 6vw) scale(.9); } }
+
+  /* grade fina — o vidro vai entortar essas linhas (mostra a refração) */
+  .grid { position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .5;
+    background-image:
+      linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px);
+    background-size: 46px 46px;
+    mask-image: radial-gradient(120% 90% at 50% 40%, #000 55%, transparent 100%);
+  }
+  .noise { position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .04;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+  /* luz que segue o cursor */
+  .cursor-glow { position: fixed; z-index: -1; width: 480px; height: 480px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(120,210,255,.18), transparent 60%);
+    transform: translate(-50%, -50%); pointer-events: none; transition: opacity .4s; }
+
+  /* ===================== LIQUID GLASS ===================== */
+  .glass {
+    position: relative;
+    border-radius: var(--r);
+    isolation: isolate;
+    box-shadow:
+      0 12px 40px rgba(0,0,0,.40),
+      0 2px 8px rgba(0,0,0,.25),
+      inset 0 1px 1px rgba(255,255,255,.35);
+    transition: transform .35s cubic-bezier(.2,.9,.3,1), box-shadow .35s;
+  }
+  /* camada 1: refração + blur + tint (entorta o fundo) */
+  .glass::before {
+    content: ""; position: absolute; inset: 0; z-index: 0; border-radius: inherit;
+    background: rgba(255,255,255,.06);
+    backdrop-filter: blur(3px) saturate(180%) brightness(1.08) url(#liquid);
+    -webkit-backdrop-filter: blur(8px) saturate(180%) brightness(1.05);
+  }
+  /* camada 2: rim especular (borda de luz) */
+  .glass::after {
+    content: ""; position: absolute; inset: 0; z-index: 2; border-radius: inherit; padding: 1.4px;
+    pointer-events: none;
+    background: linear-gradient(135deg,
+      rgba(255,255,255,.85) 0%, rgba(255,255,255,.18) 28%,
+      rgba(255,255,255,0) 50%, rgba(255,255,255,.10) 72%, rgba(255,255,255,.55) 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+  }
+  .glass > * { position: relative; z-index: 1; }
+
+  .glass:hover { transform: translateY(-4px) scale(1.012);
+    box-shadow: 0 22px 60px rgba(0,0,0,.5), inset 0 1px 1px rgba(255,255,255,.5); }
+
+  .glass--mint::before { background: linear-gradient(135deg, rgba(97,220,171,.22), rgba(97,220,171,.06)); }
+  .glass--clear::before { backdrop-filter: blur(1.5px) saturate(170%) url(#liquid); }
+  .glass--frost::before { backdrop-filter: blur(16px) saturate(160%) url(#liquid); -webkit-backdrop-filter: blur(20px) saturate(160%); }
+
+  /* ===================== LAYOUT ===================== */
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 30px 22px 130px; }
+
+  .topbar { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-radius: 20px; margin-bottom: 30px; }
+  .brand { font-weight: 700; font-size: 19px; letter-spacing: -.3px; color: var(--mint); }
+  .brand small { display:block; font-size: 9px; font-weight: 500; letter-spacing: 2px; color: rgba(255,255,255,.55); text-transform: uppercase; }
+  .search { flex: 1; display: flex; align-items: center; gap: 9px; padding: 9px 14px; border-radius: 14px; max-width: 360px;
+    background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); color: rgba(255,255,255,.6); font-size: 14px; }
+  .spacer { flex: 1; }
+  .avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--mint), var(--mint-d));
+    display: grid; place-items: center; font-weight: 700; font-size: 14px; color: #04113a; }
+
+  .lead { text-align: center; margin: 6px 0 30px; }
+  .lead h1 { font-size: clamp(30px, 6vw, 56px); font-weight: 700; letter-spacing: -1.5px; line-height: 1; }
+  .lead h1 span { background: linear-gradient(120deg, #fff, #bfe9ff 60%, var(--mint)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead p { margin-top: 12px; color: rgba(255,255,255,.6); font-size: 15px; }
+
+  .grid-cards { display: grid; grid-template-columns: repeat(12, 1fr); gap: 18px; }
+  .card { padding: 22px; border-radius: var(--r); }
+  .c-7 { grid-column: span 7; } .c-5 { grid-column: span 5; }
+  .c-6 { grid-column: span 6; } .c-4 { grid-column: span 4; } .c-12 { grid-column: span 12; }
+  @media (max-width: 760px) { .c-7,.c-5,.c-6,.c-4 { grid-column: span 12; } }
+
+  .eyebrow { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,.55); font-weight: 600; }
+  .stat { font-size: 52px; font-weight: 700; letter-spacing: -2px; line-height: 1; margin-top: 8px; }
+  .stat small { font-size: 16px; font-weight: 500; color: rgba(255,255,255,.5); letter-spacing: 0; }
+  .muted { color: rgba(255,255,255,.6); font-size: 13.5px; }
+
+  /* mini barras */
+  .bars { display: flex; align-items: flex-end; gap: 7px; height: 64px; margin-top: 18px; }
+  .bars i { flex: 1; border-radius: 6px 6px 3px 3px; background: linear-gradient(180deg, var(--mint), rgba(97,220,171,.25)); }
+
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+  /* toggle */
+  .toggle { width: 52px; height: 30px; border-radius: 999px; background: rgba(255,255,255,.14); position: relative; cursor: pointer; transition: background .3s; flex: none; }
+  .toggle b { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform .3s cubic-bezier(.3,1.4,.5,1); box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+  .toggle.on { background: var(--mint-d); }
+  .toggle.on b { transform: translateX(22px); }
+
+  /* segmented */
+  .seg { display: inline-flex; padding: 4px; border-radius: 13px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); gap: 2px; }
+  .seg button { border: 0; background: transparent; color: rgba(255,255,255,.65); font: inherit; font-size: 13px; font-weight: 600; padding: 7px 16px; border-radius: 10px; cursor: pointer; transition: .25s; }
+  .seg button.active { background: rgba(255,255,255,.92); color: var(--navy); box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+
+  /* slider */
+  .slider { height: 12px; border-radius: 999px; background: rgba(255,255,255,.14); margin-top: 14px; position: relative; }
+  .slider > i { position: absolute; left: 0; top: 0; height: 100%; width: 78%; border-radius: 999px; background: linear-gradient(90deg, var(--mint-d), var(--mint)); }
+  .slider > b { position: absolute; left: 78%; top: 50%; transform: translate(-50%,-50%); width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+
+  /* botão de vidro */
+  .btn { display: inline-flex; align-items: center; gap: 9px; padding: 13px 22px; border-radius: 15px; font-weight: 600; font-size: 14.5px; cursor: pointer; border: 0; color: #04113a;
+    background: linear-gradient(135deg, #eafff6, #b7f0d8); box-shadow: 0 8px 22px rgba(43,181,131,.4), inset 0 1px 1px rgba(255,255,255,.8); transition: transform .2s; }
+  .btn:hover { transform: translateY(-2px); }
+  .btn.ghost { color: #fff; background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.2); box-shadow: inset 0 1px 1px rgba(255,255,255,.3); }
+
+  .ico { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .pill-ico { width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.14); flex: none; }
+
+  /* toast flutuante */
+  .toast { position: fixed; right: 26px; top: 26px; padding: 14px 18px; border-radius: 18px; display: flex; align-items: center; gap: 12px; max-width: 320px; z-index: 5;
+    animation: floatIn 1s cubic-bezier(.2,.9,.3,1) .4s both; }
+  @keyframes floatIn { from { opacity: 0; transform: translateY(-18px) scale(.96); } }
+  .toast .dot { width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(135deg,var(--mint),var(--mint-d)); display:grid; place-items:center; flex:none; }
+
+  /* dock inferior */
+  .dock { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); display: flex; gap: 8px; padding: 11px 14px; border-radius: 24px; z-index: 5; }
+  .dock a { width: 50px; height: 50px; border-radius: 16px; display: grid; place-items: center; color: #fff; text-decoration: none; transition: transform .25s, background .25s; background: rgba(255,255,255,.05); }
+  .dock a:hover { transform: translateY(-8px) scale(1.08); background: rgba(255,255,255,.16); }
+  .dock a.active { background: linear-gradient(135deg, var(--mint), var(--mint-d)); color: #04113a; }
+
+  .foot { text-align: center; color: rgba(255,255,255,.4); font-size: 12px; margin-top: 34px; letter-spacing: .3px; }
+</style>
+</head>
+<body>
+  <div class="bg"><div class="orb a"></div><div class="orb b"></div><div class="orb c"></div><div class="orb d"></div></div>
+  <div class="grid"></div>
+  <div class="noise"></div>
+  <div class="cursor-glow" id="glow"></div>
+
+  <!-- Filtro SVG: refração líquida (entorta o que está atrás do vidro) -->
+  <svg width="0" height="0" style="position:absolute">
+    <filter id="liquid" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.009 0.012" numOctaves="2" seed="14" result="noise"/>
+      <feGaussianBlur in="noise" stdDeviation="1.4" result="soft"/>
+      <feDisplacementMap in="SourceGraphic" in2="soft" scale="58" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </svg>
+
+  <!-- Toast -->
+  <div class="toast glass" data-tilt>
+    <div class="dot"><svg class="ico" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+    <div><div style="font-weight:600;font-size:14px">Etapa aprovada</div><div class="muted" style="font-size:12.5px">Cliente validou “Design” • há 2 min</div></div>
+  </div>
+
+  <div class="wrap">
+    <!-- Topbar de vidro -->
+    <div class="topbar glass glass--frost" data-tilt>
+      <div class="brand">nairuz<small>liquid glass lab</small></div>
+      <div class="search"><svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Buscar projeto, cliente…</div>
+      <div class="spacer"></div>
+      <div class="avatar">PC</div>
+    </div>
+
+    <div class="lead">
+      <h1>Vidro <span>líquido</span></h1>
+      <p>Refração real nas bordas · brilho especular · profundidade — passe o mouse nos painéis.</p>
+    </div>
+
+    <div class="grid-cards">
+      <!-- Stat grande -->
+      <div class="card glass c-7" data-tilt>
+        <div class="eyebrow">Projetos ativos</div>
+        <div class="stat">12 <small>/ 3 em risco</small></div>
+        <div class="bars">
+          <i style="height:40%"></i><i style="height:62%"></i><i style="height:48%"></i><i style="height:80%"></i>
+          <i style="height:58%"></i><i style="height:92%"></i><i style="height:70%"></i><i style="height:100%"></i>
+        </div>
+      </div>
+
+      <!-- Coluna de toggles -->
+      <div class="card glass glass--mint c-5" data-tilt>
+        <div class="eyebrow" style="margin-bottom:14px">Preferências</div>
+        <div class="row" style="margin-bottom:16px">
+          <div><div style="font-weight:600">Modo foco</div><div class="muted">Esconde o que não é seu</div></div>
+          <div class="toggle on" data-toggle><b></b></div>
+        </div>
+        <div class="row" style="margin-bottom:16px">
+          <div><div style="font-weight:600">Notificações</div><div class="muted">Aprovações e prazos</div></div>
+          <div class="toggle on" data-toggle><b></b></div>
+        </div>
+        <div class="row">
+          <div><div style="font-weight:600">Resumo diário</div><div class="muted">Por e-mail às 8h</div></div>
+          <div class="toggle" data-toggle><b></b></div>
+        </div>
+      </div>
+
+      <!-- Próximo go-live -->
+      <div class="card glass c-4" data-tilt>
+        <div class="eyebrow">Próximo go-live</div>
+        <div style="font-size:30px;font-weight:700;letter-spacing:-1px;margin-top:8px">3 dias</div>
+        <div class="muted" style="margin-top:4px">Loja VTEX — Cliente Aurora</div>
+      </div>
+
+      <!-- Meta NPS slider -->
+      <div class="card glass c-4" data-tilt>
+        <div class="row"><div class="eyebrow">Meta de NPS</div><div style="font-weight:700">78</div></div>
+        <div class="slider"><i></i><b></b></div>
+        <div class="muted" style="margin-top:12px">Acima da meta de 70 🎉</div>
+      </div>
+
+      <!-- Período + botões -->
+      <div class="card glass c-4" data-tilt>
+        <div class="eyebrow" style="margin-bottom:12px">Período</div>
+        <div class="seg" data-seg>
+          <button class="active">6 meses</button><button>12 meses</button>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
+          <button class="btn"><svg class="ico" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Novo projeto</button>
+          <button class="btn ghost">Exportar</button>
+        </div>
+      </div>
+
+      <!-- Faixa de "atalhos" estilo dock interno -->
+      <div class="card glass c-12 glass--clear" data-tilt style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+        <div class="pill-ico"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>
+        <div style="flex:1;min-width:200px">
+          <div style="font-weight:600">Camada de vidro reutilizável</div>
+          <div class="muted">Uma classe <code style="background:rgba(255,255,255,.12);padding:1px 6px;border-radius:6px">.glass</code> — dá pra aplicar em cards, botões, modais e na sidebar do painel.</div>
+        </div>
+        <button class="btn ghost">Ver código</button>
+      </div>
+    </div>
+
+    <div class="foot">Liquid glass renderiza melhor no Chrome (refração via filtro SVG). Demo isolada — não afeta o app.</div>
+  </div>
+
+  <!-- Dock -->
+  <nav class="dock glass" data-tilt>
+    <a class="active" href="#"><svg class="ico" viewBox="0 0 24 24"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg></a>
+    <a href="#"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></a>
+    <a href="#"><svg class="ico" viewBox="0 0 24 24"><path d="M12 20V10M6 20V4M18 20v-6"/></svg></a>
+    <a href="#"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></a>
+    <a href="#"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.2-1.5l2-1.6-2-3.4-2.3 1a7 7 0 0 0-2.6-1.5L13.5 2h-3l-.4 2.5a7 7 0 0 0-2.6 1.5l-2.3-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .5 0 1 .2 1.5l-2 1.6 2 3.4 2.3-1a7 7 0 0 0 2.6 1.5l.4 2.5h3l.4-2.5a7 7 0 0 0 2.6-1.5l2.3 1 2-3.4-2-1.6c.1-.5.2-1 .2-1.5Z"/></svg></a>
+  </nav>
+
+<script>
+  // luz seguindo o cursor
+  const glow = document.getElementById('glow');
+  addEventListener('pointermove', (e) => {
+    glow.style.left = e.clientX + 'px';
+    glow.style.top = e.clientY + 'px';
+  });
+
+  // tilt 3D sutil nos painéis
+  document.querySelectorAll('[data-tilt]').forEach((el) => {
+    el.addEventListener('pointermove', (e) => {
+      const r = el.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width - .5;
+      const py = (e.clientY - r.top) / r.height - .5;
+      el.style.transform = `perspective(900px) rotateX(${-py * 5}deg) rotateY(${px * 6}deg) translateY(-3px)`;
+    });
+    el.addEventListener('pointerleave', () => { el.style.transform = ''; });
+  });
+
+  // toggles, segmented
+  document.querySelectorAll('[data-toggle]').forEach((t) => t.addEventListener('click', () => t.classList.toggle('on')));
+  document.querySelectorAll('[data-seg]').forEach((seg) => seg.querySelectorAll('button').forEach((b) =>
+    b.addEventListener('click', () => { seg.querySelectorAll('button').forEach((x) => x.classList.remove('active')); b.classList.add('active'); })));
+</script>
+</body>
+</html>

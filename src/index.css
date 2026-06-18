@@ -56,6 +56,53 @@ body {
   scrollbar-color: #cbd3df transparent;
 }
 
+/* ===== Liquid glass reutilizável ===== */
+/* Vidro fosco translúcido + brilho especular na borda. A refração (lente) vem
+   do filtro SVG #liquid via backdrop-filter (Chromium); onde não há suporte,
+   degrada para um vidro fosco simples — ainda elegante. */
+.liquid-glass {
+  position: relative;
+  isolation: isolate;
+}
+.liquid-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(7px) saturate(160%) brightness(1.05);
+  -webkit-backdrop-filter: blur(7px) saturate(160%) brightness(1.05);
+}
+@supports (backdrop-filter: url("#liquid")) {
+  .liquid-glass::before {
+    backdrop-filter: blur(3px) saturate(170%) brightness(1.08) url("#liquid");
+  }
+}
+.liquid-glass::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.65),
+    rgba(255, 255, 255, 0.1) 30%,
+    transparent 55%,
+    rgba(255, 255, 255, 0.35)
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+.liquid-glass > * {
+  position: relative;
+  z-index: 1;
+}
+
 /* Loader de pontos pulsantes — espelha o "infinite-loader" do suporte-nairuz. */
 .nz-dots {
   display: inline-flex;

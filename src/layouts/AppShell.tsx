@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { MobileTopNav } from '@/components/layout/MobileTopNav'
 import { NotificationBell } from '@/components/layout/NotificationBell'
 import { ToastProvider } from '@/components/ui/Toast'
+import { LiquidGlassDefs } from '@/components/ui/LiquidGlassDefs'
 
 /**
  * Casca da aplicação. Desktop: sidebar lateral fixa + barra de notificações.
@@ -14,6 +15,7 @@ export function AppShell() {
 
   return (
     <ToastProvider>
+      <LiquidGlassDefs />
       <div className="fixed inset-0 flex overflow-hidden bg-surface">
         {/* Sidebar lateral apenas no desktop */}
         <div className="hidden md:flex">
