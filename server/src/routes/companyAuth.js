@@ -1,5 +1,6 @@
 const express = require("express");
 const svc = require("../services/companyAuthService");
+const { verifyMailer } = require("../services/mailer");
 const { requireAuth } = require("../middleware/requireAuth");
 
 const router = express.Router();
@@ -11,5 +12,7 @@ router.post("/register", h(async (req, res) => res.status(201).json(await svc.re
 router.post("/verify", h(async (req, res) => res.json(await svc.verifyEmail(req.body))));
 router.post("/login", h(async (req, res) => res.json(await svc.login(req.body))));
 router.get("/me", requireAuth, (req, res) => res.json(req.authUser));
+// Diagnóstico do provedor de e-mail (não envia; remover quando estável).
+router.get("/mail-status", h(async (_req, res) => res.json(await verifyMailer())));
 
 module.exports = { router };

@@ -18,3 +18,8 @@ services:
         sync: false
       - key: ALLOWED_ORIGINS
         sync: false
+      # E-mail via Resend (HTTP) — código de verificação. Preencha no Render.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false
