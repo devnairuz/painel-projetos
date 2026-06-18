@@ -35,7 +35,12 @@ async function sendEmail({ to, subject, html, text }) {
     console.log("[mailer] SMTP não configurado — e-mail não enviado:", subject, "→", to);
     return false;
   }
-  await transporter.sendMail({ from, to, subject, html, text });
+  const info = await transporter.sendMail({ from, to, subject, html, text });
+  console.log(
+    `[mailer] OK | from="${from}" to=${to} | response="${info.response}" | accepted=${JSON.stringify(
+      info.accepted,
+    )} | rejected=${JSON.stringify(info.rejected)} | messageId=${info.messageId}`,
+  );
   return true;
 }
 
