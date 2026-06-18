@@ -48,26 +48,6 @@ export async function loginCompany(email: string, password: string): Promise<Com
   return persist(result)
 }
 
-/** Reenvia o código de verificação (cadastro ainda não confirmado). */
-export async function resendCode(email: string): Promise<{ email: string; devCode?: string }> {
-  return api.post('/api/auth/resend-code', { email })
-}
-
-/** Solicita o código de redefinição de senha por e-mail. */
-export async function requestPasswordReset(email: string): Promise<{ email: string; devCode?: string }> {
-  return api.post('/api/auth/forgot-password', { email })
-}
-
-/** Redefine a senha com o código e já autentica (salva token). */
-export async function resetPasswordCompany(
-  email: string,
-  code: string,
-  password: string,
-): Promise<CompanyUser> {
-  const result = await api.post<AuthResult>('/api/auth/reset-password', { email, code, password })
-  return persist(result)
-}
-
 export function getCompanySession(): CompanyUser | null {
   try {
     const raw = localStorage.getItem(USER_KEY)

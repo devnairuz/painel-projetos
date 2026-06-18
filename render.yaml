@@ -18,21 +18,3 @@ services:
         sync: false
       - key: ALLOWED_ORIGINS
         sync: false
-      # E-mail (código de verificação/reset). RESEND é o recomendado no Render
-      # (SMTP é bloqueado). Preencha no painel do Render.
-      - key: RESEND_API_KEY
-        sync: false
-      - key: MAIL_FROM
-        sync: false
-      - key: SMTP_HOST
-        sync: false
-      - key: SMTP_PORT
-        sync: false
-      - key: SMTP_SECURE
-        sync: false
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASS
-        sync: false
-      - key: SMTP_FROM
-        sync: false

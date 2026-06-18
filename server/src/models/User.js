@@ -12,9 +12,7 @@ const userSchema = new mongoose.Schema(
     active: { type: Boolean, default: true },
     emailVerified: { type: Boolean, default: false },
     verifyCodeHash: { type: String, default: "" },
-    verifyCodeExpires: { type: Date, default: null },
-    resetCodeHash: { type: String, default: "" },
-    resetCodeExpires: { type: Date, default: null }
+    verifyCodeExpires: { type: Date, default: null }
   },
   { timestamps: true, minimize: false }
 );
