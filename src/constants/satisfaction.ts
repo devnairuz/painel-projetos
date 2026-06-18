@@ -145,3 +145,45 @@ export function fmtScore(value: number | null | undefined): string {
   if (typeof value !== 'number') return '—'
   return value.toFixed(1).replace('.', ',')
 }
+
+/** Cabeçalho da tabela de satisfação (mesma ordem da tela), para exportação. */
+export const SATISFACTION_EXPORT_HEADERS = [
+  'Cliente',
+  'Empresa',
+  'Indicação Empresa',
+  'Satisfação Projeto',
+  'UX/UI Recomendação',
+  'UX/UI Entregas',
+  'UX/UI Experiência',
+  'Média Final UX/UI',
+  'Dev Implantação',
+  'Dev Layout',
+  'Dev Estabilidade',
+  'Média Final Dev',
+  'PMO Atendimento',
+  'Média Final Tecnologia',
+  'Feedback Aberto',
+]
+
+/** Uma linha da pesquisa para o CSV. Notas em PT-BR (vírgula); vazio quando ausente. */
+export function satisfactionExportRow(nps: Nps, clientName: string, orgName: string): string[] {
+  const { uxui, dev, tecnologia } = surveyAverages(nps)
+  const num = (v: number | null | undefined) => (typeof v === 'number' ? String(v).replace('.', ',') : '')
+  return [
+    clientName,
+    orgName,
+    num(nps.score),
+    num(nps.satisfacaoProjeto),
+    num(nps.uxRecomendacao),
+    num(nps.uxEntregas),
+    num(nps.uxExperiencia),
+    num(uxui),
+    num(nps.devImplantacao),
+    num(nps.devLayout),
+    num(nps.devEstabilidade),
+    num(dev),
+    num(nps.pmoAtendimento),
+    num(tecnologia),
+    nps.comment ?? '',
+  ]
+}

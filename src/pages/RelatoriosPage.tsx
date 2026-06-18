@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
-import { BarChart3, ClipboardCopy, ShieldCheck, Star, Timer, Upload, TrendingUp } from 'lucide-react'
+import { BarChart3, ClipboardCopy, Download, ShieldCheck, Star, Timer, Upload, TrendingUp } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -11,6 +11,8 @@ import { TrackingChart } from '@/components/reports/TrackingChart'
 import { SatisfactionTable } from '@/components/reports/SatisfactionTable'
 import { buildMonthlyReport, type ReportSeries } from '@/utils/reports'
 import { useReportTargets, type ReportTargets } from '@/hooks/useReportTargets'
+import { SATISFACTION_EXPORT_HEADERS, satisfactionExportRow } from '@/constants/satisfaction'
+import { toCsv, downloadCsv } from '@/utils/csv'
 import type { Project } from '@/types'
 import { cn } from '@/utils/cn'
 
@@ -62,16 +64,47 @@ export function RelatoriosPage() {
     notify('Resumo copiado.')
   }
 
+  function handleExportCsv() {
+    const rows: (string | number)[][] = [
+      ['Relatório operacional — Portal de Projetos'],
+      [`Gerado em ${new Date().toLocaleDateString('pt-BR')} · período do gráfico: últimos ${months} meses`],
+      [],
+      ['Indicadores'],
+      ['Projetos ativos', active.length],
+      ['NPS médio', avgNps || ''],
+      ['Horas usadas', `${usedHours}/${estimatedHours}`],
+      ['Escopos recebidos/validados', `${scopeReceived}/${list.length}`],
+      ['Segurança', `${securityDone}/${securityTotal}`],
+      ['Pendências abertas', openCharges.length],
+      [],
+      ['Média NPS - Projetos'],
+      SATISFACTION_EXPORT_HEADERS,
+      ...list
+        .filter((project) => project.nps)
+        .map((project) =>
+          satisfactionExportRow(project.nps!, project.clientName, getOrg(project.organizationId)?.name ?? '—'),
+        ),
+    ]
+    downloadCsv(`relatorio-projetos-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows))
+    notify('Relatório exportado (CSV).')
+  }
+
   return (
     <>
       <PageHeader
         title="Relatórios"
         subtitle="Indicadores operacionais para acompanhamento da implantação."
         action={
-          <Button variant="secondary" onClick={copySummary}>
-            <ClipboardCopy className="size-4" />
-            Copiar resumo
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="secondary" onClick={copySummary}>
+              <ClipboardCopy className="size-4" />
+              Copiar resumo
+            </Button>
+            <Button variant="secondary" onClick={handleExportCsv}>
+              <Download className="size-4" />
+              Exportar CSV
+            </Button>
+          </div>
         }
       />
 
