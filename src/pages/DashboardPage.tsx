@@ -67,38 +67,17 @@ export function DashboardPage() {
         </div>
       ) : (
         <>
-          {/* Painel de KPIs em vidro líquido sobre fundo vivo */}
-          <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-navy-900 via-navy-800 to-navy-950 p-5 shadow-xl sm:p-7">
-            {/* Orbes de cor (o vidro refrata isto) */}
-            <div className="pointer-events-none absolute inset-0 overflow-hidden">
-              <div className="absolute -top-10 -left-10 size-56 rounded-full bg-brand-500/40 blur-3xl" />
-              <div className="absolute top-1/3 -right-6 size-64 rounded-full bg-sky-500/30 blur-3xl" />
-              <div className="absolute -bottom-12 left-1/3 size-56 rounded-full bg-violet-500/25 blur-3xl" />
-              <div className="absolute -top-6 right-1/4 size-40 rounded-full bg-rose-500/25 blur-3xl" />
-            </div>
-            {/* Grade fina — a refração do vidro entorta estas linhas */}
-            <div
-              className="pointer-events-none absolute inset-0 opacity-60"
-              style={{
-                backgroundImage:
-                  'linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px)',
-                backgroundSize: '40px 40px',
-                maskImage: 'radial-gradient(130% 100% at 50% 0%, #000 45%, transparent 100%)',
-                WebkitMaskImage: 'radial-gradient(130% 100% at 50% 0%, #000 45%, transparent 100%)',
-              }}
-            />
-
-            <div className="relative grid grid-cols-2 gap-4 lg:grid-cols-4">
-              <StatCard icon={FolderKanban} label="Projetos ativos" value={stats.active.length} tone="brand" />
-              <StatCard icon={AlertTriangle} label="Em risco" value={stats.atRisk.length} tone="red" />
-              <StatCard icon={Clock} label="Aguardando cliente" value={stats.waitingClient.length} tone="amber" />
-              <StatCard icon={Building2} label="Aguardando Nairuz" value={stats.waitingNairuz.length} tone="orange" />
-              <StatCard icon={Rocket} label="Go lives próximos (21d)" value={stats.upcoming.length} tone="blue" />
-              <StatCard icon={CheckCircle2} label="Prontos para go live" value={stats.readyGoLive.length} tone="emerald" />
-              <StatCard icon={BellRing} label="Pendências abertas" value={stats.openCharges.length} tone="amber" />
-              <StatCard icon={Upload} label="Escopos pendentes" value={stats.scopePending.length} tone="blue" />
-            </div>
-          </section>
+          {/* Cards de métrica */}
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <StatCard icon={FolderKanban} label="Projetos ativos" value={stats.active.length} tone="brand" />
+            <StatCard icon={AlertTriangle} label="Em risco" value={stats.atRisk.length} tone="red" />
+            <StatCard icon={Clock} label="Aguardando cliente" value={stats.waitingClient.length} tone="amber" />
+            <StatCard icon={Building2} label="Aguardando Nairuz" value={stats.waitingNairuz.length} tone="orange" />
+            <StatCard icon={Rocket} label="Go lives próximos (21d)" value={stats.upcoming.length} tone="blue" />
+            <StatCard icon={CheckCircle2} label="Prontos para go live" value={stats.readyGoLive.length} tone="emerald" />
+            <StatCard icon={BellRing} label="Pendências abertas" value={stats.openCharges.length} tone="amber" />
+            <StatCard icon={Upload} label="Escopos pendentes" value={stats.scopePending.length} tone="blue" />
+          </div>
 
           {/* Listas */}
           <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
@@ -125,13 +104,13 @@ export function DashboardPage() {
 
 type Tone = 'brand' | 'red' | 'amber' | 'orange' | 'blue' | 'emerald'
 
-const TONE: Record<Tone, string> = {
-  brand: 'bg-brand-400/20 text-brand-200',
-  red: 'bg-red-400/20 text-red-200',
-  amber: 'bg-amber-400/20 text-amber-200',
-  orange: 'bg-orange-400/20 text-orange-200',
-  blue: 'bg-sky-400/20 text-sky-200',
-  emerald: 'bg-emerald-400/20 text-emerald-200',
+const TONE: Record<Tone, { bg: string; text: string }> = {
+  brand: { bg: 'bg-brand-50', text: 'text-brand-600' },
+  red: { bg: 'bg-red-50', text: 'text-red-600' },
+  amber: { bg: 'bg-amber-50', text: 'text-amber-600' },
+  orange: { bg: 'bg-orange-50', text: 'text-orange-600' },
+  blue: { bg: 'bg-blue-50', text: 'text-blue-600' },
+  emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600' },
 }
 
 function StatCard({
@@ -146,13 +125,13 @@ function StatCard({
   tone: Tone
 }) {
   return (
-    <div className="liquid-glass rounded-2xl p-5">
-      <div className={cn('mb-3 flex size-10 items-center justify-center rounded-xl', TONE[tone])}>
+    <Card className="p-5">
+      <div className={cn('mb-3 flex size-10 items-center justify-center rounded-xl', TONE[tone].bg, TONE[tone].text)}>
         <Icon className="size-5" />
       </div>
-      <div className="text-3xl font-bold tracking-tight text-white">{value}</div>
-      <div className="mt-0.5 text-sm text-white/65">{label}</div>
-    </div>
+      <div className="text-3xl font-bold tracking-tight text-slate-900">{value}</div>
+      <div className="mt-0.5 text-sm text-slate-500">{label}</div>
+    </Card>
   )
 }
 

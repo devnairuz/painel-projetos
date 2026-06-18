@@ -25,13 +25,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         collapsed ? 'w-20' : 'w-64',
       )}
     >
-      {/* Brilho ambiente — dá cor para o vidro do item ativo refratar */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-12 top-20 size-64 rounded-full bg-brand-500/35 blur-3xl" />
-        <div className="absolute -right-16 top-1/2 size-72 rounded-full bg-sky-500/30 blur-3xl" />
-        <div className="absolute -left-10 bottom-12 size-56 rounded-full bg-violet-500/25 blur-3xl" />
-      </div>
-
       {/* Cabeçalho / logo */}
       <div className="flex items-center justify-between px-5 pt-6 pb-5">
         <Logo collapsed={collapsed} />
@@ -60,7 +53,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 cn(
                   'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
                   isActive
-                    ? 'liquid-glass text-white shadow-sm'
+                    ? 'bg-white/10 text-white shadow-sm'
                     : 'text-slate-300/80 hover:bg-white/5 hover:text-white',
                   collapsed && 'justify-center',
                 )
