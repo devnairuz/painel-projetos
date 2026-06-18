@@ -1,5 +1,6 @@
 const express = require("express");
 const svc = require("../services/companyAuthService");
+const { verifyMailer } = require("../services/mailer");
 const { requireAuth } = require("../middleware/requireAuth");
 
 const router = express.Router();
@@ -14,5 +15,7 @@ router.post("/login", h(async (req, res) => res.json(await svc.login(req.body)))
 router.post("/forgot-password", h(async (req, res) => res.json(await svc.requestPasswordReset(req.body))));
 router.post("/reset-password", h(async (req, res) => res.json(await svc.resetPassword(req.body))));
 router.get("/me", requireAuth, (req, res) => res.json(req.authUser));
+// Diagnóstico temporário do SMTP (não envia e-mail; remover depois).
+router.get("/mail-status", h(async (_req, res) => res.json(await verifyMailer())));
 
 module.exports = { router };

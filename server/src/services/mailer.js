@@ -32,6 +32,20 @@ function isMailerConfigured() {
   return !!getTransporter();
 }
 
+/** Testa conexão + autenticação no SMTP, sem enviar e-mail. Para diagnóstico. */
+async function verifyMailer() {
+  const transporter = getTransporter();
+  if (!transporter) {
+    return { configured: false, ok: false, error: "SMTP não configurado (faltam variáveis)" };
+  }
+  try {
+    await transporter.verify();
+    return { configured: true, ok: true };
+  } catch (e) {
+    return { configured: true, ok: false, error: String(e && e.message ? e.message : e) };
+  }
+}
+
 async function sendEmail({ to, subject, html, text }) {
   const transporter = getTransporter();
   const from = process.env.SMTP_FROM || "Portal Nairuz <no-reply@nairuz.com.br>";
@@ -76,4 +90,4 @@ async function sendPasswordResetCode(to, code, name) {
   return sendEmail({ to, subject, html, text });
 }
 
-module.exports = { sendEmail, sendVerificationCode, sendPasswordResetCode, isMailerConfigured };
+module.exports = { sendEmail, sendVerificationCode, sendPasswordResetCode, isMailerConfigured, verifyMailer };
