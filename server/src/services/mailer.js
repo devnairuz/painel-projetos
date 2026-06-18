@@ -42,4 +42,18 @@ async function sendVerificationCode(to, code, name) {
   return sendEmail({ to, subject, html, text });
 }
 
-module.exports = { sendEmail, sendVerificationCode, isMailerConfigured };
+/** E-mail com o código para redefinir a senha. */
+async function sendPasswordResetCode(to, code, name) {
+  const subject = "Redefinição de senha — Portal Nairuz";
+  const text = `Olá ${name || ""}, seu código para redefinir a senha é ${code}. Ele expira em 15 minutos. Se não foi você, ignore este e-mail.`;
+  const html = `
+    <div style="font-family:Arial,Helvetica,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1b2331">
+      <h2 style="margin:0 0 8px">Redefinir sua senha</h2>
+      <p style="margin:0 0 16px;color:#475569">Olá ${name || ""}, use o código abaixo para criar uma nova senha no Portal de Projetos da Nairuz.</p>
+      <div style="font-size:32px;font-weight:700;letter-spacing:8px;background:#f1f4f8;border-radius:12px;padding:16px;text-align:center;color:#00175d">${code}</div>
+      <p style="margin:16px 0 0;color:#94a3b8;font-size:13px">O código expira em 15 minutos. Se você não solicitou, ignore este e-mail.</p>
+    </div>`;
+  return sendEmail({ to, subject, html, text });
+}
+
+module.exports = { sendEmail, sendVerificationCode, sendPasswordResetCode, isMailerConfigured };

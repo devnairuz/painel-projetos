@@ -4,6 +4,7 @@ import {
   getCompanySession,
   loginCompany,
   verifyCompany,
+  resetPasswordCompany,
   type CompanyUser,
 } from '@/services/companyAuthService'
 
@@ -11,6 +12,7 @@ interface CompanyAuthContextValue {
   user: CompanyUser | null
   login: (email: string, password: string) => Promise<void>
   verify: (email: string, code: string) => Promise<void>
+  resetPassword: (email: string, code: string, password: string) => Promise<void>
   logout: () => void
 }
 
@@ -28,12 +30,19 @@ export function CompanyAuthProvider({ children }: { children: ReactNode }) {
     setUser(await verifyCompany(email, code))
   }, [])
 
+  const resetPassword = useCallback(async (email: string, code: string, password: string) => {
+    setUser(await resetPasswordCompany(email, code, password))
+  }, [])
+
   const logout = useCallback(() => {
     companyLogout()
     setUser(null)
   }, [])
 
-  const value = useMemo(() => ({ user, login, verify, logout }), [user, login, verify, logout])
+  const value = useMemo(
+    () => ({ user, login, verify, resetPassword, logout }),
+    [user, login, verify, resetPassword, logout],
+  )
 
   return <CompanyAuthContext.Provider value={value}>{children}</CompanyAuthContext.Provider>
 }
