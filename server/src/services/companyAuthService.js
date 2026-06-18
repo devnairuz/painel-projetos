@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 const { getRepo } = require("../repos");
 const { signToken } = require("../auth/jwt");
 const { config } = require("../config");
+const { sendVerificationCode } = require("./mailer");
 
 const norm = (s) => String(s || "").trim().toLowerCase();
 const uid = (p) => `${p}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -45,8 +46,14 @@ async function register({ name, email, password }) {
   };
   await repo.createUser(user);
 
-  // TODO: enviar por e-mail (provedor). Por enquanto, modo dev.
+  // Envia o código por e-mail (SMTP). Não derruba o cadastro se o envio falhar;
+  // o código fica logado e, em dev, é retornado para facilitar o teste.
   console.log(`[auth] Código de verificação para ${cleanEmail}: ${code}`);
+  try {
+    await sendVerificationCode(cleanEmail, code, user.name);
+  } catch (e) {
+    console.warn(`[mailer] Falha ao enviar código para ${cleanEmail}: ${e.message}`);
+  }
   return { email: cleanEmail, role: user.role, devCode: config.isDev ? code : undefined };
 }
 
