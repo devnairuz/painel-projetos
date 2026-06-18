@@ -53,11 +53,10 @@ async function register({ name, email, password }) {
   // Envia o código por e-mail (SMTP). Não derruba o cadastro se o envio falhar;
   // o código fica logado e, em dev, é retornado para facilitar o teste.
   console.log(`[auth] Código de verificação para ${cleanEmail}: ${code}`);
-  try {
-    await sendVerificationCode(cleanEmail, code, user.name);
-  } catch (e) {
-    console.warn(`[mailer] Falha ao enviar código para ${cleanEmail}: ${e.message}`);
-  }
+  // Envio em segundo plano: não bloqueia a resposta se o SMTP demorar.
+  sendVerificationCode(cleanEmail, code, user.name).catch((e) =>
+    console.warn(`[mailer] Falha ao enviar código para ${cleanEmail}: ${e.message}`)
+  );
   return { email: cleanEmail, role: user.role, devCode: config.isDev ? code : undefined };
 }
 
@@ -106,11 +105,9 @@ async function resendVerification({ email }) {
     verifyCodeExpires: new Date(Date.now() + CODE_TTL_MS).toISOString()
   });
   console.log(`[auth] (reenvio) Código para ${user.email}: ${code}`);
-  try {
-    await sendVerificationCode(user.email, code, user.name);
-  } catch (e) {
-    console.warn(`[mailer] Falha ao reenviar código para ${user.email}: ${e.message}`);
-  }
+  sendVerificationCode(user.email, code, user.name).catch((e) =>
+    console.warn(`[mailer] Falha ao reenviar código para ${user.email}: ${e.message}`)
+  );
   return { email: user.email, devCode: config.isDev ? code : undefined };
 }
 
@@ -129,11 +126,9 @@ async function requestPasswordReset({ email }) {
     resetCodeExpires: new Date(Date.now() + CODE_TTL_MS).toISOString()
   });
   console.log(`[auth] (reset) Código para ${cleanEmail}: ${code}`);
-  try {
-    await sendPasswordResetCode(cleanEmail, code, user.name);
-  } catch (e) {
-    console.warn(`[mailer] Falha ao enviar reset para ${cleanEmail}: ${e.message}`);
-  }
+  sendPasswordResetCode(cleanEmail, code, user.name).catch((e) =>
+    console.warn(`[mailer] Falha ao enviar reset para ${cleanEmail}: ${e.message}`)
+  );
   return { email: cleanEmail, devCode: config.isDev ? code : undefined };
 }
 

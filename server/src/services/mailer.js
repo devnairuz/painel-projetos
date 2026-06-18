@@ -19,7 +19,11 @@ function getTransporter() {
     port,
     secure,
     auth: { user, pass },
-    family: 4 // força IPv4 (Render não conecta no IPv6 do Gmail)
+    family: 4, // força IPv4 (Render não conecta no IPv6 do Gmail)
+    // Timeouts curtos: se o SMTP pendurar, falha rápido em vez de travar.
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000
   });
 }
 
