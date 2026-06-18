@@ -1,4 +1,9 @@
+const dns = require("dns");
 const nodemailer = require("nodemailer");
+
+// O Render às vezes resolve o SMTP para IPv6 e não consegue conectar
+// (ENETUNREACH). Preferir IPv4 evita o erro.
+dns.setDefaultResultOrder("ipv4first");
 
 // Envio de e-mail via SMTP (mesmo padrão do suporte-nairuz). As credenciais vêm
 // de variáveis de ambiente; sem elas, o envio é apenas logado (modo dev).
@@ -9,7 +14,13 @@ function getTransporter() {
   const pass = process.env.SMTP_PASS;
   if (!host || !user || !pass) return null;
   const secure = String(process.env.SMTP_SECURE || "false") === "true";
-  return nodemailer.createTransport({ host, port, secure, auth: { user, pass } });
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: { user, pass },
+    family: 4 // força IPv4 (Render não conecta no IPv6 do Gmail)
+  });
 }
 
 /** Há SMTP configurado? */
