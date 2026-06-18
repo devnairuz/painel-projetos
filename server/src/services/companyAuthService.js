@@ -2,11 +2,12 @@ const bcrypt = require("bcryptjs");
 const { getRepo } = require("../repos");
 const { signToken } = require("../auth/jwt");
 const { config } = require("../config");
-const { sendVerificationCode } = require("./mailer");
+const { sendVerificationCode, sendPasswordResetCode } = require("./mailer");
 
 const norm = (s) => String(s || "").trim().toLowerCase();
 const uid = (p) => `${p}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 const sixDigits = () => String(Math.floor(100000 + Math.random() * 900000));
+const CODE_TTL_MS = 15 * 60 * 1000;
 
 function sanitize(user) {
   if (!user) return null;
@@ -14,6 +15,8 @@ function sanitize(user) {
   delete u.passwordHash;
   delete u.verifyCodeHash;
   delete u.verifyCodeExpires;
+  delete u.resetCodeHash;
+  delete u.resetCodeExpires;
   return u;
 }
 
@@ -88,6 +91,46 @@ async function login({ email, password }) {
   return { token: signToken(user), user: sanitize(user) };
 }
 
+/**
+ * Solicita redefinição de senha: gera um código e envia por e-mail (em segundo
+ * plano). Resposta genérica — não revela se o e-mail existe.
+ */
+async function requestPasswordReset({ email }) {
+  const repo = getRepo();
+  const cleanEmail = norm(email);
+  const user = await repo.findUserByEmail(cleanEmail);
+  if (!user || !user.active) return { email: cleanEmail };
+  const code = sixDigits();
+  await repo.updateUser(user.id, {
+    resetCodeHash: await bcrypt.hash(code, 10),
+    resetCodeExpires: new Date(Date.now() + CODE_TTL_MS).toISOString()
+  });
+  console.log(`[auth] (reset) Código para ${cleanEmail}: ${code}`);
+  sendPasswordResetCode(cleanEmail, code, user.name).catch((e) =>
+    console.warn(`[mailer] Falha ao enviar reset para ${cleanEmail}: ${e.message}`)
+  );
+  return { email: cleanEmail, devCode: config.isDev ? code : undefined };
+}
+
+/** Redefine a senha a partir do código e já devolve o token (auto-login). */
+async function resetPassword({ email, code, password }) {
+  const repo = getRepo();
+  if (!password || String(password).length < 6) throw fail("A senha deve ter ao menos 6 caracteres.");
+  const user = await repo.findUserByEmail(norm(email));
+  if (!user) throw fail("Código inválido.");
+  const expired = !user.resetCodeExpires || new Date(user.resetCodeExpires).getTime() < Date.now();
+  if (expired) throw fail("Código expirado. Solicite um novo.");
+  const ok = await bcrypt.compare(String(code || ""), user.resetCodeHash || "");
+  if (!ok) throw fail("Código inválido.");
+  const updated = await repo.updateUser(user.id, {
+    passwordHash: await bcrypt.hash(password, 10),
+    resetCodeHash: "",
+    resetCodeExpires: null,
+    emailVerified: true
+  });
+  return { token: signToken(updated), user: sanitize(updated) };
+}
+
 async function getById(id) {
   return sanitize(await getRepo().findUserById(id));
 }
@@ -103,4 +146,14 @@ async function updateUser(id, patch) {
   return sanitize(await getRepo().updateUser(id, allowed));
 }
 
-module.exports = { register, verifyEmail, login, getById, listUsers, updateUser, sanitize };
+module.exports = {
+  register,
+  verifyEmail,
+  login,
+  requestPasswordReset,
+  resetPassword,
+  getById,
+  listUsers,
+  updateUser,
+  sanitize
+};

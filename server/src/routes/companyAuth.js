@@ -11,6 +11,8 @@ const h = (fn) => (req, res) => Promise.resolve(fn(req, res)).catch((e) => {
 router.post("/register", h(async (req, res) => res.status(201).json(await svc.register(req.body))));
 router.post("/verify", h(async (req, res) => res.json(await svc.verifyEmail(req.body))));
 router.post("/login", h(async (req, res) => res.json(await svc.login(req.body))));
+router.post("/forgot-password", h(async (req, res) => res.json(await svc.requestPasswordReset(req.body))));
+router.post("/reset-password", h(async (req, res) => res.json(await svc.resetPassword(req.body))));
 router.get("/me", requireAuth, (req, res) => res.json(req.authUser));
 // Diagnóstico do provedor de e-mail (não envia; remover quando estável).
 router.get("/mail-status", h(async (_req, res) => res.json(await verifyMailer())));
