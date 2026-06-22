@@ -5,6 +5,7 @@ import { useProject } from '@/hooks/useProjects'
 import { useLookups } from '@/hooks/useLookups'
 import { useCompanyAuth } from '@/hooks/useCompanyAuth'
 import { useMentionableUsers } from '@/hooks/useMentionableUsers'
+import { useTimer } from '@/hooks/useTimer'
 import { useToast } from '@/components/ui/Toast'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -22,6 +23,7 @@ import { OwnersCard } from '@/components/projects/OwnersCard'
 import { CollaboratorsCard } from '@/components/projects/CollaboratorsCard'
 import { FinalizationConfigCard } from '@/components/projects/FinalizationConfigCard'
 import { ProjectTrackingCard } from '@/components/projects/ProjectTrackingCard'
+import { ProjectHoursCard } from '@/components/projects/ProjectHoursCard'
 import { PLATFORM_META, STATUS_META, TYPE_META, RISK_META } from '@/constants'
 import { PRODUCT_META } from '@/constants/templates'
 import type { CommentAttachment, Platform, Project, ProjectStatus, ProjectType, ProjectOwners } from '@/types'
@@ -45,6 +47,7 @@ import {
   type PhaseSettingsPatch,
 } from '@/services/projectsService'
 import { currentPhase, syncPhaseStatus, computeProgress, normalizedTasks } from '@/utils/projects'
+import { hoursByChecklistItem } from '@/utils/hours'
 import { deriveProjectFlow } from '@/utils/flow'
 import { groupByStage } from '@/utils/journey'
 import { formatDate, relativeDeadlineLabel } from '@/utils/dates'
@@ -59,6 +62,7 @@ export function ProjetoDetalhePage() {
   const { getMember, team } = useLookups()
   const { user: companyUser } = useCompanyAuth()
   const { data: mentionUsers } = useMentionableUsers()
+  const timer = useTimer()
   const { notify } = useToast()
   // Cópia local: aplica updates na hora (otimista) e reconcilia com o servidor.
   const [project, setProject] = useState<Project | undefined>(undefined)
@@ -96,6 +100,7 @@ export function ProjetoDetalhePage() {
   }
 
   const phaseNow = currentPhase(project.phases)
+  const hoursByItem = hoursByChecklistItem(project.timeEntries ?? [])
   const flow = deriveProjectFlow(project)
   const statusSuggested =
     flow.shouldSuggestStatus && flow.suggestedStatus !== project.status
@@ -233,6 +238,25 @@ export function ProjetoDetalhePage() {
   async function handleUpdateOwners(owners: Partial<ProjectOwners>) {
     setProject(await updateProjectOwners(project!.id, owners))
     notify('Responsáveis atualizados.')
+  }
+
+  async function handleStartTimer(target: { phaseId?: string; checklistItemId?: string; label?: string }) {
+    try {
+      await timer.start({ projectId: project!.id, ...target })
+      reload() // captura possível parada do timer anterior neste mesmo projeto
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Não foi possível iniciar o cronômetro.', 'error')
+    }
+  }
+
+  async function handleStopTimer() {
+    try {
+      const updated = await timer.stop()
+      if (updated && updated.id === project!.id) setProject(updated)
+      else reload()
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Não foi possível parar o cronômetro.', 'error')
+    }
   }
 
   async function handleDelete() {
@@ -397,6 +421,12 @@ export function ProjetoDetalhePage() {
                           onUpdateDates={handleUpdateDates}
                           currentUser={{ id: companyUser?.id, name: companyUser?.name }}
                           users={mentionUsers ?? []}
+                          runningTimer={timer.current}
+                          onStartItemTimer={(phaseId, itemId) =>
+                            handleStartTimer({ phaseId, checklistItemId: itemId })
+                          }
+                          onStopTimer={handleStopTimer}
+                          hoursByItem={hoursByItem}
                         />
                       ))}
                     </div>
@@ -418,6 +448,16 @@ export function ProjetoDetalhePage() {
             collaborators={project.collaborators ?? []}
             users={mentionUsers ?? []}
             onChange={handleUpdateCollaborators}
+          />
+
+          <ProjectHoursCard
+            project={project}
+            users={mentionUsers ?? []}
+            currentUserId={companyUser?.id}
+            runningTimer={timer.current}
+            onStartTimer={handleStartTimer}
+            onStopTimer={handleStopTimer}
+            onProjectChange={setProject}
           />
 
           <ProjectTrackingCard project={project} onProjectChange={setProject} />

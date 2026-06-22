@@ -8,6 +8,7 @@ const { router: companyAuthRouter } = require("./routes/companyAuth");
 const { router: usersRouter } = require("./routes/users");
 const { router: notificationsRouter } = require("./routes/notifications");
 const { router: clientPortalRouter } = require("./routes/clientPortal");
+const { router: timersRouter } = require("./routes/timers");
 const { requireAuth } = require("./middleware/requireAuth");
 const { requireClientAuth } = require("./middleware/requireClientAuth");
 
@@ -40,6 +41,7 @@ function createApp() {
   app.use("/api/users", requireAuth, usersRouter);
   app.use("/api/notifications", requireAuth, notificationsRouter);
   app.use("/api/projects", requireAuth, projectsRouter);
+  app.use("/api/timers", requireAuth, timersRouter);
 
   app.use((_req, res) => res.status(404).json({ error: "not_found" }));
   return app;

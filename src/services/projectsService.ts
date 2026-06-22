@@ -762,10 +762,37 @@ export async function removeScopeFile(id: string, fileId: string): Promise<Proje
   )
 }
 
-export async function addTimeEntry(
-  id: string,
-  input: Pick<TimeEntry, 'label' | 'hours' | 'kind'> & Partial<TimeEntry>,
-): Promise<Project> {
+export interface TimeEntryInput {
+  hours: number
+  label?: string
+  kind?: TimeEntry['kind']
+  ownerId?: string
+  loggedAt?: string
+  phaseId?: string
+  checklistItemId?: string
+  taskId?: string
+  startedAt?: string
+  endedAt?: string
+  source?: TimeEntry['source']
+}
+
+/** Recalcula `tracking.usedHours` a partir dos apontamentos realizados (fallback local). */
+function recomputeUsedHoursLocally(project: Project): Project {
+  const usedHours = (project.timeEntries ?? [])
+    .filter((entry) => entry.kind === 'realizado')
+    .reduce((sum, entry) => sum + (Number(entry.hours) || 0), 0)
+  project.tracking = {
+    scopeStatus: project.tracking?.scopeStatus ?? 'pendente',
+    estimatedHours: project.tracking?.estimatedHours ?? 0,
+    usedHours,
+    deadlineConfidence: project.tracking?.deadlineConfidence ?? 'no_prazo',
+    notes: project.tracking?.notes,
+    updatedAt: new Date().toISOString(),
+  }
+  return project
+}
+
+export async function addTimeEntry(id: string, input: TimeEntryInput): Promise<Project> {
   return mutate(
     () => api.post<Project>(`${p(id)}/time-entries`, input).then(normalizeProjectCollections),
     () =>
@@ -774,25 +801,71 @@ export async function addTimeEntry(
           ...(project.timeEntries ?? []),
           {
             id: uid('time'),
-            label: input.label,
-            hours: Number(input.hours) || 0,
-            kind: input.kind,
+            label: (input.label ?? '').trim(),
+            hours: Math.max(0, Number(input.hours) || 0),
+            kind: input.kind === 'planejado' ? 'planejado' : 'realizado',
             ownerId: input.ownerId,
-            loggedAt: new Date().toISOString(),
+            loggedAt: input.loggedAt ?? new Date().toISOString(),
+            phaseId: input.phaseId,
+            checklistItemId: input.checklistItemId,
+            taskId: input.taskId,
+            startedAt: input.startedAt,
+            endedAt: input.endedAt,
+            source: input.source ?? 'manual',
           },
         ]
-        const usedHours = project.timeEntries
-          .filter((entry) => entry.kind === 'realizado')
-          .reduce((sum, entry) => sum + entry.hours, 0)
-        project.tracking = {
-          scopeStatus: project.tracking?.scopeStatus ?? 'pendente',
-          estimatedHours: project.tracking?.estimatedHours ?? 0,
-          usedHours,
-          deadlineConfidence: project.tracking?.deadlineConfidence ?? 'no_prazo',
-          notes: project.tracking?.notes,
-          updatedAt: new Date().toISOString(),
-        }
-        return project
+        return recomputeUsedHoursLocally(project)
+      }),
+  )
+}
+
+export type TimeEntryPatch = Partial<
+  Pick<TimeEntry, 'hours' | 'label' | 'loggedAt' | 'kind' | 'phaseId' | 'checklistItemId' | 'taskId'>
+>
+
+export async function updateTimeEntry(
+  id: string,
+  entryId: string,
+  patch: TimeEntryPatch,
+): Promise<Project> {
+  return mutate(
+    () =>
+      api
+        .patch<Project>(`${p(id)}/time-entries/${encodeURIComponent(entryId)}`, patch)
+        .then(normalizeProjectCollections),
+    () =>
+      updateLocalProject(id, (project) => {
+        project.timeEntries = (project.timeEntries ?? []).map((entry) =>
+          entry.id === entryId
+            ? {
+                ...entry,
+                ...(patch.hours !== undefined ? { hours: Math.max(0, Number(patch.hours) || 0) } : {}),
+                ...(patch.label !== undefined ? { label: patch.label } : {}),
+                ...(patch.loggedAt ? { loggedAt: patch.loggedAt } : {}),
+                ...(patch.kind !== undefined ? { kind: patch.kind } : {}),
+                ...(patch.phaseId !== undefined ? { phaseId: patch.phaseId || undefined } : {}),
+                ...(patch.checklistItemId !== undefined
+                  ? { checklistItemId: patch.checklistItemId || undefined }
+                  : {}),
+                ...(patch.taskId !== undefined ? { taskId: patch.taskId || undefined } : {}),
+              }
+            : entry,
+        )
+        return recomputeUsedHoursLocally(project)
+      }),
+  )
+}
+
+export async function removeTimeEntry(id: string, entryId: string): Promise<Project> {
+  return mutate(
+    () =>
+      api
+        .del<Project>(`${p(id)}/time-entries/${encodeURIComponent(entryId)}`)
+        .then(normalizeProjectCollections),
+    () =>
+      updateLocalProject(id, (project) => {
+        project.timeEntries = (project.timeEntries ?? []).filter((entry) => entry.id !== entryId)
+        return recomputeUsedHoursLocally(project)
       }),
   )
 }

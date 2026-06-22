@@ -5,6 +5,7 @@ let projects = [];
 let organizations = [];
 let users = [];
 let notifications = [];
+let runningTimers = {}; // userId -> timer
 
 const clone = (v) => JSON.parse(JSON.stringify(v));
 
@@ -88,6 +89,17 @@ const memoryRepo = {
     notifications.forEach((n) => {
       if (n.userId === userId) n.read = true;
     });
+  },
+  // ───── cronômetro em andamento (1 por usuário) ─────
+  async getRunningTimer(userId) {
+    return runningTimers[userId] ? clone(runningTimers[userId]) : null;
+  },
+  async setRunningTimer(timer) {
+    runningTimers[timer.userId] = clone(timer);
+    return clone(timer);
+  },
+  async clearRunningTimer(userId) {
+    delete runningTimers[userId];
   }
 };
 

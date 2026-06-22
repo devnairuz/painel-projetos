@@ -140,7 +140,18 @@ router.patch("/:id/tracking", h(async (req, res) => {
 
 
 router.post("/:id/time-entries", h(async (req, res) => {
-  const p = await svc.addTimeEntry(req.params.id, req.body);
+  // A atribuição vem do usuário logado (JWT), não do corpo da requisição.
+  const p = await svc.addTimeEntry(req.params.id, { ...req.body, ownerId: req.authUser.id });
+  return p ? res.json(p) : notFound(res);
+}));
+
+router.patch("/:id/time-entries/:entryId", h(async (req, res) => {
+  const p = await svc.updateTimeEntry(req.params.id, req.params.entryId, req.body, req.authUser.id);
+  return p ? res.json(p) : notFound(res);
+}));
+
+router.delete("/:id/time-entries/:entryId", h(async (req, res) => {
+  const p = await svc.removeTimeEntry(req.params.id, req.params.entryId, req.authUser.id);
   return p ? res.json(p) : notFound(res);
 }));
 

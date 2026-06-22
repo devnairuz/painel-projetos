@@ -230,11 +230,35 @@ export interface ScopeFile {
 
 export interface TimeEntry {
   id: string
+  /** Descrição/nota livre do apontamento (opcional). */
   label: string
+  /** Duração em horas (decimal) — fonte de verdade. */
   hours: number
   kind: 'planejado' | 'realizado'
+  /** Usuário que apontou (id do usuário interno). */
   ownerId?: string
   loggedAt: string
+  /** Vínculo: fase (quando aplicável). */
+  phaseId?: string
+  /** Vínculo: subtarefa (item de checklist). */
+  checklistItemId?: string
+  /** Vínculo: tarefa geral. */
+  taskId?: string
+  /** Início/fim quando o apontamento veio do cronômetro. */
+  startedAt?: string
+  endedAt?: string
+  source?: 'manual' | 'timer'
+}
+
+/** Cronômetro em andamento de um usuário (no máximo um por vez). */
+export interface RunningTimer {
+  userId: string
+  projectId: string
+  phaseId?: string
+  checklistItemId?: string
+  taskId?: string
+  label?: string
+  startedAt: string
 }
 
 export interface ProjectAttachment {

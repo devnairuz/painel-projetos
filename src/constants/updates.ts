@@ -40,8 +40,9 @@ export const UPDATES: UpdateEntry[] = [
     category: 'teste',
     title: 'Apontamento de horas no painel (estilo ClickUp)',
     description:
-      'Desenhamos o registro de horas direto no painel, no lugar do ClickUp: cronômetro + lançamento manual, ' +
-      'apontando por tarefa/subtarefa e somando no projeto, tudo por usuário e com histórico editável. ' +
-      'A spec foi escrita e aguarda virar plano de implementação (branch feat/apontamento-de-horas).',
+      'Registro de horas direto no painel, no lugar do ClickUp: cronômetro ao vivo + lançamento manual, ' +
+      'apontando por etapa/subtarefa e somando no projeto, tudo por usuário e com histórico editável. ' +
+      'Implementado: card "Horas" na página do projeto e botão play em cada subtarefa. ' +
+      'Em fase de teste (branch feat/apontamento-de-horas).',
   },
 ]

@@ -8,8 +8,10 @@ import {
   UserCheck,
   MessageSquare,
   User,
+  Play,
+  Square,
 } from 'lucide-react'
-import type { ChecklistItem, CommentAttachment, Phase, TeamMember } from '@/types'
+import type { ChecklistItem, CommentAttachment, Phase, RunningTimer, TeamMember } from '@/types'
 import type { MentionableUser } from '@/services/usersService'
 import { PHASE_STATUS_META } from '@/constants'
 import { Badge } from '@/components/ui/Badge'
@@ -17,8 +19,10 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { CommentThread } from '@/components/ui/CommentThread'
 import { phaseProgress } from '@/utils/projects'
+import { formatDuration } from '@/utils/hours'
 import { formatDate } from '@/utils/dates'
 import { cn } from '@/utils/cn'
+import { TimerClock } from './TimerClock'
 
 interface PhaseCardProps {
   phase: Phase
@@ -38,6 +42,12 @@ interface PhaseCardProps {
   onUpdateDates: (phaseId: string, patch: { startDate?: string; dueDate?: string; finishedDate?: string }) => void
   currentUser?: { id?: string; name?: string }
   users?: MentionableUser[]
+  /** Cronômetro do usuário em andamento (para o play inline das subtarefas). */
+  runningTimer?: RunningTimer | null
+  onStartItemTimer?: (phaseId: string, itemId: string) => void
+  onStopTimer?: () => void
+  /** Horas realizadas por subtarefa (checklistItemId → horas). */
+  hoursByItem?: Record<string, number>
 }
 
 /** Card de fase com checklist, comentários por subtarefa, datas e aprovação. */
@@ -53,6 +63,10 @@ export function PhaseCard({
   onUpdateDates,
   currentUser,
   users = [],
+  runningTimer,
+  onStartItemTimer,
+  onStopTimer,
+  hoursByItem = {},
 }: PhaseCardProps) {
   const [open, setOpen] = useState(defaultOpen)
   const { done, total } = phaseProgress(phase)
@@ -135,6 +149,13 @@ export function PhaseCard({
                 onUpdateItemOwner={onUpdateItemOwner}
                 onAddComment={onAddComment}
                 currentUser={currentUser}
+                loggedHours={hoursByItem[item.id] ?? 0}
+                isTimerRunning={
+                  runningTimer?.phaseId === phase.id && runningTimer?.checklistItemId === item.id
+                }
+                timerStartedAt={runningTimer?.startedAt}
+                onStartTimer={onStartItemTimer}
+                onStopTimer={onStopTimer}
               />
             ))}
           </ul>
@@ -170,6 +191,11 @@ function ChecklistItemRow({
   onUpdateItemOwner,
   onAddComment,
   currentUser,
+  loggedHours,
+  isTimerRunning,
+  timerStartedAt,
+  onStartTimer,
+  onStopTimer,
 }: {
   phaseId: string
   item: ChecklistItem
@@ -185,6 +211,11 @@ function ChecklistItemRow({
     attachments?: CommentAttachment[],
   ) => void
   currentUser?: { id?: string; name?: string }
+  loggedHours?: number
+  isTimerRunning?: boolean
+  timerStartedAt?: string
+  onStartTimer?: (phaseId: string, itemId: string) => void
+  onStopTimer?: () => void
 }) {
   const [open, setOpen] = useState(false)
   const [editingOwner, setEditingOwner] = useState(false)
@@ -259,6 +290,38 @@ function ChecklistItemRow({
         >
           <User className="size-4" />
         </button>
+
+        {/* Cronômetro de horas da subtarefa */}
+        {onStartTimer && (
+          <div className="flex items-center gap-1">
+            {isTimerRunning && timerStartedAt ? (
+              <TimerClock startedAt={timerStartedAt} className="text-xs font-semibold tabular-nums text-brand-600" />
+            ) : (
+              (loggedHours ?? 0) > 0 && (
+                <span className="text-xs font-medium tabular-nums text-slate-400">{formatDuration(loggedHours!)}</span>
+              )
+            )}
+            {isTimerRunning ? (
+              <button
+                type="button"
+                onClick={() => onStopTimer?.()}
+                title="Parar cronômetro"
+                className="inline-flex size-7 items-center justify-center rounded-md bg-brand-50 text-brand-600 transition-colors hover:bg-brand-100"
+              >
+                <Square className="size-3.5" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onStartTimer(phaseId, item.id)}
+                title="Iniciar cronômetro nesta subtarefa"
+                className="inline-flex size-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-slate-100 hover:text-brand-600"
+              >
+                <Play className="size-3.5" />
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Comentários */}
         <button

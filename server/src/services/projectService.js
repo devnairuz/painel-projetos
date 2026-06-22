@@ -618,26 +618,136 @@ async function updateTracking(id, patch = {}) {
   });
 }
 
+/** Recalcula `tracking.usedHours` a partir dos apontamentos realizados. */
+function recomputeUsedHours(p) {
+  const used = (p.timeEntries || [])
+    .filter((entry) => entry.kind === "realizado")
+    .reduce((sum, entry) => sum + (Number(entry.hours) || 0), 0);
+  p.tracking.usedHours = used;
+  p.tracking.updatedAt = nowIso();
+  p.updatedAt = nowIso();
+}
+
+function forbidden(message) {
+  const err = new Error(message);
+  err.status = 403;
+  throw err;
+}
+
+/**
+ * Registra um apontamento de horas. `label` (descrição/nota) é opcional; o
+ * vínculo é um entre fase+subtarefa, tarefa geral, ou nenhum (avulso). Apenas
+ * `hours > 0` é obrigatório. A atribuição (`ownerId`) vem do usuário logado.
+ */
 async function addTimeEntry(id, input = {}) {
   const hours = Math.max(0, Number(input.hours) || 0);
-  const label = String(input.label || "").trim();
-  if (!hours || !label) return getProject(id);
+  if (!hours) return getProject(id);
   return mutateProject(id, (p) => {
     p.timeEntries.push({
       id: uid("time"),
-      label,
+      label: String(input.label || "").trim(),
       hours,
       kind: input.kind === "planejado" ? "planejado" : "realizado",
       ownerId: input.ownerId || undefined,
-      loggedAt: nowIso()
+      loggedAt: input.loggedAt || nowIso(),
+      phaseId: input.phaseId || undefined,
+      checklistItemId: input.checklistItemId || undefined,
+      taskId: input.taskId || undefined,
+      startedAt: input.startedAt || undefined,
+      endedAt: input.endedAt || undefined,
+      source: input.source === "timer" ? "timer" : "manual"
     });
-    const used = p.timeEntries
-      .filter((entry) => entry.kind === "realizado")
-      .reduce((sum, entry) => sum + (Number(entry.hours) || 0), 0);
-    p.tracking.usedHours = used;
-    p.tracking.updatedAt = nowIso();
-    p.updatedAt = nowIso();
+    recomputeUsedHours(p);
   });
+}
+
+/** Edita um apontamento. Só o dono pode (quando há `userId`). */
+async function updateTimeEntry(id, entryId, patch = {}, userId) {
+  return mutateProject(id, (p) => {
+    const entry = (p.timeEntries || []).find((e) => e.id === entryId);
+    if (!entry) return;
+    if (userId && entry.ownerId && entry.ownerId !== userId) {
+      forbidden("Você só pode editar seus próprios apontamentos.");
+    }
+    if (patch.hours !== undefined) entry.hours = Math.max(0, Number(patch.hours) || 0);
+    if (patch.label !== undefined) entry.label = String(patch.label || "").trim();
+    if (patch.loggedAt !== undefined && patch.loggedAt) entry.loggedAt = patch.loggedAt;
+    if (patch.kind !== undefined) entry.kind = patch.kind === "planejado" ? "planejado" : "realizado";
+    if (patch.phaseId !== undefined) entry.phaseId = patch.phaseId || undefined;
+    if (patch.checklistItemId !== undefined) entry.checklistItemId = patch.checklistItemId || undefined;
+    if (patch.taskId !== undefined) entry.taskId = patch.taskId || undefined;
+    recomputeUsedHours(p);
+  });
+}
+
+/** Remove um apontamento. Só o dono pode (quando há `userId`). */
+async function removeTimeEntry(id, entryId, userId) {
+  return mutateProject(id, (p) => {
+    const entry = (p.timeEntries || []).find((e) => e.id === entryId);
+    if (!entry) return;
+    if (userId && entry.ownerId && entry.ownerId !== userId) {
+      forbidden("Você só pode excluir seus próprios apontamentos.");
+    }
+    p.timeEntries = (p.timeEntries || []).filter((e) => e.id !== entryId);
+    recomputeUsedHours(p);
+  });
+}
+
+// ───── Cronômetro (1 ativo por usuário, persistido) ─────
+
+async function getCurrentTimer(userId) {
+  return getRepo().getRunningTimer(userId);
+}
+
+/**
+ * Inicia um cronômetro para o usuário. Se já houver um rodando, ele é parado
+ * antes (vira apontamento), no espírito "trocar de tarefa" do ClickUp.
+ */
+async function startTimer(userId, input = {}) {
+  if (!input.projectId) {
+    const err = new Error("projectId é obrigatório.");
+    err.status = 400;
+    throw err;
+  }
+  await stopTimer(userId);
+  const timer = {
+    userId,
+    projectId: input.projectId,
+    phaseId: input.phaseId || undefined,
+    checklistItemId: input.checklistItemId || undefined,
+    taskId: input.taskId || undefined,
+    label: String(input.label || "").trim() || undefined,
+    startedAt: nowIso()
+  };
+  await getRepo().setRunningTimer(timer);
+  return { timer };
+}
+
+/**
+ * Para o cronômetro do usuário e grava o apontamento. Descarta durações
+ * menores que 1 minuto (cliques acidentais). Retorna o projeto atualizado.
+ */
+async function stopTimer(userId) {
+  const timer = await getRepo().getRunningTimer(userId);
+  if (!timer) return { timer: null, project: null };
+  await getRepo().clearRunningTimer(userId);
+  const endedAt = nowIso();
+  const ms = new Date(endedAt).getTime() - new Date(timer.startedAt).getTime();
+  const hours = ms / 3600000;
+  if (!(hours >= 1 / 60)) return { timer: null, project: null };
+  const project = await addTimeEntry(timer.projectId, {
+    hours,
+    label: timer.label || "",
+    kind: "realizado",
+    ownerId: userId,
+    phaseId: timer.phaseId,
+    checklistItemId: timer.checklistItemId,
+    taskId: timer.taskId,
+    startedAt: timer.startedAt,
+    endedAt,
+    source: "timer"
+  });
+  return { timer: null, project };
 }
 
 async function updateSecurity(id, checklist = []) {
@@ -688,5 +798,10 @@ module.exports = {
   updateCharge,
   updateTracking,
   addTimeEntry,
+  updateTimeEntry,
+  removeTimeEntry,
+  getCurrentTimer,
+  startTimer,
+  stopTimer,
   updateSecurity
 };
