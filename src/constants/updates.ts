@@ -33,16 +33,4 @@ export interface UpdateEntry {
 }
 
 /** Atualizações em ordem cronológica decrescente (mais recente primeiro). */
-export const UPDATES: UpdateEntry[] = [
-  {
-    id: '2026-06-22-apontamento-horas',
-    date: '2026-06-22',
-    category: 'teste',
-    title: 'Apontamento de horas no painel (estilo ClickUp)',
-    description:
-      'Registro de horas direto no painel, no lugar do ClickUp: cronômetro ao vivo + lançamento manual, ' +
-      'apontando por etapa/subtarefa e somando no projeto, tudo por usuário e com histórico editável. ' +
-      'Implementado: card "Horas" na página do projeto e botão play em cada subtarefa. ' +
-      'Em fase de teste (branch feat/apontamento-de-horas).',
-  },
-]
+export const UPDATES: UpdateEntry[] = []

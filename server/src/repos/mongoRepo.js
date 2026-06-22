@@ -3,7 +3,6 @@ const Project = require("../models/Project");
 const Organization = require("../models/Organization");
 const User = require("../models/User");
 const Notification = require("../models/Notification");
-const RunningTimer = require("../models/RunningTimer");
 const { seedProjects, ORGANIZATIONS } = require("../data/seed");
 const { config } = require("../config");
 
@@ -90,17 +89,6 @@ const mongoRepo = {
   },
   async markAllNotificationsRead(userId) {
     await Notification.updateMany({ userId, read: false }, { $set: { read: true } });
-  },
-  // ───── cronômetro em andamento (1 por usuário) ─────
-  async getRunningTimer(userId) {
-    return toPlain(await RunningTimer.findOne({ userId }).lean());
-  },
-  async setRunningTimer(timer) {
-    await RunningTimer.updateOne({ userId: timer.userId }, { $set: timer }, { upsert: true });
-    return timer;
-  },
-  async clearRunningTimer(userId) {
-    await RunningTimer.deleteOne({ userId });
   }
 };
 
