@@ -10,6 +10,7 @@ import {
   User,
   Play,
   Square,
+  Clock,
 } from 'lucide-react'
 import type { ChecklistItem, CommentAttachment, Phase, RunningTimer, TeamMember } from '@/types'
 import type { MentionableUser } from '@/services/usersService'
@@ -48,6 +49,8 @@ interface PhaseCardProps {
   onStopTimer?: () => void
   /** Horas realizadas por subtarefa (checklistItemId → horas). */
   hoursByItem?: Record<string, number>
+  /** Total de horas apontadas nesta etapa (soma das subtarefas). */
+  phaseHours?: number
 }
 
 /** Card de fase com checklist, comentários por subtarefa, datas e aprovação. */
@@ -67,6 +70,7 @@ export function PhaseCard({
   onStartItemTimer,
   onStopTimer,
   hoursByItem = {},
+  phaseHours = 0,
 }: PhaseCardProps) {
   const [open, setOpen] = useState(defaultOpen)
   const { done, total } = phaseProgress(phase)
@@ -107,6 +111,11 @@ export function PhaseCard({
             {phase.dueDate && (
               <span className="flex items-center gap-1">
                 <CalendarClock className="size-3" /> prev. {formatDate(phase.dueDate)}
+              </span>
+            )}
+            {phaseHours > 0 && (
+              <span className="flex items-center gap-1 font-medium text-brand-600">
+                <Clock className="size-3" /> {formatDuration(phaseHours)}
               </span>
             )}
           </div>

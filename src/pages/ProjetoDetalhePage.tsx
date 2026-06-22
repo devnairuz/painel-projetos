@@ -1,6 +1,6 @@
 import { useState, useEffect, type ReactNode } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, FolderKanban, Flag, Pencil, Check, Trash2, CalendarRange, Settings, ChevronDown, Sparkles } from 'lucide-react'
+import { ArrowLeft, FolderKanban, Flag, Pencil, Check, Trash2, CalendarRange, Settings, ChevronDown, Sparkles, Clock } from 'lucide-react'
 import { useProject } from '@/hooks/useProjects'
 import { useLookups } from '@/hooks/useLookups'
 import { useCompanyAuth } from '@/hooks/useCompanyAuth'
@@ -47,7 +47,7 @@ import {
   type PhaseSettingsPatch,
 } from '@/services/projectsService'
 import { currentPhase, syncPhaseStatus, computeProgress, normalizedTasks } from '@/utils/projects'
-import { hoursByChecklistItem } from '@/utils/hours'
+import { hoursByChecklistItem, hoursByPhase, formatDuration, sumRealizado } from '@/utils/hours'
 import { deriveProjectFlow } from '@/utils/flow'
 import { groupByStage } from '@/utils/journey'
 import { formatDate, relativeDeadlineLabel } from '@/utils/dates'
@@ -101,6 +101,9 @@ export function ProjetoDetalhePage() {
 
   const phaseNow = currentPhase(project.phases)
   const hoursByItem = hoursByChecklistItem(project.timeEntries ?? [])
+  const hoursByPhaseMap = hoursByPhase(project.timeEntries ?? [])
+  const totalHours = sumRealizado(project.timeEntries ?? [])
+  const estimatedHours = project.tracking?.estimatedHours ?? 0
   const flow = deriveProjectFlow(project)
   const statusSuggested =
     flow.shouldSuggestStatus && flow.suggestedStatus !== project.status
@@ -337,6 +340,12 @@ export function ProjetoDetalhePage() {
               )}
             </div>
             <Metric icon={Flag} label="Go live" value={formatDate(project.goLiveDate)} hint={relativeDeadlineLabel(project.goLiveDate)} />
+            <Metric
+              icon={Clock}
+              label="Horas gastas"
+              value={formatDuration(totalHours)}
+              hint={estimatedHours > 0 ? `de ${formatDuration(estimatedHours)} previstas` : undefined}
+            />
           </div>
         </div>
 
@@ -427,6 +436,7 @@ export function ProjetoDetalhePage() {
                           }
                           onStopTimer={handleStopTimer}
                           hoursByItem={hoursByItem}
+                          phaseHours={hoursByPhaseMap[phase.id] ?? 0}
                         />
                       ))}
                     </div>

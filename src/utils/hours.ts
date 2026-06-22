@@ -90,3 +90,17 @@ export function hoursByChecklistItem(entries: TimeEntry[]): Record<string, numbe
   }
   return out
 }
+
+/**
+ * Total de horas por etapa/fase (phaseId) — soma o tempo de todas as subtarefas
+ * daquela etapa (apontamentos de subtarefa carregam o `phaseId`), além de
+ * apontamentos feitos na própria etapa. É o "tempo apontado na tarefa-pai".
+ */
+export function hoursByPhase(entries: TimeEntry[]): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const e of realizado(entries)) {
+    if (!e.phaseId) continue
+    out[e.phaseId] = (out[e.phaseId] ?? 0) + (Number(e.hours) || 0)
+  }
+  return out
+}
