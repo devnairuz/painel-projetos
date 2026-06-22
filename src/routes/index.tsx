@@ -12,6 +12,7 @@ import { PendenciasPage } from '@/pages/PendenciasPage'
 import { RelatoriosPage } from '@/pages/RelatoriosPage'
 import { OrganizacoesPage } from '@/pages/OrganizacoesPage'
 import { UsuariosPage } from '@/pages/UsuariosPage'
+import { UpdatesPage } from '@/pages/UpdatesPage'
 import { ClientLoginPage } from '@/pages/cliente/ClientLoginPage'
 import { ClientProjectsPage } from '@/pages/cliente/ClientProjectsPage'
 import { ClientProjectDetailPage } from '@/pages/cliente/ClientProjectDetailPage'
@@ -59,6 +60,7 @@ export const router = createBrowserRouter([
           { path: 'organizacoes', element: <OrganizacoesPage /> },
           { path: 'usuarios', element: <UsuariosPage /> },
           { path: 'relatorios', element: <RelatoriosPage /> },
+          { path: 'updates', element: <UpdatesPage /> },
         ],
       },
     ],

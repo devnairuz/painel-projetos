@@ -6,6 +6,7 @@ import {
   Users,
   AlertCircle,
   UserRoundCheck,
+  Megaphone,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -29,4 +30,5 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Organizações', to: '/organizacoes', icon: Building2 },
   { label: 'Usuários', to: '/usuarios', icon: Users, adminOnly: true },
   { label: 'Relatórios', to: '/relatorios', icon: BarChart3 },
+  { label: 'Updates', to: '/updates', icon: Megaphone },
 ]
