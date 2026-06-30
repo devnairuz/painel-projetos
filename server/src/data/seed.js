@@ -89,12 +89,18 @@ function buildProject(seed, seqNumber) {
   return project;
 }
 
-function rainhaChecklist(items, defaultBloco) {
-  return items.map((item) => {
+function rainhaId(prefix, phaseOrder, itemOrder) {
+  const phase = String(phaseOrder).padStart(2, "0");
+  const item = itemOrder === undefined ? "" : `-${String(itemOrder).padStart(2, "0")}`;
+  return `${prefix}-rainha-${phase}${item}`;
+}
+
+function rainhaChecklist(items, defaultBloco, phaseOrder) {
+  return items.map((item, index) => {
     const done = item.done !== undefined ? item.done : item.boardStatus === "concluido";
     const clientResponsibility = item.clientResponsibility !== undefined ? item.clientResponsibility : item.travaLevel === "trava_inicio";
     return {
-      id: uid("chk"),
+      id: rainhaId("chk", phaseOrder, index + 1),
       label: item.label,
       done,
       doneAt: done ? "2026-06-30T12:00:00.000Z" : undefined,
@@ -107,14 +113,14 @@ function rainhaChecklist(items, defaultBloco) {
 }
 
 function buildRainhaPhase(projectId, order, name, items) {
-  const checklist = rainhaChecklist(items, name);
+  const checklist = rainhaChecklist(items, name, order);
   const doneCount = checklist.filter((item) => item.done).length;
   const hasActiveBoard = checklist.some((item) => item.boardStatus && item.boardStatus !== "a_fazer");
   const status = checklist.length > 0 && doneCount === checklist.length
     ? "concluida"
     : (doneCount > 0 || hasActiveBoard ? "em_andamento" : "nao_iniciada");
   return {
-    id: uid("ph"),
+    id: rainhaId("ph", order),
     projectId,
     order,
     name,
@@ -128,7 +134,7 @@ function buildRainhaPhase(projectId, order, name, items) {
 }
 
 function buildRainhaDosGabinetesProject() {
-  const id = uid("prj");
+  const id = "prj-rainha-dos-gabinetes";
   const phases = [
     buildRainhaPhase(id, 1, "Kickoff e acessos", [
       { label: "Kick-off realizado e briefing validado", travaLevel: "trava_inicio", bloco: "Descoberta" },

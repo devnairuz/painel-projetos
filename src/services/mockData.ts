@@ -213,12 +213,18 @@ interface RainhaChecklistSeed {
   clientResponsibility?: boolean
 }
 
-function rainhaChecklist(items: RainhaChecklistSeed[], defaultBloco: string): ChecklistItem[] {
-  return items.map((item) => {
+function rainhaId(prefix: 'ph' | 'chk', phaseOrder: number, itemOrder?: number): string {
+  const phase = String(phaseOrder).padStart(2, '0')
+  const item = itemOrder === undefined ? '' : `-${String(itemOrder).padStart(2, '0')}`
+  return `${prefix}-rainha-${phase}${item}`
+}
+
+function rainhaChecklist(items: RainhaChecklistSeed[], defaultBloco: string, phaseOrder: number): ChecklistItem[] {
+  return items.map((item, index) => {
     const done = item.done ?? item.boardStatus === 'concluido'
     const clientResponsibility = item.clientResponsibility ?? (item.travaLevel === 'trava_inicio')
     return {
-      id: uid('chk'),
+      id: rainhaId('chk', phaseOrder, index + 1),
       label: item.label,
       done,
       doneAt: done ? '2026-06-30T12:00:00.000Z' : undefined,
@@ -231,7 +237,7 @@ function rainhaChecklist(items: RainhaChecklistSeed[], defaultBloco: string): Ch
 }
 
 function buildRainhaPhase(projectId: string, order: number, name: string, items: RainhaChecklistSeed[]): Phase {
-  const checklist = rainhaChecklist(items, name)
+  const checklist = rainhaChecklist(items, name, order)
   const doneCount = checklist.filter((item) => item.done).length
   const hasActiveBoard = checklist.some((item) => item.boardStatus && item.boardStatus !== 'a_fazer')
   const status: PhaseStatus =
@@ -241,7 +247,7 @@ function buildRainhaPhase(projectId: string, order: number, name: string, items:
         ? 'em_andamento'
         : 'nao_iniciada'
   return {
-    id: uid('ph'),
+    id: rainhaId('ph', order),
     projectId,
     order,
     name,
@@ -255,7 +261,7 @@ function buildRainhaPhase(projectId: string, order: number, name: string, items:
 }
 
 function buildRainhaDosGabinetesProject(): Project {
-  const id = uid('prj')
+  const id = 'prj-rainha-dos-gabinetes'
   const phases: Phase[] = [
     buildRainhaPhase(id, 1, 'Kickoff e acessos', [
       { label: 'Kick-off realizado e briefing validado', travaLevel: 'trava_inicio', bloco: 'Descoberta' },

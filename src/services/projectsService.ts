@@ -30,8 +30,28 @@ import { notifyChange } from './store'
 const p = (id: string) => `/api/projects/${encodeURIComponent(id)}`
 const PROJECTS_KEY = 'nairuz-portal:fallback-projects'
 const ORGS_KEY = 'nairuz-portal:fallback-organizations'
+const RAINHA_CLIENT_NAME = 'Rainha dos Gabinetes'
 const RAINHA_REAL_CHECKLIST_NOTE =
   'Migração Loja Integrada → VTEX com ERP Bling. Foco principal: Entrega + Retirada — gabinete é volumoso e logística define a viabilidade do checkout.'
+const RAINHA_REAL_PHASE_NAMES = [
+  'Kickoff e acessos',
+  'Descoberta - decisões de negócio',
+  'Descoberta - catálogo e logística',
+  'Design e front-end',
+  'Conteúdo institucional e políticas',
+  'Catálogo e integrações',
+  'Estoque, logística e retirada',
+  'Pagamentos',
+  'SEO, busca e analytics',
+  'E-mails, promoções e customizações',
+  'QA interno',
+  'Homologação cliente',
+  'Pré go-live',
+  'Go live',
+  'Acompanhamento pós-go live',
+  'Encerramento técnico',
+] as const
+const RAINHA_REAL_MIN_ITEMS = 65
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
@@ -67,9 +87,13 @@ function writeLocal<T>(key: string, value: T): T {
 
 function localProjects(): Project[] {
   const projects = migrateRainhaRealChecklist(readLocal(PROJECTS_KEY, seedProjects()))
-  // Cura dados antigos: garante que o status da fase reflita o checklist.
-  projects.forEach((project) => project.phases.forEach(syncPhaseStatus))
-  return projects.map(normalizeProjectCollections)
+  // Cura dados antigos genéricos; a checklist real da Rainha já traz status por operação/board.
+  projects.forEach((project) => {
+    if (!isRainhaProject(project) || !hasRainhaRealChecklist(project)) {
+      project.phases.forEach(syncPhaseStatus)
+    }
+  })
+  return projects.map(hydrateProject)
 }
 
 function saveLocalProjects(projects: Project[]): Project[] {
@@ -77,22 +101,47 @@ function saveLocalProjects(projects: Project[]): Project[] {
 }
 
 function migrateRainhaRealChecklist(projects: Project[]): Project[] {
-  const index = projects.findIndex((project) => project.clientName === 'Rainha dos Gabinetes')
-  if (index === -1) return projects
+  let changed = false
+  const next = projects.map((project) => {
+    const migrated = migrateRainhaProject(project)
+    if (migrated !== project) changed = true
+    return migrated
+  })
+  if (changed) saveLocalProjects(next)
+  return next
+}
 
-  const current = projects[index]
+function isRainhaProject(project: Project): boolean {
+  return project.clientName === RAINHA_CLIENT_NAME || project.organizationId === 'o8'
+}
+
+function hasRainhaRealChecklist(project: Project): boolean {
+  const phases = project.phases ?? []
+  const phaseNames = new Set(phases.map((phase) => phase.name))
+  const itemCount = phases.reduce((sum, phase) => sum + phase.checklist.length, 0)
   const hasOperationalOwner =
-    current.phases.length > 0 &&
-    current.phases.every((phase) =>
+    phases.length > 0 &&
+    phases.every((phase) =>
       phase.checklist.every((item) => typeof item.clientResponsibility === 'boolean'),
     )
-  const boardStatuses = new Set(current.phases.flatMap((phase) => phase.checklist.map((item) => item.boardStatus)))
+  const boardStatuses = new Set(phases.flatMap((phase) => phase.checklist.map((item) => item.boardStatus)))
   const hasClientBoardColumns =
     boardStatuses.has('responsabilidade_cliente') && boardStatuses.has('aguardando_cliente')
-  if (current.templateNotes === RAINHA_REAL_CHECKLIST_NOTE && hasOperationalOwner && hasClientBoardColumns) return projects
 
-  const seed = seedProjects().find((project) => project.clientName === 'Rainha dos Gabinetes')
-  if (!seed) return projects
+  return (
+    project.templateNotes === RAINHA_REAL_CHECKLIST_NOTE &&
+    RAINHA_REAL_PHASE_NAMES.every((name) => phaseNames.has(name)) &&
+    itemCount >= RAINHA_REAL_MIN_ITEMS &&
+    hasOperationalOwner &&
+    hasClientBoardColumns
+  )
+}
+
+function migrateRainhaProject(current: Project): Project {
+  if (!isRainhaProject(current) || hasRainhaRealChecklist(current)) return current
+
+  const seed = seedProjects().find((project) => project.clientName === RAINHA_CLIENT_NAME)
+  if (!seed) return current
 
   const migrated: Project = {
     ...current,
@@ -111,11 +160,15 @@ function migrateRainhaRealChecklist(projects: Project[]): Project[] {
   migrated.progress = computeProgress(migrated.phases)
   migrated.currentPhaseId = currentPhase(migrated.phases)?.id
   migrated.risk = deriveRisk(migrated)
+  return migrated
+}
 
-  const next = [...projects]
-  next[index] = migrated
-  saveLocalProjects(next)
-  return next
+function hydrateProject(project: Project): Project {
+  const migrated = migrateRainhaProject(project)
+  migrated.progress = computeProgress(migrated.phases)
+  migrated.currentPhaseId = currentPhase(migrated.phases)?.id
+  migrated.risk = deriveRisk(migrated)
+  return normalizeProjectCollections(migrated)
 }
 
 function localOrganizations(): Organization[] {
@@ -141,12 +194,13 @@ async function mutate<T>(apiCall: () => Promise<T>, localCall: () => T): Promise
 }
 
 function syncProject(project: Project): Project {
-  project.phases.forEach(syncPhaseStatus)
-  project.progress = computeProgress(project.phases)
-  project.currentPhaseId = currentPhase(project.phases)?.id
-  project.risk = deriveRisk(project)
-  project.updatedAt = new Date().toISOString()
-  return normalizeProjectCollections(project)
+  const synced = migrateRainhaProject(project)
+  synced.phases.forEach(syncPhaseStatus)
+  synced.progress = computeProgress(synced.phases)
+  synced.currentPhaseId = currentPhase(synced.phases)?.id
+  synced.risk = deriveRisk(synced)
+  synced.updatedAt = new Date().toISOString()
+  return normalizeProjectCollections(synced)
 }
 
 function updateLocalProject(id: string, fn: (project: Project) => Project): Project {
@@ -187,7 +241,7 @@ export async function listProjects(): Promise<Project[]> {
     () =>
       api
         .get<Project[]>('/api/projects')
-        .then((projects) => projects.map(normalizeProjectCollections).map(stripScopeFileContent)),
+        .then((projects) => projects.map(hydrateProject).map(stripScopeFileContent)),
     () => localProjects().map(stripScopeFileContent),
   )
 }
@@ -195,7 +249,7 @@ export async function listProjects(): Promise<Project[]> {
 export async function getProject(id: string): Promise<Project | undefined> {
   try {
     return await fallback(
-      () => api.get<Project>(p(id)).then(normalizeProjectCollections),
+      () => api.get<Project>(p(id)).then(hydrateProject),
       () => localProjects().find((project) => project.id === id),
     )
   } catch {
@@ -205,7 +259,7 @@ export async function getProject(id: string): Promise<Project | undefined> {
 
 export async function listProjectsForClient(email: string): Promise<Project[]> {
   return fallback(
-    () => api.get<Project[]>(`/api/projects/client?email=${encodeURIComponent(email)}`),
+    () => api.get<Project[]>(`/api/projects/client?email=${encodeURIComponent(email)}`).then((projects) => projects.map(hydrateProject)),
     () => localProjects().filter((project) => project.clientEmails.includes(email.toLowerCase())),
   )
 }
@@ -456,7 +510,7 @@ export async function toggleChecklistItem(
   itemId: string,
 ): Promise<Project> {
   return mutate(
-    () => api.post<Project>(`${p(id)}/phases/${phaseId}/toggle/${itemId}`).then(normalizeProjectCollections),
+    () => api.post<Project>(`${p(id)}/phases/${phaseId}/toggle/${itemId}`).then(hydrateProject),
     () =>
       updateLocalProject(id, (project) => {
         const phase = findLocalPhase(project, phaseId)
@@ -490,7 +544,7 @@ export async function setChecklistBoardStatus(
   boardStatus: BoardStatus,
 ): Promise<Project> {
   return mutate(
-    () => api.patch<Project>(`${p(id)}/phases/${phaseId}/items/${itemId}`, { boardStatus }).then(normalizeProjectCollections),
+    () => api.patch<Project>(`${p(id)}/phases/${phaseId}/items/${itemId}`, { boardStatus }).then(hydrateProject),
     () =>
       updateLocalProject(id, (project) => {
         const phase = findLocalPhase(project, phaseId)
@@ -570,7 +624,7 @@ export async function setChecklistOwner(
   ownerId: string,
 ): Promise<Project> {
   return mutate(
-    () => api.patch<Project>(`${p(id)}/phases/${phaseId}/items/${itemId}`, { ownerId }).then(normalizeProjectCollections),
+    () => api.patch<Project>(`${p(id)}/phases/${phaseId}/items/${itemId}`, { ownerId }).then(hydrateProject),
     () =>
       updateLocalProject(id, (project) => {
         findLocalChecklistItem(findLocalPhase(project, phaseId), itemId).ownerId = ownerId || undefined
@@ -707,7 +761,7 @@ export async function addProjectTask(
   input: Pick<ProjectTask, 'title'> & Partial<ProjectTask>,
 ): Promise<Project> {
   return mutate(
-    () => api.post<Project>(`${p(id)}/tasks`, input).then(normalizeProjectCollections),
+    () => api.post<Project>(`${p(id)}/tasks`, input).then(hydrateProject),
     () =>
       updateLocalProject(id, (project) => {
         project.tasks = [
@@ -735,7 +789,7 @@ export async function updateProjectTask(
   patch: Partial<ProjectTask>,
 ): Promise<Project> {
   return mutate(
-    () => api.patch<Project>(`${p(id)}/tasks/${taskId}`, patch).then(normalizeProjectCollections),
+    () => api.patch<Project>(`${p(id)}/tasks/${taskId}`, patch).then(hydrateProject),
     () =>
       updateLocalProject(id, (project) => {
         const task = (project.tasks ?? []).find((item) => item.id === taskId)
@@ -754,7 +808,7 @@ export async function addProjectCharge(
   input: Pick<ProjectCharge, 'title' | 'ownerSide'> & Partial<ProjectCharge>,
 ): Promise<Project> {
   return mutate(
-    () => api.post<Project>(`${p(id)}/charges`, input).then(normalizeProjectCollections),
+    () => api.post<Project>(`${p(id)}/charges`, input).then(hydrateProject),
     () =>
       updateLocalProject(id, (project) => {
         project.charges = [
@@ -783,7 +837,7 @@ export async function updateProjectCharge(
   patch: Partial<ProjectCharge>,
 ): Promise<Project> {
   return mutate(
-    () => api.patch<Project>(`${p(id)}/charges/${chargeId}`, patch).then(normalizeProjectCollections),
+    () => api.patch<Project>(`${p(id)}/charges/${chargeId}`, patch).then(hydrateProject),
     () =>
       updateLocalProject(id, (project) => {
         const charge = (project.charges ?? []).find((item) => item.id === chargeId)
@@ -798,7 +852,7 @@ export async function updateProjectTracking(
   tracking: NonNullable<Project['tracking']>,
 ): Promise<Project> {
   return mutate(
-    () => api.patch<Project>(`${p(id)}/tracking`, tracking).then(normalizeProjectCollections),
+    () => api.patch<Project>(`${p(id)}/tracking`, tracking).then(hydrateProject),
     () => updateLocalProject(id, (project) => ({ ...project, tracking })),
   )
 }
@@ -808,7 +862,7 @@ export async function addScopeFile(
   input: Pick<ScopeFile, 'name'> & Partial<ScopeFile>,
 ): Promise<Project> {
   return mutate(
-    () => api.post<Project>(`${p(id)}/scope-files`, input).then(normalizeProjectCollections),
+    () => api.post<Project>(`${p(id)}/scope-files`, input).then(hydrateProject),
     () =>
       updateLocalProject(id, (project) => {
         project.scopeFiles = [
@@ -839,7 +893,7 @@ export async function addScopeFile(
 
 export async function removeScopeFile(id: string, fileId: string): Promise<Project> {
   return mutate(
-    () => api.del<Project>(`${p(id)}/scope-files/${fileId}`).then(normalizeProjectCollections),
+    () => api.del<Project>(`${p(id)}/scope-files/${fileId}`).then(hydrateProject),
     () =>
       updateLocalProject(id, (project) => ({
         ...project,
@@ -853,7 +907,7 @@ export async function addTimeEntry(
   input: Pick<TimeEntry, 'label' | 'hours' | 'kind'> & Partial<TimeEntry>,
 ): Promise<Project> {
   return mutate(
-    () => api.post<Project>(`${p(id)}/time-entries`, input).then(normalizeProjectCollections),
+    () => api.post<Project>(`${p(id)}/time-entries`, input).then(hydrateProject),
     () =>
       updateLocalProject(id, (project) => {
         project.timeEntries = [
@@ -888,7 +942,7 @@ export async function updateProjectSecurity(
   checklist: SecurityCheck[],
 ): Promise<Project> {
   return mutate(
-    () => api.patch<Project>(`${p(id)}/security`, { checklist }).then(normalizeProjectCollections),
+    () => api.patch<Project>(`${p(id)}/security`, { checklist }).then(hydrateProject),
     () =>
       updateLocalProject(id, (project) => ({
         ...project,

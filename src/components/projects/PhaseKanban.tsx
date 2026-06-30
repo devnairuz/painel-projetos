@@ -1,4 +1,4 @@
-import { useState, type DragEvent } from 'react'
+import { useRef, useState, type DragEvent, type PointerEvent } from 'react'
 import { GripVertical, LayoutGrid, User, Users } from 'lucide-react'
 import type { BoardStatus, ChecklistItem, Phase, TravaLevel } from '@/types'
 import { BOARD_COLUMNS, BOARD_STATUS_META, TRAVA_META } from '@/constants'
@@ -28,6 +28,9 @@ interface BoardCard {
 export function PhaseKanban({ phases, onSetBoardStatus }: PhaseKanbanProps) {
   const [dragging, setDragging] = useState<{ phaseId: string; itemId: string; status: BoardStatus } | null>(null)
   const [dropTarget, setDropTarget] = useState<BoardStatus | null>(null)
+  const [isPanning, setIsPanning] = useState(false)
+  const scrollerRef = useRef<HTMLDivElement | null>(null)
+  const panRef = useRef({ pointerId: 0, startX: 0, scrollLeft: 0 })
   const cards: BoardCard[] = phases.flatMap((phase) =>
     phase.checklist.map((item) => ({
       phaseId: phase.id,
@@ -48,10 +51,56 @@ export function PhaseKanban({ phases, onSetBoardStatus }: PhaseKanbanProps) {
     )
   }
 
+  function shouldIgnorePan(target: EventTarget | null): boolean {
+    return (
+      target instanceof HTMLElement &&
+      !!target.closest('button, select, input, textarea, a, [data-kanban-no-pan]')
+    )
+  }
+
+  function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
+    const scroller = scrollerRef.current
+    if (!scroller || event.button !== 0 || dragging || shouldIgnorePan(event.target)) return
+    if (scroller.scrollWidth <= scroller.clientWidth) return
+
+    panRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      scrollLeft: scroller.scrollLeft,
+    }
+    setIsPanning(true)
+    scroller.setPointerCapture(event.pointerId)
+  }
+
+  function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
+    const scroller = scrollerRef.current
+    if (!scroller || !isPanning || event.pointerId !== panRef.current.pointerId) return
+
+    const distance = event.clientX - panRef.current.startX
+    scroller.scrollLeft = panRef.current.scrollLeft - distance
+    if (Math.abs(distance) > 4) event.preventDefault()
+  }
+
+  function stopPanning(event: PointerEvent<HTMLDivElement>) {
+    const scroller = scrollerRef.current
+    if (scroller?.hasPointerCapture(event.pointerId)) scroller.releasePointerCapture(event.pointerId)
+    setIsPanning(false)
+  }
+
   return (
     <div className="space-y-4">
       <Legend />
-      <div className="flex gap-3 overflow-x-auto pb-2">
+      <div
+        ref={scrollerRef}
+        className={cn(
+          'flex gap-3 overflow-x-auto pb-2 touch-pan-y',
+          isPanning ? 'cursor-grabbing select-none' : 'cursor-grab',
+        )}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={stopPanning}
+        onPointerCancel={stopPanning}
+      >
         {BOARD_COLUMNS.map((status) => (
           <BoardColumn
             key={status}
@@ -157,7 +206,7 @@ function BoardColumn({
         </span>
       </div>
 
-      <div className="flex-1 space-y-2 p-2">
+      <div className="max-h-[70vh] flex-1 space-y-2 overflow-y-auto p-2">
         {ordered.length === 0 ? (
           <p className="px-1 py-6 text-center text-xs text-slate-400">Sem cards aqui.</p>
         ) : (
@@ -236,6 +285,7 @@ function BoardCardItem({
         value={card.status}
         onChange={(e) => onSetBoardStatus(card.phaseId, card.item.id, e.target.value as BoardStatus)}
         title="Mover para outra coluna"
+        data-kanban-no-pan
         className="mt-2 h-7 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-600 focus:border-brand-400 focus:outline-none"
       >
         {BOARD_COLUMNS.map((status) => (

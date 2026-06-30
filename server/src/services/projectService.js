@@ -2,7 +2,7 @@
 // domínio, persiste. Igual para memória ou Mongo.
 const { getRepo } = require("../repos");
 const notificationService = require("./notificationService");
-const { TEAM } = require("../data/seed");
+const { TEAM, seedProjects } = require("../data/seed");
 const { DEFAULT_FINALIZATION, DEFAULT_SUPPORT_HOURS } = require("../domain/constants");
 const {
   uid,
@@ -42,6 +42,76 @@ const DEFAULT_SECURITY_CHECKS = [
   "Cliente visualiza apenas projetos liberados",
   "Dados sensíveis não expostos no portal do cliente"
 ];
+
+const RAINHA_CLIENT_NAME = "Rainha dos Gabinetes";
+const RAINHA_REAL_CHECKLIST_NOTE =
+  "Migração Loja Integrada → VTEX com ERP Bling. Foco principal: Entrega + Retirada — gabinete é volumoso e logística define a viabilidade do checkout.";
+const RAINHA_REAL_PHASE_NAMES = [
+  "Kickoff e acessos",
+  "Descoberta - decisões de negócio",
+  "Descoberta - catálogo e logística",
+  "Design e front-end",
+  "Conteúdo institucional e políticas",
+  "Catálogo e integrações",
+  "Estoque, logística e retirada",
+  "Pagamentos",
+  "SEO, busca e analytics",
+  "E-mails, promoções e customizações",
+  "QA interno",
+  "Homologação cliente",
+  "Pré go-live",
+  "Go live",
+  "Acompanhamento pós-go live",
+  "Encerramento técnico"
+];
+const RAINHA_REAL_MIN_ITEMS = 65;
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function isRainhaProject(project) {
+  return project && (project.clientName === RAINHA_CLIENT_NAME || project.organizationId === "o8");
+}
+
+function hasRainhaRealChecklist(project) {
+  const phases = Array.isArray(project.phases) ? project.phases : [];
+  const phaseNames = new Set(phases.map((phase) => phase.name));
+  const items = phases.flatMap((phase) => phase.checklist || []);
+  const boardStatuses = new Set(items.map((item) => item.boardStatus));
+  const hasOperationalOwner = phases.length > 0 && phases.every((phase) =>
+    (phase.checklist || []).every((item) => typeof item.clientResponsibility === "boolean")
+  );
+  const hasClientBoardColumns = boardStatuses.has("responsabilidade_cliente") && boardStatuses.has("aguardando_cliente");
+
+  return (
+    project.templateNotes === RAINHA_REAL_CHECKLIST_NOTE &&
+    RAINHA_REAL_PHASE_NAMES.every((name) => phaseNames.has(name)) &&
+    items.length >= RAINHA_REAL_MIN_ITEMS &&
+    hasOperationalOwner &&
+    hasClientBoardColumns
+  );
+}
+
+function applyRainhaRealChecklist(project) {
+  if (!isRainhaProject(project) || hasRainhaRealChecklist(project)) return project;
+  const seed = seedProjects().find((item) => item.clientName === RAINHA_CLIENT_NAME);
+  if (!seed) return project;
+
+  project.platform = "vtex";
+  project.type = "implantacao";
+  project.product = "ecommerce";
+  project.status = project.status === "nao_iniciado" ? "em_andamento" : project.status;
+  project.nextAction = seed.nextAction;
+  project.templateNotes = seed.templateNotes;
+  project.phases = clone(seed.phases).map((phase) => ({
+    ...phase,
+    projectId: project.id
+  }));
+  project.updatedAt = nowIso();
+  recompute(project);
+  return project;
+}
 
 function checklistTaskStatus(phase, item) {
   if (item.done) return "concluida";
@@ -83,6 +153,7 @@ function syncTasksFromChecklist(project) {
 function normalizeProject(project) {
   if (!project) return project;
   project.phases = project.phases || [];
+  applyRainhaRealChecklist(project);
   project.clientEmails = project.clientEmails || [];
   project.collaborators = project.collaborators || [];
   project.charges = project.charges || [];
