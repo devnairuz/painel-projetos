@@ -1,4 +1,5 @@
-import { LayoutGrid } from 'lucide-react'
+import { useState, type DragEvent } from 'react'
+import { GripVertical, LayoutGrid } from 'lucide-react'
 import type { BoardStatus, ChecklistItem, Phase, TravaLevel } from '@/types'
 import { BOARD_COLUMNS, BOARD_STATUS_META, TRAVA_META } from '@/constants'
 import { boardStatusOf } from '@/utils/projects'
@@ -25,6 +26,8 @@ interface BoardCard {
  * card e o bloco vira a raia. Mover um card atualiza o `boardStatus`.
  */
 export function PhaseKanban({ phases, onSetBoardStatus }: PhaseKanbanProps) {
+  const [dragging, setDragging] = useState<{ phaseId: string; itemId: string; status: BoardStatus } | null>(null)
+  const [dropTarget, setDropTarget] = useState<BoardStatus | null>(null)
   const cards: BoardCard[] = phases.flatMap((phase) =>
     phase.checklist.map((item) => ({
       phaseId: phase.id,
@@ -54,6 +57,20 @@ export function PhaseKanban({ phases, onSetBoardStatus }: PhaseKanbanProps) {
             key={status}
             status={status}
             cards={cards.filter((c) => c.status === status)}
+            dragging={dragging}
+            isDropTarget={dropTarget === status}
+            onDragStart={setDragging}
+            onDragOver={() => setDropTarget(status)}
+            onDragLeave={() => setDropTarget((current) => (current === status ? null : current))}
+            onDrop={(card) => {
+              setDropTarget(null)
+              setDragging(null)
+              if (card.status !== status) onSetBoardStatus(card.phaseId, card.itemId, status)
+            }}
+            onDragEnd={() => {
+              setDropTarget(null)
+              setDragging(null)
+            }}
             onSetBoardStatus={onSetBoardStatus}
           />
         ))}
@@ -83,10 +100,24 @@ function Legend() {
 function BoardColumn({
   status,
   cards,
+  dragging,
+  isDropTarget,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onDragEnd,
   onSetBoardStatus,
 }: {
   status: BoardStatus
   cards: BoardCard[]
+  dragging: { phaseId: string; itemId: string; status: BoardStatus } | null
+  isDropTarget: boolean
+  onDragStart: (card: { phaseId: string; itemId: string; status: BoardStatus }) => void
+  onDragOver: () => void
+  onDragLeave: () => void
+  onDrop: (card: { phaseId: string; itemId: string; status: BoardStatus }) => void
+  onDragEnd: () => void
   onSetBoardStatus: (phaseId: string, itemId: string, status: BoardStatus) => void
 }) {
   const meta = BOARD_STATUS_META[status]
@@ -96,7 +127,26 @@ function BoardColumn({
   )
 
   return (
-    <div className="flex w-72 shrink-0 flex-col rounded-xl border border-slate-200 bg-slate-50/60 lg:w-auto lg:flex-1">
+    <div
+      className={cn(
+        'flex w-72 shrink-0 flex-col rounded-xl border bg-slate-50/60 transition-colors lg:w-auto lg:flex-1',
+        isDropTarget ? 'border-brand-300 bg-brand-50/50 ring-2 ring-brand-100' : 'border-slate-200',
+      )}
+      onDragOver={(event) => {
+        event.preventDefault()
+        onDragOver()
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) onDragLeave()
+      }}
+      onDrop={(event) => {
+        event.preventDefault()
+        const phaseId = event.dataTransfer.getData('application/x-phase-id')
+        const itemId = event.dataTransfer.getData('application/x-item-id')
+        const sourceStatus = event.dataTransfer.getData('application/x-board-status') as BoardStatus
+        if (phaseId && itemId) onDrop({ phaseId, itemId, status: sourceStatus })
+      }}
+    >
       <div className="flex items-center justify-between gap-2 border-b border-slate-200/70 px-3 py-2.5">
         <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
           <span className="size-2 rounded-full" style={{ backgroundColor: meta.dot }} />
@@ -118,7 +168,13 @@ function BoardColumn({
                   {card.bloco}
                 </div>
               )}
-              <BoardCardItem card={card} onSetBoardStatus={onSetBoardStatus} />
+              <BoardCardItem
+                card={card}
+                dragging={dragging?.itemId === card.item.id}
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
+                onSetBoardStatus={onSetBoardStatus}
+              />
             </div>
           ))
         )}
@@ -129,23 +185,50 @@ function BoardColumn({
 
 function BoardCardItem({
   card,
+  dragging,
+  onDragStart,
+  onDragEnd,
   onSetBoardStatus,
 }: {
   card: BoardCard
+  dragging: boolean
+  onDragStart: (card: { phaseId: string; itemId: string; status: BoardStatus }) => void
+  onDragEnd: () => void
   onSetBoardStatus: (phaseId: string, itemId: string, status: BoardStatus) => void
 }) {
   const trava = TRAVA_META[card.trava]
   return (
     <div
-      className="rounded-lg border border-slate-200 border-l-4 bg-white p-2.5 shadow-sm"
+      className={cn(
+        'rounded-lg border border-slate-200 border-l-4 bg-white p-2.5 shadow-sm transition',
+        dragging && 'scale-[0.98] opacity-50',
+      )}
       style={{ borderLeftColor: trava.dot }}
       title={`${trava.label} — ${trava.hint}`}
     >
-      <p className={cn('text-sm', card.item.done ? 'text-slate-400 line-through' : 'text-slate-700')}>
-        {card.item.label}
-      </p>
+      <div className="flex items-start gap-2">
+        <button
+          type="button"
+          draggable
+          onDragStart={(event: DragEvent<HTMLButtonElement>) => {
+            event.dataTransfer.effectAllowed = 'move'
+            event.dataTransfer.setData('application/x-phase-id', card.phaseId)
+            event.dataTransfer.setData('application/x-item-id', card.item.id)
+            event.dataTransfer.setData('application/x-board-status', card.status)
+            onDragStart({ phaseId: card.phaseId, itemId: card.item.id, status: card.status })
+          }}
+          onDragEnd={onDragEnd}
+          className="mt-0.5 cursor-grab rounded-md p-1 text-slate-300 transition-colors hover:bg-slate-100 hover:text-slate-500 active:cursor-grabbing"
+          title="Arrastar card"
+          aria-label="Arrastar card"
+        >
+          <GripVertical className="size-4" />
+        </button>
+        <p className={cn('min-w-0 flex-1 text-sm', card.item.done ? 'text-slate-400 line-through' : 'text-slate-700')}>
+          {card.item.label}
+        </p>
+      </div>
       <div className="mt-1.5 text-xs text-slate-400">{card.bloco}</div>
-      {/* Mover de coluna: seletor de status (MVP sem drag-and-drop). */}
       <select
         value={card.status}
         onChange={(e) => onSetBoardStatus(card.phaseId, card.item.id, e.target.value as BoardStatus)}

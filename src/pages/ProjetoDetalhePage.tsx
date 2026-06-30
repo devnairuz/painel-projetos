@@ -68,6 +68,7 @@ export function ProjetoDetalhePage() {
   const [project, setProject] = useState<Project | undefined>(undefined)
   const [editPhases, setEditPhases] = useState(false)
   const [viewMode, setViewMode] = useState<'checklist' | 'kanban'>('checklist')
+  const [operationOpen, setOperationOpen] = useState(false)
   const [ganttOpen, setGanttOpen] = useState(false)
 
   useEffect(() => {
@@ -291,7 +292,7 @@ export function ProjetoDetalhePage() {
 
   return (
     <>
-      {/* Voltar + Cronograma */}
+      {/* Voltar + ações rápidas */}
       <div className="mb-4 flex items-center justify-between">
         <button
           onClick={() => navigate('/projetos')}
@@ -299,13 +300,28 @@ export function ProjetoDetalhePage() {
         >
           <ArrowLeft className="size-4" /> Projetos
         </button>
-        <button
-          onClick={() => setGanttOpen(true)}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
-        >
-          <CalendarRange className="size-4 text-brand-600" />
-          Cronograma (Gantt)
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setOperationOpen((value) => !value)}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium shadow-sm transition-colors',
+              operationOpen
+                ? 'border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100'
+                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
+            )}
+            title={operationOpen ? 'Ocultar operação' : 'Mostrar operação'}
+          >
+            <Settings className="size-4" />
+            <span className="hidden sm:inline">Operação</span>
+          </button>
+          <button
+            onClick={() => setGanttOpen(true)}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+          >
+            <CalendarRange className="size-4 text-brand-600" />
+            <span className="hidden sm:inline">Cronograma (Gantt)</span>
+          </button>
+        </div>
       </div>
 
       {ganttOpen && <GanttModal project={project} onClose={() => setGanttOpen(false)} />}
@@ -382,9 +398,14 @@ export function ProjetoDetalhePage() {
       {/* Precisa de ação — o que está travando o avanço, num só lugar */}
       <ActionNeededCard blockers={flow.blockers} />
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+      <div
+        className={cn(
+          'grid grid-cols-1 gap-5',
+          operationOpen ? 'lg:grid-cols-[minmax(0,1fr)_360px]' : 'lg:grid-cols-1',
+        )}
+      >
         {/* Fases */}
-        <div className="lg:col-span-2">
+        <div className="min-w-0">
           <Card className="p-5">
             <div className="mb-4 flex items-center justify-between">
               <div>
@@ -491,9 +512,20 @@ export function ProjetoDetalhePage() {
         </div>
 
         {/* Coluna lateral: Operação (dia a dia) em cima, Configuração recolhida */}
-        <div className="space-y-5">
+        {operationOpen && (
+        <aside className="space-y-5">
           {/* ── Operação ── */}
-          <RailLabel>Operação</RailLabel>
+          <div className="flex items-center justify-between px-1">
+            <RailLabel>Operação</RailLabel>
+            <button
+              type="button"
+              onClick={() => setOperationOpen(false)}
+              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              title="Ocultar operação"
+            >
+              <ChevronDown className="size-4 -rotate-90" />
+            </button>
+          </div>
 
           <OwnersCard owners={project.owners} getMember={getMember} onChange={handleUpdateOwners} />
 
@@ -522,7 +554,8 @@ export function ProjetoDetalhePage() {
 
             <ProjectSettingsCard project={project} onDelete={handleDelete} />
           </ConfigSection>
-        </div>
+        </aside>
+        )}
       </div>
     </>
   )
