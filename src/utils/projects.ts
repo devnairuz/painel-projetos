@@ -91,6 +91,7 @@ function checklistTaskStatus(phase: Phase, done: boolean): ProjectTask['status']
  */
 export function deriveBoardStatus(phase: Phase, item: ChecklistItem): BoardStatus {
   if (item.done) return 'concluido'
+  if (item.clientResponsibility) return 'responsabilidade_cliente'
   if (phase.status === 'bloqueada' || phase.status === 'em_andamento') return 'em_andamento'
   return 'a_fazer'
 }

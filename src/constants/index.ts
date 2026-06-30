@@ -83,13 +83,22 @@ export const TRAVA_META: Record<TravaLevel, EnumMeta & { hint: string }> = {
 
 export const BOARD_STATUS_META: Record<BoardStatus, EnumMeta> = {
   a_fazer: { label: 'A Fazer', badge: 'bg-slate-100 text-slate-600 border-slate-200', dot: '#64748b' },
+  responsabilidade_cliente: { label: 'Responsabilidade do cliente', badge: 'bg-orange-50 text-orange-700 border-orange-200', dot: '#ea580c' },
   em_andamento: { label: 'Em andamento', badge: 'bg-blue-50 text-blue-700 border-blue-200', dot: '#2563eb' },
+  aguardando_cliente: { label: 'Aguardando cliente', badge: 'bg-yellow-50 text-yellow-700 border-yellow-200', dot: '#ca8a04' },
   pendente_golive: { label: 'Pendente go-live', badge: 'bg-amber-50 text-amber-700 border-amber-200', dot: '#d97706' },
   concluido: { label: 'Concluído', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: '#059669' },
 }
 
 /** Ordem das colunas do board, da esquerda pra direita. */
-export const BOARD_COLUMNS: BoardStatus[] = ['a_fazer', 'em_andamento', 'pendente_golive', 'concluido']
+export const BOARD_COLUMNS: BoardStatus[] = [
+  'a_fazer',
+  'responsabilidade_cliente',
+  'em_andamento',
+  'aguardando_cliente',
+  'pendente_golive',
+  'concluido',
+]
 
 export const ROLE_META: Record<MemberRole, { label: string }> = {
   cs: { label: 'CS' },

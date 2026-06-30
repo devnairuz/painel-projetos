@@ -66,7 +66,13 @@ export type TravaLevel =
   | 'placeholder' // verde    — não bloqueia; segue com conteúdo provisório
 
 /** Coluna do board operacional (Kanban). */
-export type BoardStatus = 'a_fazer' | 'em_andamento' | 'pendente_golive' | 'concluido'
+export type BoardStatus =
+  | 'a_fazer'
+  | 'responsabilidade_cliente'
+  | 'em_andamento'
+  | 'aguardando_cliente'
+  | 'pendente_golive'
+  | 'concluido'
 
 export type ProjectTaskStatus = 'aberta' | 'em_andamento' | 'concluida' | 'bloqueada'
 export type ProjectTaskSource = 'checklist' | 'manual' | 'cliente'

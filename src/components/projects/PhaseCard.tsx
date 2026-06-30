@@ -8,6 +8,7 @@ import {
   UserCheck,
   MessageSquare,
   User,
+  Users,
 } from 'lucide-react'
 import type { ChecklistItem, CommentAttachment, Phase, TeamMember } from '@/types'
 import type { MentionableUser } from '@/services/usersService'
@@ -242,7 +243,7 @@ function ChecklistItemRow({
           </select>
         )}
 
-        {/* Responsabilidade do cliente (toggle por ícone, com tooltip) */}
+        {/* Dono operacional: cliente ou Nairuz. Clique alterna a responsabilidade. */}
         <button
           type="button"
           onClick={() => onToggleResponsibility(phaseId, item.id, !isClient)}
@@ -250,14 +251,17 @@ function ChecklistItemRow({
           title={
             isClient
               ? 'Responsabilidade do cliente — aparece nas tarefas dele. Clique para remover.'
-              : 'Marcar como responsabilidade do cliente (aparece no portal do cliente).'
+              : 'Responsabilidade da Nairuz. Clique para marcar como cliente.'
           }
           className={cn(
-            'inline-flex size-7 items-center justify-center rounded-md transition-colors',
-            isClient ? 'bg-brand-50 text-brand-600' : 'text-slate-300 hover:bg-slate-100 hover:text-slate-500',
+            'inline-flex h-7 shrink-0 items-center gap-1 rounded-full border px-2 text-[11px] font-semibold transition-colors',
+            isClient
+              ? 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
+              : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700',
           )}
         >
-          <User className="size-4" />
+          {isClient ? <User className="size-3.5" /> : <Users className="size-3.5" />}
+          <span>{isClient ? 'Cliente' : 'Nairuz'}</span>
         </button>
 
         {/* Comentários */}

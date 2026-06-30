@@ -30,6 +30,8 @@ import { notifyChange } from './store'
 const p = (id: string) => `/api/projects/${encodeURIComponent(id)}`
 const PROJECTS_KEY = 'nairuz-portal:fallback-projects'
 const ORGS_KEY = 'nairuz-portal:fallback-organizations'
+const RAINHA_REAL_CHECKLIST_NOTE =
+  'Migração Loja Integrada → VTEX com ERP Bling. Foco principal: Entrega + Retirada — gabinete é volumoso e logística define a viabilidade do checkout.'
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
@@ -64,7 +66,7 @@ function writeLocal<T>(key: string, value: T): T {
 }
 
 function localProjects(): Project[] {
-  const projects = readLocal(PROJECTS_KEY, seedProjects())
+  const projects = migrateRainhaRealChecklist(readLocal(PROJECTS_KEY, seedProjects()))
   // Cura dados antigos: garante que o status da fase reflita o checklist.
   projects.forEach((project) => project.phases.forEach(syncPhaseStatus))
   return projects.map(normalizeProjectCollections)
@@ -72,6 +74,48 @@ function localProjects(): Project[] {
 
 function saveLocalProjects(projects: Project[]): Project[] {
   return writeLocal(PROJECTS_KEY, projects)
+}
+
+function migrateRainhaRealChecklist(projects: Project[]): Project[] {
+  const index = projects.findIndex((project) => project.clientName === 'Rainha dos Gabinetes')
+  if (index === -1) return projects
+
+  const current = projects[index]
+  const hasOperationalOwner =
+    current.phases.length > 0 &&
+    current.phases.every((phase) =>
+      phase.checklist.every((item) => typeof item.clientResponsibility === 'boolean'),
+    )
+  const boardStatuses = new Set(current.phases.flatMap((phase) => phase.checklist.map((item) => item.boardStatus)))
+  const hasClientBoardColumns =
+    boardStatuses.has('responsabilidade_cliente') && boardStatuses.has('aguardando_cliente')
+  if (current.templateNotes === RAINHA_REAL_CHECKLIST_NOTE && hasOperationalOwner && hasClientBoardColumns) return projects
+
+  const seed = seedProjects().find((project) => project.clientName === 'Rainha dos Gabinetes')
+  if (!seed) return projects
+
+  const migrated: Project = {
+    ...current,
+    platform: 'vtex',
+    type: 'implantacao',
+    product: 'ecommerce',
+    status: current.status === 'nao_iniciado' ? 'em_andamento' : current.status,
+    nextAction: seed.nextAction,
+    templateNotes: seed.templateNotes,
+    phases: clone(seed.phases).map((phase) => ({
+      ...phase,
+      projectId: current.id,
+    })),
+    updatedAt: new Date().toISOString(),
+  }
+  migrated.progress = computeProgress(migrated.phases)
+  migrated.currentPhaseId = currentPhase(migrated.phases)?.id
+  migrated.risk = deriveRisk(migrated)
+
+  const next = [...projects]
+  next[index] = migrated
+  saveLocalProjects(next)
+  return next
 }
 
 function localOrganizations(): Organization[] {
@@ -452,6 +496,11 @@ export async function setChecklistBoardStatus(
         const phase = findLocalPhase(project, phaseId)
         const item = findLocalChecklistItem(phase, itemId)
         item.boardStatus = boardStatus
+        if (boardStatus === 'responsabilidade_cliente' || boardStatus === 'aguardando_cliente') {
+          item.clientResponsibility = true
+        } else if (boardStatus !== 'concluido') {
+          item.clientResponsibility = false
+        }
         const done = boardStatus === 'concluido'
         item.done = done
         item.doneAt = done ? new Date().toISOString() : undefined

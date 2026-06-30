@@ -210,31 +210,42 @@ interface RainhaChecklistSeed {
   boardStatus?: BoardStatus
   bloco?: string
   done?: boolean
+  clientResponsibility?: boolean
 }
 
 function rainhaChecklist(items: RainhaChecklistSeed[], defaultBloco: string): ChecklistItem[] {
   return items.map((item) => {
     const done = item.done ?? item.boardStatus === 'concluido'
+    const clientResponsibility = item.clientResponsibility ?? (item.travaLevel === 'trava_inicio')
     return {
       id: uid('chk'),
       label: item.label,
       done,
       doneAt: done ? '2026-06-30T12:00:00.000Z' : undefined,
       travaLevel: item.travaLevel,
-      boardStatus: item.boardStatus ?? (done ? 'concluido' : 'a_fazer'),
+      boardStatus: item.boardStatus ?? (done ? 'concluido' : clientResponsibility ? 'responsabilidade_cliente' : 'a_fazer'),
       bloco: item.bloco ?? defaultBloco,
+      clientResponsibility,
     }
   })
 }
 
 function buildRainhaPhase(projectId: string, order: number, name: string, items: RainhaChecklistSeed[]): Phase {
   const checklist = rainhaChecklist(items, name)
+  const doneCount = checklist.filter((item) => item.done).length
+  const hasActiveBoard = checklist.some((item) => item.boardStatus && item.boardStatus !== 'a_fazer')
+  const status: PhaseStatus =
+    checklist.length > 0 && doneCount === checklist.length
+      ? 'concluida'
+      : doneCount > 0 || hasActiveBoard
+        ? 'em_andamento'
+        : 'nao_iniciada'
   return {
     id: uid('ph'),
     projectId,
     order,
     name,
-    status: checklist.some((item) => item.done) ? 'em_andamento' : 'nao_iniciada',
+    status,
     checklist,
     clientApproved: false,
     clientVisible: true,
@@ -246,57 +257,107 @@ function buildRainhaPhase(projectId: string, order: number, name: string, items:
 function buildRainhaDosGabinetesProject(): Project {
   const id = uid('prj')
   const phases: Phase[] = [
-    buildRainhaPhase(id, 1, 'Pagamentos', [
-      { label: 'Gateway + bandeiras', travaLevel: 'trava_inicio' },
-      { label: 'Parcelamento e antifraude', travaLevel: 'trava_inicio' },
-      { label: 'Cartão + PIX/boleto', travaLevel: 'trava_inicio' },
-      { label: 'Credenciais e teste', travaLevel: 'trava_inicio' },
-      { label: 'Testes de checkout', travaLevel: 'trava_golive' },
-      { label: 'Conciliação financeira', travaLevel: 'trava_golive' },
+    buildRainhaPhase(id, 1, 'Kickoff e acessos', [
+      { label: 'Kick-off realizado e briefing validado', travaLevel: 'trava_inicio', bloco: 'Descoberta' },
+      { label: 'Perfis e usuários VTEX liberados', travaLevel: 'trava_inicio', bloco: 'Acessos' },
+      { label: 'AppKeys/appTokens VTEX criados', travaLevel: 'trava_inicio', bloco: 'Acessos' },
+      { label: 'Acessos críticos compartilhados com a Nairuz', travaLevel: 'trava_inicio', bloco: 'Acessos' },
+      { label: 'Trilha de treinamento VTEX habilitada', travaLevel: 'placeholder', bloco: 'Treinamento' },
     ]),
-    buildRainhaPhase(id, 2, 'Entrega', [
-      { label: 'Transportadora definida', travaLevel: 'trava_inicio', boardStatus: 'a_fazer' },
-      { label: 'Modalidade de frete', travaLevel: 'trava_inicio' },
-      { label: 'Peso real x cubagem', travaLevel: 'trava_inicio' },
-      { label: 'Planilha de frete VTEX', travaLevel: 'trava_golive', boardStatus: 'em_andamento' },
-      { label: 'Doca + política de envio', travaLevel: 'trava_golive', boardStatus: 'em_andamento' },
-      { label: 'Simulação por CEP', travaLevel: 'trava_golive', boardStatus: 'pendente_golive', bloco: 'Entrega / Pickup' },
-      { label: 'Cadastro de transportadoras', travaLevel: 'trava_golive' },
-      { label: 'Tabela de frete revisada', travaLevel: 'trava_golive' },
-      { label: 'Prazos por região', travaLevel: 'trava_golive' },
-      { label: 'Faixas de CEP atendidas', travaLevel: 'trava_golive' },
-      { label: 'Teste de frete no carrinho', travaLevel: 'trava_golive' },
-      { label: 'Tabela provisória de frete', travaLevel: 'placeholder' },
+    buildRainhaPhase(id, 2, 'Descoberta - decisões de negócio', [
+      { label: 'Adquirência contratada (cartão, PIX e antifraude)', travaLevel: 'trava_inicio', bloco: 'Pagamentos' },
+      { label: 'ERP Bling confirmado como fonte de integração', travaLevel: 'trava_inicio', bloco: 'ERP Bling' },
+      { label: 'Responsáveis de negócio e técnico definidos', travaLevel: 'trava_inicio', bloco: 'Governança' },
+      { label: 'Aprovação de telas Home e demais páginas', travaLevel: 'trava_inicio', boardStatus: 'aguardando_cliente', bloco: 'Design' },
     ]),
-    buildRainhaPhase(id, 3, 'Retirada', [
-      { label: 'Haverá pontos de retirada?', travaLevel: 'trava_inicio', boardStatus: 'a_fazer' },
-      { label: 'Quantidade de pontos', travaLevel: 'trava_inicio' },
-      { label: 'Dados de cada ponto', travaLevel: 'trava_golive', boardStatus: 'em_andamento' },
-      { label: 'Logistics + warehouse', travaLevel: 'trava_golive' },
-      { label: 'Checkout validado', travaLevel: 'trava_golive' },
-      { label: 'Endereço completo das lojas', travaLevel: 'trava_golive' },
-      { label: 'Horário de funcionamento', travaLevel: 'trava_golive' },
-      { label: 'SLA por ponto de retirada', travaLevel: 'trava_golive' },
-      { label: 'Estoque por ponto', travaLevel: 'trava_golive' },
-      { label: 'Pickup points cadastrados', travaLevel: 'trava_golive' },
-      { label: 'Política de retirada configurada', travaLevel: 'trava_golive' },
-      { label: 'E-mails transacionais de retirada', travaLevel: 'trava_golive' },
-      { label: 'Teste de compra com pickup', travaLevel: 'trava_golive' },
-      { label: 'Regras de entrega x retirada', travaLevel: 'trava_golive' },
-      { label: 'Responsáveis por loja', travaLevel: 'trava_golive' },
-      { label: 'Documentação operacional de retirada', travaLevel: 'trava_golive' },
+    buildRainhaPhase(id, 3, 'Descoberta - catálogo e logística', [
+      { label: 'Árvore de categorias validada', travaLevel: 'trava_inicio', boardStatus: 'aguardando_cliente', bloco: 'Catálogo' },
+      { label: 'Atributos e especificações principais definidos', travaLevel: 'trava_inicio', boardStatus: 'aguardando_cliente', bloco: 'Catálogo' },
+      { label: 'Transportadora definida', travaLevel: 'trava_inicio', bloco: 'Logística' },
+      { label: 'Decisão sobre retirada em loja/pickup', travaLevel: 'trava_inicio', bloco: 'Retirada' },
+      { label: 'Quantidade de pontos de retirada definida', travaLevel: 'trava_inicio', bloco: 'Retirada' },
     ]),
-    buildRainhaPhase(id, 4, 'Transversais', [
-      { label: 'Acessos críticos', travaLevel: 'trava_inicio', boardStatus: 'a_fazer' },
-      { label: 'DNS + SSL final', travaLevel: 'trava_golive', boardStatus: 'pendente_golive' },
-      { label: 'ERP, RD e tags', travaLevel: 'trava_golive' },
-      { label: 'Conteúdo final', travaLevel: 'trava_golive' },
-      { label: 'Scripts de tracking validados', travaLevel: 'trava_golive' },
-      { label: 'Termos, políticas e LGPD', travaLevel: 'trava_golive' },
-      { label: 'Textos provisórios', travaLevel: 'placeholder', boardStatus: 'pendente_golive', bloco: 'Checkout' },
-      { label: 'Banners secundários', travaLevel: 'placeholder', boardStatus: 'concluido', bloco: 'Conteúdo' },
-      { label: 'Fotos não-críticas', travaLevel: 'placeholder', boardStatus: 'concluido', bloco: 'Categoria' },
-      { label: 'Mídias provisórias', travaLevel: 'placeholder' },
+    buildRainhaPhase(id, 4, 'Design e front-end', [
+      { label: 'Header, footer e home implementados', travaLevel: 'trava_golive', boardStatus: 'em_andamento', bloco: 'Front-end' },
+      { label: 'Páginas de categoria, busca e produto implementadas', travaLevel: 'trava_golive', boardStatus: 'em_andamento', bloco: 'Front-end' },
+      { label: 'Checkout, carrinho, login, minha conta e sucesso implementados', travaLevel: 'trava_golive', bloco: 'Front-end' },
+      { label: 'Responsividade e estados principais validados', travaLevel: 'trava_golive', bloco: 'Front-end' },
+    ]),
+    buildRainhaPhase(id, 5, 'Conteúdo institucional e políticas', [
+      { label: 'Políticas de privacidade, entrega, trocas e cancelamentos', travaLevel: 'trava_golive', bloco: 'Conteúdo legal', clientResponsibility: true },
+      { label: 'Quem Somos com conteúdo provisório', travaLevel: 'placeholder', bloco: 'Conteúdo', clientResponsibility: true },
+      { label: 'Fale Conosco e FAQ com conteúdo provisório', travaLevel: 'placeholder', bloco: 'Conteúdo', clientResponsibility: true },
+      { label: 'Favoritos habilitado com experiência provisória', travaLevel: 'placeholder', bloco: 'Conteúdo', clientResponsibility: true },
+    ]),
+    buildRainhaPhase(id, 6, 'Catálogo e integrações', [
+      { label: 'Marcas e coleções configuradas', travaLevel: 'trava_golive', bloco: 'Catálogo' },
+      { label: 'Fluxo criar/atualizar produtos Bling → VTEX', travaLevel: 'trava_golive', boardStatus: 'em_andamento', bloco: 'ERP Bling' },
+      { label: 'Integração de imagens de produto', travaLevel: 'trava_golive', bloco: 'ERP Bling' },
+      { label: 'QA de catálogo e imagens', travaLevel: 'trava_golive', bloco: 'Catálogo' },
+      { label: 'Integração de preço Bling → VTEX', travaLevel: 'trava_golive', bloco: 'ERP Bling' },
+    ]),
+    buildRainhaPhase(id, 7, 'Estoque, logística e retirada', [
+      { label: 'Estoques, docas e inventário configurados', travaLevel: 'trava_golive', boardStatus: 'em_andamento', bloco: 'Logística' },
+      { label: 'Políticas de envio e transportadoras configuradas na VTEX', travaLevel: 'trava_golive', boardStatus: 'em_andamento', bloco: 'Logística' },
+      { label: 'Simulação de frete por CEP validada', travaLevel: 'trava_golive', boardStatus: 'pendente_golive', bloco: 'Entrega / Pickup' },
+      { label: 'Pontos de retirada cadastrados', travaLevel: 'trava_golive', bloco: 'Retirada' },
+      { label: 'QA de frete, estoque e pickup', travaLevel: 'trava_golive', bloco: 'Entrega / Pickup' },
+    ]),
+    buildRainhaPhase(id, 8, 'Pagamentos', [
+      { label: 'Gateway de produção configurado', travaLevel: 'trava_golive', bloco: 'Pagamentos' },
+      { label: 'Cartão, PIX e boleto validados', travaLevel: 'trava_golive', bloco: 'Pagamentos' },
+      { label: 'Antifraude configurado e testado', travaLevel: 'trava_golive', bloco: 'Pagamentos' },
+      { label: 'Testes de checkout e conciliação financeira', travaLevel: 'trava_golive', boardStatus: 'pendente_golive', bloco: 'Pagamentos' },
+    ]),
+    buildRainhaPhase(id, 9, 'SEO, busca e analytics', [
+      { label: 'SEO técnico: 404, robots, sitemap, feed, meta/OG e favicon', travaLevel: 'trava_golive', bloco: 'SEO' },
+      { label: 'Intelligent Search básico e filtros configurados', travaLevel: 'trava_golive', bloco: 'Busca' },
+      { label: 'Merchandising, relevância e sinônimos em tuning contínuo', travaLevel: 'placeholder', bloco: 'Busca' },
+      { label: 'GTM, GA e funil configurados', travaLevel: 'trava_golive', bloco: 'Analytics' },
+      { label: 'Contas compartilhadas com SAs VTEX e Search Console', travaLevel: 'placeholder', bloco: 'Analytics' },
+    ]),
+    buildRainhaPhase(id, 10, 'E-mails, promoções e customizações', [
+      { label: 'SMTP configurado', travaLevel: 'trava_golive', boardStatus: 'pendente_golive', bloco: 'E-mails' },
+      { label: 'E-mails transacionais funcionando', travaLevel: 'trava_golive', bloco: 'E-mails' },
+      { label: 'CSS/HTML dos templates de e-mail provisórios', travaLevel: 'placeholder', bloco: 'E-mails' },
+      { label: 'Promoções e cupons preparados para uso pós-lançamento', travaLevel: 'placeholder', bloco: 'Promoções', clientResponsibility: true },
+      { label: 'Quizz, kits e combos tratados como evolução pós-lançamento', travaLevel: 'placeholder', bloco: 'Customizações', clientResponsibility: true },
+    ]),
+    buildRainhaPhase(id, 11, 'QA interno', [
+      { label: 'Smoke test do front-end core', travaLevel: 'trava_golive', bloco: 'QA' },
+      { label: 'QA do fluxo de compra completo', travaLevel: 'trava_golive', bloco: 'QA' },
+      { label: 'QA Bling: pedido, faturamento e tracking', travaLevel: 'trava_golive', bloco: 'ERP Bling' },
+      { label: 'QA estoque, preço e logística', travaLevel: 'trava_golive', bloco: 'QA' },
+    ]),
+    buildRainhaPhase(id, 12, 'Homologação cliente', [
+      { label: 'Ambiente de homologação liberado ao cliente', travaLevel: 'trava_golive', bloco: 'Homologação' },
+      { label: 'Validação do cliente em catálogo, checkout e logística', travaLevel: 'trava_golive', boardStatus: 'aguardando_cliente', bloco: 'Homologação', clientResponsibility: true },
+      { label: 'Bugs críticos de homologação resolvidos', travaLevel: 'trava_golive', bloco: 'Homologação' },
+      { label: 'Aceite operacional para pré go-live', travaLevel: 'trava_golive', boardStatus: 'aguardando_cliente', bloco: 'Homologação', clientResponsibility: true },
+    ]),
+    buildRainhaPhase(id, 13, 'Pré go-live', [
+      { label: 'Redirects 301 da migração Loja Integrada → VTEX', travaLevel: 'trava_golive', boardStatus: 'pendente_golive', bloco: 'SEO' },
+      { label: 'Planilha de migração revisada', travaLevel: 'placeholder', boardStatus: 'aguardando_cliente', bloco: 'Migração', clientResponsibility: true },
+      { label: 'Vídeos de treino e documentação de banners', travaLevel: 'placeholder', bloco: 'Treinamento' },
+      { label: 'Checklist pré go-live consolidado', travaLevel: 'trava_golive', bloco: 'Go-live' },
+    ]),
+    buildRainhaPhase(id, 14, 'Go live', [
+      { label: 'VTEX IO host configurado', travaLevel: 'trava_golive', bloco: 'Go-live' },
+      { label: 'License Manager em domínio de produção', travaLevel: 'trava_golive', bloco: 'Go-live' },
+      { label: 'DNS e SSL final', travaLevel: 'trava_golive', boardStatus: 'pendente_golive', bloco: 'Go-live' },
+      { label: 'Publicação assistida e monitoramento inicial', travaLevel: 'trava_golive', bloco: 'Go-live' },
+      { label: 'Revisão de banners, conteúdo e ajustes de marketing', travaLevel: 'placeholder', boardStatus: 'aguardando_cliente', bloco: 'Marketing', clientResponsibility: true },
+    ]),
+    buildRainhaPhase(id, 15, 'Acompanhamento pós-go live', [
+      { label: 'Acompanhamento 7 dias', travaLevel: 'placeholder', bloco: 'Pós-live' },
+      { label: 'Ajustes finos pós-publicação', travaLevel: 'placeholder', bloco: 'Pós-live' },
+      { label: 'Fluxo de troca e devolução estabilizado pós-launch', travaLevel: 'placeholder', bloco: 'Operação' },
+      { label: 'Tuning contínuo de busca e merchandising', travaLevel: 'placeholder', bloco: 'Busca' },
+    ]),
+    buildRainhaPhase(id, 16, 'Encerramento técnico', [
+      { label: 'Documentação final entregue', travaLevel: 'placeholder', bloco: 'Encerramento' },
+      { label: 'Aceite final assinado', travaLevel: 'placeholder', boardStatus: 'aguardando_cliente', bloco: 'Encerramento', clientResponsibility: true },
+      { label: 'Recomendações de sustentação e evolução', travaLevel: 'placeholder', bloco: 'Encerramento' },
     ]),
   ]
   const base: Project = {
@@ -309,7 +370,7 @@ function buildRainhaDosGabinetesProject(): Project {
     status: 'em_andamento',
     startDate: '2026-06-30',
     goLiveDate: '2026-08-30',
-    nextAction: 'Criar board com 4 raias: Pagamentos, Entrega, Retirada e Transversais. Gate só libera quando não houver vermelho pendente.',
+    nextAction: 'Cobrar as travas vermelhas de Descoberta antes de entrar na esteira: acessos VTEX, adquirência, ERP Bling, categorias, logística e pickup.',
     updatedAt: '2026-06-30T12:00:00.000Z',
     owners: { csId: 'u2', techLeadId: 'u1', designerId: 'u3', clientContact: 'Camila (Rainha dos Gabinetes)' },
     phases,
@@ -318,7 +379,7 @@ function buildRainhaDosGabinetesProject(): Project {
     currentPhaseId: undefined,
     clientEmails: ['implantacao@rainhadosgabinetes.com.br'],
     product: 'ecommerce',
-    templateNotes: 'Foco principal: Entrega + Retirada — gabinete é volumoso e logística define a viabilidade do checkout.',
+    templateNotes: 'Migração Loja Integrada → VTEX com ERP Bling. Foco principal: Entrega + Retirada — gabinete é volumoso e logística define a viabilidade do checkout.',
     history: [{ id: uid('h'), type: 'projeto_criado', label: 'Projeto criado', at: '2026-06-30T12:00:00.000Z', actor: 'Nairuz' }],
     supportHours: { ...DEFAULT_SUPPORT_HOURS },
     finalization: JSON.parse(JSON.stringify(DEFAULT_FINALIZATION)) as Project['finalization'],

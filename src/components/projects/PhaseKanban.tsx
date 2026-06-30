@@ -1,5 +1,5 @@
 import { useState, type DragEvent } from 'react'
-import { GripVertical, LayoutGrid } from 'lucide-react'
+import { GripVertical, LayoutGrid, User, Users } from 'lucide-react'
 import type { BoardStatus, ChecklistItem, Phase, TravaLevel } from '@/types'
 import { BOARD_COLUMNS, BOARD_STATUS_META, TRAVA_META } from '@/constants'
 import { boardStatusOf } from '@/utils/projects'
@@ -129,7 +129,7 @@ function BoardColumn({
   return (
     <div
       className={cn(
-        'flex w-72 shrink-0 flex-col rounded-xl border bg-slate-50/60 transition-colors lg:w-auto lg:flex-1',
+        'flex w-72 shrink-0 flex-col rounded-xl border bg-slate-50/60 transition-colors',
         isDropTarget ? 'border-brand-300 bg-brand-50/50 ring-2 ring-brand-100' : 'border-slate-200',
       )}
       onDragOver={(event) => {
@@ -228,7 +228,10 @@ function BoardCardItem({
           {card.item.label}
         </p>
       </div>
-      <div className="mt-1.5 text-xs text-slate-400">{card.bloco}</div>
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        <span className="text-xs text-slate-400">{card.bloco}</span>
+        <ResponsibilityChip client={!!card.item.clientResponsibility} />
+      </div>
       <select
         value={card.status}
         onChange={(e) => onSetBoardStatus(card.phaseId, card.item.id, e.target.value as BoardStatus)}
@@ -242,5 +245,22 @@ function BoardCardItem({
         ))}
       </select>
     </div>
+  )
+}
+
+function ResponsibilityChip({ client }: { client: boolean }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold',
+        client
+          ? 'border-amber-200 bg-amber-50 text-amber-700'
+          : 'border-slate-200 bg-slate-50 text-slate-500',
+      )}
+      title={client ? 'Responsabilidade do cliente' : 'Responsabilidade da Nairuz'}
+    >
+      {client ? <User className="size-3" /> : <Users className="size-3" />}
+      {client ? 'Cliente' : 'Nairuz'}
+    </span>
   )
 }

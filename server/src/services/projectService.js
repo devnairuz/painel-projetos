@@ -52,6 +52,7 @@ function checklistTaskStatus(phase, item) {
 
 function deriveBoardStatus(phase, item) {
   if (item.done) return "concluido";
+  if (item.clientResponsibility) return "responsabilidade_cliente";
   if (phase.status === "bloqueada" || phase.status === "em_andamento") return "em_andamento";
   return "a_fazer";
 }
@@ -376,8 +377,13 @@ async function updateChecklistItem(id, phaseId, itemId, patch = {}) {
     if (typeof patch.label === "string" && patch.label.trim()) item.label = patch.label.trim();
     if (patch.ownerId !== undefined) item.ownerId = patch.ownerId || undefined;
     if (typeof patch.clientResponsibility === "boolean") item.clientResponsibility = patch.clientResponsibility;
-    if (["a_fazer", "em_andamento", "pendente_golive", "concluido"].includes(patch.boardStatus)) {
+    if (["a_fazer", "responsabilidade_cliente", "em_andamento", "aguardando_cliente", "pendente_golive", "concluido"].includes(patch.boardStatus)) {
       item.boardStatus = patch.boardStatus;
+      if (patch.boardStatus === "responsabilidade_cliente" || patch.boardStatus === "aguardando_cliente") {
+        item.clientResponsibility = true;
+      } else if (patch.boardStatus !== "concluido") {
+        item.clientResponsibility = false;
+      }
       item.done = patch.boardStatus === "concluido";
       item.doneAt = item.done ? (item.doneAt || new Date().toISOString()) : undefined;
       const allDone = ph.checklist.length > 0 && ph.checklist.every((c) => c.done);

@@ -13,13 +13,13 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Select } from '@/components/ui/Select'
 import { Button } from '@/components/ui/Button'
+import { Modal } from '@/components/ui/Modal'
 import { PhaseCard } from '@/components/projects/PhaseCard'
 import { PhaseManager } from '@/components/projects/PhaseManager'
 import { PhaseKanban } from '@/components/projects/PhaseKanban'
 import { GateBanner } from '@/components/projects/GateBanner'
 import { GanttModal } from '@/components/projects/GanttModal'
 import { ClientAccessCard } from '@/components/projects/ClientAccessCard'
-import { ActionNeededCard } from '@/components/projects/ActionNeededCard'
 import { OwnersCard } from '@/components/projects/OwnersCard'
 import { CollaboratorsCard } from '@/components/projects/CollaboratorsCard'
 import { FinalizationConfigCard } from '@/components/projects/FinalizationConfigCard'
@@ -139,7 +139,13 @@ export function ProjetoDetalhePage() {
       const checklist = ph.checklist.map((it) => {
         if (it.id !== itemId) return it
         const done = boardStatus === 'concluido'
-        return { ...it, boardStatus, done, doneAt: done ? it.doneAt ?? now : undefined }
+        const clientResponsibility =
+          boardStatus === 'responsabilidade_cliente' || boardStatus === 'aguardando_cliente'
+            ? true
+            : boardStatus === 'concluido'
+              ? it.clientResponsibility
+              : false
+        return { ...it, boardStatus, done, doneAt: done ? it.doneAt ?? now : undefined, clientResponsibility }
       })
       const np = { ...ph, checklist }
       const allDone = checklist.length > 0 && checklist.every((c) => c.done)
@@ -302,14 +308,9 @@ export function ProjetoDetalhePage() {
         </button>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setOperationOpen((value) => !value)}
-            className={cn(
-              'inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium shadow-sm transition-colors',
-              operationOpen
-                ? 'border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100'
-                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
-            )}
-            title={operationOpen ? 'Ocultar operação' : 'Mostrar operação'}
+            onClick={() => setOperationOpen(true)}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+            title="Abrir operação"
           >
             <Settings className="size-4" />
             <span className="hidden sm:inline">Operação</span>
@@ -325,6 +326,43 @@ export function ProjetoDetalhePage() {
       </div>
 
       {ganttOpen && <GanttModal project={project} onClose={() => setGanttOpen(false)} />}
+
+      <Modal
+        open={operationOpen}
+        onClose={() => setOperationOpen(false)}
+        title="Operação"
+        subtitle="Responsáveis, colaboradores, tracking e configurações do projeto."
+        size="lg"
+      >
+        <div className="space-y-5">
+          <OwnersCard owners={project.owners} getMember={getMember} onChange={handleUpdateOwners} />
+
+          <CollaboratorsCard
+            collaborators={project.collaborators ?? []}
+            users={mentionUsers ?? []}
+            onChange={handleUpdateCollaborators}
+          />
+
+          <ProjectTrackingCard project={project} onProjectChange={setProject} />
+
+          <Card className="p-5">
+            <h2 className="mb-1 text-lg font-semibold text-slate-900">Última atualização</h2>
+            <p className="text-sm text-slate-500">{formatDate(project.updatedAt)}</p>
+          </Card>
+
+          <ConfigSection>
+            <ClientAccessCard
+              projectId={project!.id}
+              emails={project.clientEmails}
+              onChanged={reload}
+            />
+
+            <FinalizationConfigCard project={project} onChanged={reload} />
+
+            <ProjectSettingsCard project={project} onDelete={handleDelete} />
+          </ConfigSection>
+        </div>
+      </Modal>
 
       {/* Cabeçalho do projeto */}
       <Card className="mb-5 p-6">
@@ -384,26 +422,9 @@ export function ProjetoDetalhePage() {
           <ProgressBar value={project.progress} />
         </div>
 
-        {/* Próxima ação — derivada do estado real (fallback: texto manual) */}
-        {(flow.nextAction ?? project.nextAction) && (
-          <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-            <div className="text-xs font-semibold tracking-wide text-amber-700 uppercase">
-              Próxima ação
-            </div>
-            <p className="mt-0.5 text-sm text-amber-900">{flow.nextAction ?? project.nextAction}</p>
-          </div>
-        )}
       </Card>
 
-      {/* Precisa de ação — o que está travando o avanço, num só lugar */}
-      <ActionNeededCard blockers={flow.blockers} />
-
-      <div
-        className={cn(
-          'grid grid-cols-1 gap-5',
-          operationOpen ? 'lg:grid-cols-[minmax(0,1fr)_360px]' : 'lg:grid-cols-1',
-        )}
-      >
+      <div>
         {/* Fases */}
         <div className="min-w-0">
           <Card className="p-5">
@@ -415,12 +436,12 @@ export function ProjetoDetalhePage() {
                 </span>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
-                <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+                <div className="inline-flex h-9 rounded-lg border border-slate-200 bg-slate-50 p-0.5">
                   <button
                     type="button"
                     onClick={() => setViewMode('checklist')}
                     className={cn(
-                      'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                      'h-8 rounded-md px-3 text-sm font-medium transition-colors',
                       viewMode === 'checklist'
                         ? 'bg-white text-slate-900 shadow-sm'
                         : 'text-slate-500 hover:text-slate-800',
@@ -435,7 +456,7 @@ export function ProjetoDetalhePage() {
                       setViewMode('kanban')
                     }}
                     className={cn(
-                      'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                      'h-8 rounded-md px-3 text-sm font-medium transition-colors',
                       viewMode === 'kanban'
                         ? 'bg-white text-slate-900 shadow-sm'
                         : 'text-slate-500 hover:text-slate-800',
@@ -447,7 +468,7 @@ export function ProjetoDetalhePage() {
                 {viewMode === 'checklist' && (
                   <button
                     onClick={() => setEditPhases((v) => !v)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
                   >
                     {editPhases ? <Check className="size-4" /> : <Pencil className="size-4" />}
                     {editPhases ? 'Concluir edição' : 'Editar etapas'}
@@ -510,63 +531,8 @@ export function ProjetoDetalhePage() {
             )}
           </Card>
         </div>
-
-        {/* Coluna lateral: Operação (dia a dia) em cima, Configuração recolhida */}
-        {operationOpen && (
-        <aside className="space-y-5">
-          {/* ── Operação ── */}
-          <div className="flex items-center justify-between px-1">
-            <RailLabel>Operação</RailLabel>
-            <button
-              type="button"
-              onClick={() => setOperationOpen(false)}
-              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-              title="Ocultar operação"
-            >
-              <ChevronDown className="size-4 -rotate-90" />
-            </button>
-          </div>
-
-          <OwnersCard owners={project.owners} getMember={getMember} onChange={handleUpdateOwners} />
-
-          <CollaboratorsCard
-            collaborators={project.collaborators ?? []}
-            users={mentionUsers ?? []}
-            onChange={handleUpdateCollaborators}
-          />
-
-          <ProjectTrackingCard project={project} onProjectChange={setProject} />
-
-          <Card className="p-5">
-            <h2 className="mb-1 text-lg font-semibold text-slate-900">Última atualização</h2>
-            <p className="text-sm text-slate-500">{formatDate(project.updatedAt)}</p>
-          </Card>
-
-          {/* ── Configuração (setup — raramente mexido) ── */}
-          <ConfigSection>
-            <ClientAccessCard
-              projectId={project!.id}
-              emails={project.clientEmails}
-              onChanged={reload}
-            />
-
-            <FinalizationConfigCard project={project} onChanged={reload} />
-
-            <ProjectSettingsCard project={project} onDelete={handleDelete} />
-          </ConfigSection>
-        </aside>
-        )}
       </div>
     </>
-  )
-}
-
-/** Rótulo de seção da coluna lateral. */
-function RailLabel({ children }: { children: ReactNode }) {
-  return (
-    <div className="px-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
-      {children}
-    </div>
   )
 }
 
