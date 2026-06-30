@@ -1,4 +1,4 @@
-import type { Phase, Project, ProjectTask, RiskLevel } from '@/types'
+import type { BoardStatus, ChecklistItem, Phase, Project, ProjectTask, RiskLevel } from '@/types'
 import { daysUntil } from './dates'
 
 /** Conta itens de checklist concluídos / total numa fase. */
@@ -82,6 +82,28 @@ function checklistTaskStatus(phase: Phase, done: boolean): ProjectTask['status']
   if (phase.status === 'bloqueada') return 'bloqueada'
   if (phase.status === 'em_andamento') return 'em_andamento'
   return 'aberta'
+}
+
+/**
+ * Deriva a coluna do board quando o item não tem `boardStatus` explícito.
+ * Espelha `checklistTaskStatus`: concluído ⇒ 'concluido'; fase
+ * bloqueada/em andamento ⇒ 'em_andamento'; senão 'a_fazer'.
+ */
+export function deriveBoardStatus(phase: Phase, item: ChecklistItem): BoardStatus {
+  if (item.done) return 'concluido'
+  if (phase.status === 'bloqueada' || phase.status === 'em_andamento') return 'em_andamento'
+  return 'a_fazer'
+}
+
+/**
+ * Coluna efetiva do item no board. Fonte única é o checklist: a regra
+ * `done ⇔ 'concluido'` é garantida aqui na leitura, então o board e o checkbox
+ * nunca divergem, mesmo que o `boardStatus` salvo esteja defasado.
+ */
+export function boardStatusOf(phase: Phase, item: ChecklistItem): BoardStatus {
+  if (item.done) return 'concluido'
+  if (!item.boardStatus || item.boardStatus === 'concluido') return deriveBoardStatus(phase, item)
+  return item.boardStatus
 }
 
 export function normalizedTasks(project: Project): ProjectTask[] {

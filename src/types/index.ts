@@ -59,6 +59,15 @@ export type MemberRole =
   | 'pm'
   | 'cliente'
 
+/** Nível de trava (semáforo do Definition of Ready). */
+export type TravaLevel =
+  | 'trava_inicio' // vermelho — bloqueia início; precisa estar 100% antes de entrar na esteira
+  | 'trava_golive' // amarelo  — segura go-live; pode desenvolver, mas não publica sem resolver
+  | 'placeholder' // verde    — não bloqueia; segue com conteúdo provisório
+
+/** Coluna do board operacional (Kanban). */
+export type BoardStatus = 'a_fazer' | 'em_andamento' | 'pendente_golive' | 'concluido'
+
 export type ProjectTaskStatus = 'aberta' | 'em_andamento' | 'concluida' | 'bloqueada'
 export type ProjectTaskSource = 'checklist' | 'manual' | 'cliente'
 export type ProjectChargeStatus = 'aberta' | 'respondida' | 'resolvida' | 'cancelada'
@@ -128,6 +137,12 @@ export interface ChecklistItem {
   clientResponsibility?: boolean
   /** Thread de comentários da subtarefa. */
   comments?: ChecklistComment[]
+  /** Nível de trava (semáforo). Default lógico: 'trava_golive'. */
+  travaLevel?: TravaLevel
+  /** Coluna no board. Se ausente, derivar de `done`/status da fase. */
+  boardStatus?: BoardStatus
+  /** Bloco/raia do board, ex.: 'Pagamentos'. Se ausente, herda o nome da fase. */
+  bloco?: string
 }
 
 export interface Phase {

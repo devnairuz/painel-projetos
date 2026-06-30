@@ -15,6 +15,8 @@ import { Select } from '@/components/ui/Select'
 import { Button } from '@/components/ui/Button'
 import { PhaseCard } from '@/components/projects/PhaseCard'
 import { PhaseManager } from '@/components/projects/PhaseManager'
+import { PhaseKanban } from '@/components/projects/PhaseKanban'
+import { GateBanner } from '@/components/projects/GateBanner'
 import { GanttModal } from '@/components/projects/GanttModal'
 import { ClientAccessCard } from '@/components/projects/ClientAccessCard'
 import { ActionNeededCard } from '@/components/projects/ActionNeededCard'
@@ -24,7 +26,7 @@ import { FinalizationConfigCard } from '@/components/projects/FinalizationConfig
 import { ProjectTrackingCard } from '@/components/projects/ProjectTrackingCard'
 import { PLATFORM_META, STATUS_META, TYPE_META, RISK_META } from '@/constants'
 import { PRODUCT_META } from '@/constants/templates'
-import type { CommentAttachment, Platform, Project, ProjectStatus, ProjectType, ProjectOwners } from '@/types'
+import type { BoardStatus, CommentAttachment, Platform, Project, ProjectStatus, ProjectType, ProjectOwners } from '@/types'
 import {
   addChecklistComment,
   addChecklistItem,
@@ -35,6 +37,7 @@ import {
   removePhase,
   renameChecklistItem,
   renamePhase,
+  setChecklistBoardStatus,
   setChecklistResponsibility,
   setChecklistOwner,
   toggleChecklistItem,
@@ -44,7 +47,8 @@ import {
   updateProjectStatus,
   type PhaseSettingsPatch,
 } from '@/services/projectsService'
-import { currentPhase, syncPhaseStatus, computeProgress, normalizedTasks } from '@/utils/projects'
+import { currentPhase, deriveBoardStatus, syncPhaseStatus, computeProgress, normalizedTasks } from '@/utils/projects'
+import { evaluateGate } from '@/utils/gate'
 import { deriveProjectFlow } from '@/utils/flow'
 import { groupByStage } from '@/utils/journey'
 import { formatDate, relativeDeadlineLabel } from '@/utils/dates'
@@ -63,6 +67,7 @@ export function ProjetoDetalhePage() {
   // Cópia local: aplica updates na hora (otimista) e reconcilia com o servidor.
   const [project, setProject] = useState<Project | undefined>(undefined)
   const [editPhases, setEditPhases] = useState(false)
+  const [viewMode, setViewMode] = useState<'checklist' | 'kanban'>('checklist')
   const [ganttOpen, setGanttOpen] = useState(false)
 
   useEffect(() => {
@@ -96,6 +101,7 @@ export function ProjetoDetalhePage() {
   }
 
   const phaseNow = currentPhase(project.phases)
+  const gate = evaluateGate(project.phases)
   const flow = deriveProjectFlow(project)
   const statusSuggested =
     flow.shouldSuggestStatus && flow.suggestedStatus !== project.status
@@ -106,16 +112,43 @@ export function ProjetoDetalhePage() {
   function toggleLocally(p: Project, phaseId: string, itemId: string): Project {
     const phases = p.phases.map((ph) => {
       if (ph.id !== phaseId) return ph
-      const checklist = ph.checklist.map((it) =>
-        it.id === itemId
-          ? { ...it, done: !it.done, doneAt: !it.done ? new Date().toISOString() : undefined }
-          : it,
-      )
+      const checklist = ph.checklist.map((it) => {
+        if (it.id !== itemId) return it
+        const done = !it.done
+        const next = { ...it, done, doneAt: done ? new Date().toISOString() : undefined }
+        return { ...next, boardStatus: done ? 'concluido' : deriveBoardStatus(ph, next) }
+      })
       const np = { ...ph, checklist }
       syncPhaseStatus(np)
+      if (checklist.some((it) => it.id === itemId && !it.done)) {
+        np.checklist = np.checklist.map((it) =>
+          it.id === itemId ? { ...it, boardStatus: deriveBoardStatus(np, it) } : it,
+        )
+      }
       return np
     })
     return { ...p, phases, progress: computeProgress(phases) }
+  }
+
+  /** Move um card do Kanban localmente e espelha `done` quando entra/sai de Concluído. */
+  function setBoardStatusLocally(p: Project, phaseId: string, itemId: string, boardStatus: BoardStatus): Project {
+    const now = new Date().toISOString()
+    const phases = p.phases.map((ph) => {
+      if (ph.id !== phaseId) return ph
+      const checklist = ph.checklist.map((it) => {
+        if (it.id !== itemId) return it
+        const done = boardStatus === 'concluido'
+        return { ...it, boardStatus, done, doneAt: done ? it.doneAt ?? now : undefined }
+      })
+      const np = { ...ph, checklist }
+      const allDone = checklist.length > 0 && checklist.every((c) => c.done)
+      if (allDone && !np.finishedDate) np.finishedDate = now
+      if (!allDone) np.finishedDate = undefined
+      syncPhaseStatus(np)
+      return np
+    })
+    const next = { ...p, phases, progress: computeProgress(phases) }
+    return { ...next, tasks: normalizedTasks(next) }
   }
 
   function updateChecklistOwnerLocally(p: Project, phaseId: string, itemId: string, ownerId: string): Project {
@@ -140,6 +173,16 @@ export function ProjetoDetalhePage() {
     try {
       const updated = await toggleChecklistItem(project!.id, phaseId, itemId)
       setProject(updated) // reconcilia com o servidor
+    } catch {
+      reload()
+    }
+  }
+
+  async function handleSetBoardStatus(phaseId: string, itemId: string, boardStatus: BoardStatus) {
+    setProject((prev) => (prev ? setBoardStatusLocally(prev, phaseId, itemId, boardStatus) : prev))
+    try {
+      const updated = await setChecklistBoardStatus(project!.id, phaseId, itemId, boardStatus)
+      setProject(updated)
     } catch {
       reload()
     }
@@ -350,16 +393,56 @@ export function ProjetoDetalhePage() {
                   {project.phases.filter((p) => p.status === 'concluida').length}/{project.phases.length} concluídas
                 </span>
               </div>
-              <button
-                onClick={() => setEditPhases((v) => !v)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
-              >
-                {editPhases ? <Check className="size-4" /> : <Pencil className="size-4" />}
-                {editPhases ? 'Concluir edição' : 'Editar etapas'}
-              </button>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('checklist')}
+                    className={cn(
+                      'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                      viewMode === 'checklist'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800',
+                    )}
+                  >
+                    Checklist
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditPhases(false)
+                      setViewMode('kanban')
+                    }}
+                    className={cn(
+                      'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                      viewMode === 'kanban'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800',
+                    )}
+                  >
+                    Kanban
+                  </button>
+                </div>
+                {viewMode === 'checklist' && (
+                  <button
+                    onClick={() => setEditPhases((v) => !v)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                  >
+                    {editPhases ? <Check className="size-4" /> : <Pencil className="size-4" />}
+                    {editPhases ? 'Concluir edição' : 'Editar etapas'}
+                  </button>
+                )}
+              </div>
             </div>
 
-            {editPhases ? (
+            <GateBanner gate={gate} />
+
+            {viewMode === 'kanban' ? (
+              <PhaseKanban
+                phases={project.phases.slice().sort((a, b) => a.order - b.order)}
+                onSetBoardStatus={handleSetBoardStatus}
+              />
+            ) : editPhases ? (
               <PhaseManager
                 phases={project.phases.slice().sort((a, b) => a.order - b.order)}
                 team={team ?? []}

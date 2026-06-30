@@ -1,4 +1,5 @@
 import type {
+  BoardStatus,
   ChecklistItem,
   CommentAttachment,
   Nps,
@@ -15,7 +16,7 @@ import type {
 } from '@/types'
 import { PRODUCT_TEMPLATES } from '@/constants/templates'
 import { DEFAULT_FINALIZATION, DEFAULT_SUPPORT_HOURS } from '@/constants/templates'
-import { computeProgress, currentPhase, deriveRisk, normalizeProjectCollections, syncPhaseStatus } from '@/utils/projects'
+import { computeProgress, currentPhase, deriveBoardStatus, deriveRisk, normalizeProjectCollections, syncPhaseStatus } from '@/utils/projects'
 import { api } from './api'
 import { ORGANIZATIONS, TEAM, seedProjects } from './mockData'
 import { notifyChange } from './store'
@@ -411,13 +412,49 @@ export async function toggleChecklistItem(
   itemId: string,
 ): Promise<Project> {
   return mutate(
-    () => api.post<Project>(`${p(id)}/phases/${phaseId}/toggle/${itemId}`),
+    () => api.post<Project>(`${p(id)}/phases/${phaseId}/toggle/${itemId}`).then(normalizeProjectCollections),
     () =>
       updateLocalProject(id, (project) => {
         const phase = findLocalPhase(project, phaseId)
         const item = findLocalChecklistItem(phase, itemId)
         item.done = !item.done
         item.doneAt = item.done ? new Date().toISOString() : undefined
+        // Espelha no board: concluído ⇔ done. Ao desmarcar, volta à coluna derivada.
+        if (item.done) {
+          item.boardStatus = 'concluido'
+        } else {
+          syncPhaseStatus(phase)
+          item.boardStatus = deriveBoardStatus(phase, item)
+        }
+        const allDone = phase.checklist.length > 0 && phase.checklist.every((c) => c.done)
+        if (allDone && !phase.finishedDate) phase.finishedDate = new Date().toISOString()
+        if (!allDone) phase.finishedDate = undefined
+        return project
+      }),
+  )
+}
+
+/**
+ * Move um item entre colunas do board (Kanban). Mantém o checklist coerente:
+ * a coluna "Concluído" espelha `done`/`doneAt` (e a `finishedDate` da fase),
+ * exatamente como o toggle do checkbox — board e checklist são a mesma fonte.
+ */
+export async function setChecklistBoardStatus(
+  id: string,
+  phaseId: string,
+  itemId: string,
+  boardStatus: BoardStatus,
+): Promise<Project> {
+  return mutate(
+    () => api.patch<Project>(`${p(id)}/phases/${phaseId}/items/${itemId}`, { boardStatus }).then(normalizeProjectCollections),
+    () =>
+      updateLocalProject(id, (project) => {
+        const phase = findLocalPhase(project, phaseId)
+        const item = findLocalChecklistItem(phase, itemId)
+        item.boardStatus = boardStatus
+        const done = boardStatus === 'concluido'
+        item.done = done
+        item.doneAt = done ? new Date().toISOString() : undefined
         const allDone = phase.checklist.length > 0 && phase.checklist.every((c) => c.done)
         if (allDone && !phase.finishedDate) phase.finishedDate = new Date().toISOString()
         if (!allDone) phase.finishedDate = undefined

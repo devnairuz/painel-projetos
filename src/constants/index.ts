@@ -5,6 +5,8 @@ import type {
   RiskLevel,
   PhaseStatus,
   MemberRole,
+  TravaLevel,
+  BoardStatus,
 } from '@/types'
 
 /**
@@ -68,6 +70,26 @@ export const PHASE_STATUS_META: Record<PhaseStatus, EnumMeta> = {
   bloqueada: { label: 'Bloqueada', badge: 'bg-red-50 text-red-700 border-red-200', dot: '#dc2626' },
   concluida: { label: 'Concluída', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: '#059669' },
 }
+
+/**
+ * Nível de trava (semáforo do Definition of Ready). Além do padrão `EnumMeta`,
+ * carrega um `hint` com a regra de cada cor — usado na legenda do board.
+ */
+export const TRAVA_META: Record<TravaLevel, EnumMeta & { hint: string }> = {
+  trava_inicio: { label: 'Bloqueia início', badge: 'bg-red-50 text-red-700 border-red-200', dot: '#dc2626', hint: 'Precisa estar 100% antes de entrar na esteira' },
+  trava_golive: { label: 'Segura go-live', badge: 'bg-amber-50 text-amber-700 border-amber-200', dot: '#d97706', hint: 'Pode desenvolver, mas não publica sem resolver' },
+  placeholder: { label: 'Placeholder', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: '#059669', hint: 'Não bloqueia; segue com conteúdo provisório' },
+}
+
+export const BOARD_STATUS_META: Record<BoardStatus, EnumMeta> = {
+  a_fazer: { label: 'A Fazer', badge: 'bg-slate-100 text-slate-600 border-slate-200', dot: '#64748b' },
+  em_andamento: { label: 'Em andamento', badge: 'bg-blue-50 text-blue-700 border-blue-200', dot: '#2563eb' },
+  pendente_golive: { label: 'Pendente go-live', badge: 'bg-amber-50 text-amber-700 border-amber-200', dot: '#d97706' },
+  concluido: { label: 'Concluído', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: '#059669' },
+}
+
+/** Ordem das colunas do board, da esquerda pra direita. */
+export const BOARD_COLUMNS: BoardStatus[] = ['a_fazer', 'em_andamento', 'pendente_golive', 'concluido']
 
 export const ROLE_META: Record<MemberRole, { label: string }> = {
   cs: { label: 'CS' },

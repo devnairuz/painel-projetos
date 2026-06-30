@@ -1,0 +1,163 @@
+import { LayoutGrid } from 'lucide-react'
+import type { BoardStatus, ChecklistItem, Phase, TravaLevel } from '@/types'
+import { BOARD_COLUMNS, BOARD_STATUS_META, TRAVA_META } from '@/constants'
+import { boardStatusOf } from '@/utils/projects'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { cn } from '@/utils/cn'
+
+interface PhaseKanbanProps {
+  phases: Phase[]
+  /** Move o item para outra coluna (e espelha `done` quando entra/sai de Concluído). */
+  onSetBoardStatus: (phaseId: string, itemId: string, status: BoardStatus) => void
+}
+
+interface BoardCard {
+  phaseId: string
+  item: ChecklistItem
+  bloco: string
+  trava: TravaLevel
+  status: BoardStatus
+}
+
+/**
+ * Visão Kanban das etapas. É uma *visão* sobre os mesmos `ChecklistItem`s das
+ * fases (sem duplicar dados): status vira coluna, nível de trava vira a cor do
+ * card e o bloco vira a raia. Mover um card atualiza o `boardStatus`.
+ */
+export function PhaseKanban({ phases, onSetBoardStatus }: PhaseKanbanProps) {
+  const cards: BoardCard[] = phases.flatMap((phase) =>
+    phase.checklist.map((item) => ({
+      phaseId: phase.id,
+      item,
+      bloco: item.bloco ?? phase.name,
+      trava: item.travaLevel ?? 'trava_golive',
+      status: boardStatusOf(phase, item),
+    })),
+  )
+
+  if (cards.length === 0) {
+    return (
+      <EmptyState
+        icon={LayoutGrid}
+        title="Nenhum card no board"
+        description="Adicione itens às etapas para vê-los aqui como cards do Kanban."
+      />
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <Legend />
+      <div className="flex gap-3 overflow-x-auto pb-2">
+        {BOARD_COLUMNS.map((status) => (
+          <BoardColumn
+            key={status}
+            status={status}
+            cards={cards.filter((c) => c.status === status)}
+            onSetBoardStatus={onSetBoardStatus}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** Legenda do semáforo (vermelho/amarelo/verde + a regra de cada cor). */
+function Legend() {
+  return (
+    <div className="flex flex-wrap gap-x-4 gap-y-1.5 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2">
+      {(Object.keys(TRAVA_META) as TravaLevel[]).map((level) => {
+        const meta = TRAVA_META[level]
+        return (
+          <span key={level} className="flex items-center gap-1.5 text-xs text-slate-500">
+            <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: meta.dot }} />
+            <span className="font-semibold text-slate-700">{meta.label}</span>
+            <span className="text-slate-400">· {meta.hint}</span>
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
+function BoardColumn({
+  status,
+  cards,
+  onSetBoardStatus,
+}: {
+  status: BoardStatus
+  cards: BoardCard[]
+  onSetBoardStatus: (phaseId: string, itemId: string, status: BoardStatus) => void
+}) {
+  const meta = BOARD_STATUS_META[status]
+  // Ordena por bloco (raia) e, dentro do bloco, pelo rótulo.
+  const ordered = [...cards].sort(
+    (a, b) => a.bloco.localeCompare(b.bloco, 'pt-BR') || a.item.label.localeCompare(b.item.label, 'pt-BR'),
+  )
+
+  return (
+    <div className="flex w-72 shrink-0 flex-col rounded-xl border border-slate-200 bg-slate-50/60 lg:w-auto lg:flex-1">
+      <div className="flex items-center justify-between gap-2 border-b border-slate-200/70 px-3 py-2.5">
+        <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <span className="size-2 rounded-full" style={{ backgroundColor: meta.dot }} />
+          {meta.label}
+        </span>
+        <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-500">
+          {cards.length}
+        </span>
+      </div>
+
+      <div className="flex-1 space-y-2 p-2">
+        {ordered.length === 0 ? (
+          <p className="px-1 py-6 text-center text-xs text-slate-400">Sem cards aqui.</p>
+        ) : (
+          ordered.map((card, index) => (
+            <div key={card.item.id}>
+              {(index === 0 || ordered[index - 1].bloco !== card.bloco) && (
+                <div className="px-1 pt-1 pb-1.5 text-[10px] font-bold tracking-wide text-slate-400 uppercase">
+                  {card.bloco}
+                </div>
+              )}
+              <BoardCardItem card={card} onSetBoardStatus={onSetBoardStatus} />
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
+function BoardCardItem({
+  card,
+  onSetBoardStatus,
+}: {
+  card: BoardCard
+  onSetBoardStatus: (phaseId: string, itemId: string, status: BoardStatus) => void
+}) {
+  const trava = TRAVA_META[card.trava]
+  return (
+    <div
+      className="rounded-lg border border-slate-200 border-l-4 bg-white p-2.5 shadow-sm"
+      style={{ borderLeftColor: trava.dot }}
+      title={`${trava.label} — ${trava.hint}`}
+    >
+      <p className={cn('text-sm', card.item.done ? 'text-slate-400 line-through' : 'text-slate-700')}>
+        {card.item.label}
+      </p>
+      <div className="mt-1.5 text-xs text-slate-400">{card.bloco}</div>
+      {/* Mover de coluna: seletor de status (MVP sem drag-and-drop). */}
+      <select
+        value={card.status}
+        onChange={(e) => onSetBoardStatus(card.phaseId, card.item.id, e.target.value as BoardStatus)}
+        title="Mover para outra coluna"
+        className="mt-2 h-7 w-full rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-600 focus:border-brand-400 focus:outline-none"
+      >
+        {BOARD_COLUMNS.map((status) => (
+          <option key={status} value={status}>
+            {BOARD_STATUS_META[status].label}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}

@@ -50,6 +50,12 @@ function checklistTaskStatus(phase, item) {
   return "aberta";
 }
 
+function deriveBoardStatus(phase, item) {
+  if (item.done) return "concluido";
+  if (phase.status === "bloqueada" || phase.status === "em_andamento") return "em_andamento";
+  return "a_fazer";
+}
+
 function syncTasksFromChecklist(project) {
   const manual = (project.tasks || []).filter((task) => task.source !== "checklist");
   const createdAt = project.startDate || project.updatedAt || nowIso();
@@ -334,9 +340,16 @@ async function toggleChecklistItem(id, phaseId, itemId) {
     if (!ph || !item) return;
     item.done = !item.done;
     item.doneAt = item.done ? new Date().toISOString() : undefined;
+    if (item.done) {
+      item.boardStatus = "concluido";
+    } else {
+      syncPhaseStatus(ph);
+      item.boardStatus = deriveBoardStatus(ph, item);
+    }
     if (item.done && ph.checklist.every((c) => c.done) && ph.checklist.length > 0 && !ph.finishedDate) {
       ph.finishedDate = new Date().toISOString();
     }
+    if (!ph.checklist.every((c) => c.done)) ph.finishedDate = undefined;
     syncPhaseStatus(ph);
     recompute(p);
   });
@@ -359,10 +372,21 @@ async function updateChecklistItem(id, phaseId, itemId, patch = {}) {
   return mutateProject(id, (p) => {
     const ph = p.phases.find((x) => x.id === phaseId);
     const item = ph && ph.checklist.find((c) => c.id === itemId);
-    if (!item) return;
+    if (!ph || !item) return;
     if (typeof patch.label === "string" && patch.label.trim()) item.label = patch.label.trim();
     if (patch.ownerId !== undefined) item.ownerId = patch.ownerId || undefined;
     if (typeof patch.clientResponsibility === "boolean") item.clientResponsibility = patch.clientResponsibility;
+    if (["a_fazer", "em_andamento", "pendente_golive", "concluido"].includes(patch.boardStatus)) {
+      item.boardStatus = patch.boardStatus;
+      item.done = patch.boardStatus === "concluido";
+      item.doneAt = item.done ? (item.doneAt || new Date().toISOString()) : undefined;
+      const allDone = ph.checklist.length > 0 && ph.checklist.every((c) => c.done);
+      if (allDone && !ph.finishedDate) ph.finishedDate = new Date().toISOString();
+      if (!allDone) ph.finishedDate = undefined;
+      syncPhaseStatus(ph);
+      recompute(p);
+      return;
+    }
     p.updatedAt = new Date().toISOString();
   });
 }
@@ -557,6 +581,12 @@ async function updateTask(id, taskId, patch = {}) {
         if (patch.status) {
           item.done = task.status === "concluida";
           item.doneAt = item.done ? (item.doneAt || nowIso()) : undefined;
+          if (item.done) {
+            item.boardStatus = "concluido";
+          } else {
+            syncPhaseStatus(phase);
+            item.boardStatus = deriveBoardStatus(phase, item);
+          }
           syncPhaseStatus(phase);
           recompute(p);
         }

@@ -35,6 +35,14 @@ export interface UpdateEntry {
 /** Atualizações em ordem cronológica decrescente (mais recente primeiro). */
 export const UPDATES: UpdateEntry[] = [
   {
+    id: '2026-06-30-kanban-implantacao',
+    date: '2026-06-30',
+    category: 'novidade',
+    title: 'Board Kanban + semáforo de gate',
+    description:
+      'Etapas do projeto agora alternam entre Checklist (padrão) e Kanban. Cards ganham nível de trava (vermelho/amarelo/verde) e o painel mostra a regra do gate: nenhum vermelho pendente libera publicação.',
+  },
+  {
     id: '2026-06-22-aba-updates',
     date: '2026-06-22',
     category: 'novidade',
