@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom'
-import { CheckCircle2, Clock3, UserRoundCheck, AlertTriangle } from 'lucide-react'
+import { ArrowUpRight, BellRing, CheckCircle2, Clock3, UserRoundCheck, AlertTriangle, FolderKanban } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { Card } from '@/components/ui/Card'
+import { Card, CardHeader } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useCompanyAuth } from '@/hooks/useCompanyAuth'
@@ -10,6 +12,8 @@ import { useProjects } from '@/hooks/useProjects'
 import type { Project, ProjectCharge, ProjectTask } from '@/types'
 import { formatDate, relativeDeadlineLabel } from '@/utils/dates'
 import { isAtRisk } from '@/utils/projects'
+import { RISK_META } from '@/constants'
+import { cn } from '@/utils/cn'
 
 interface TaskRow {
   project: Project
@@ -59,39 +63,59 @@ export function MinhaVisaoPage() {
       />
 
       {loading ? (
-        <div className="space-y-3">
-          <Skeleton className="h-28 w-full rounded-2xl" />
-          <Skeleton className="h-64 w-full rounded-2xl" />
+        <div className="space-y-5" aria-label="Carregando sua visão de trabalho">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i} className="flex items-center gap-4 p-4 sm:p-5">
+                <Skeleton className="size-11 shrink-0 rounded-xl" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-7 w-12" />
+                  <Skeleton className="h-3.5 w-24" />
+                </div>
+              </Card>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.75fr)]">
+            <Skeleton className="h-72 w-full rounded-2xl" />
+            <Skeleton className="h-72 w-full rounded-2xl" />
+          </div>
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-4 gap-4">
-            <Metric icon={UserRoundCheck} label="Meus projetos" value={myProjects.length} />
-            <Metric icon={Clock3} label="Minhas tarefas" value={myTasks.length} />
-            <Metric icon={AlertTriangle} label="Em risco" value={myProjects.filter(isAtRisk).length} />
-            <Metric icon={CheckCircle2} label="Pendências minhas" value={myCharges.length} />
-          </div>
+          <section aria-label="Seus indicadores" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Metric icon={UserRoundCheck} label="Meus projetos" value={myProjects.length} tone="brand" />
+            <Metric icon={Clock3} label="Minhas tarefas" value={myTasks.length} tone="blue" />
+            <Metric icon={AlertTriangle} label="Projetos em risco" value={myProjects.filter(isAtRisk).length} tone="amber" />
+            <Metric icon={BellRing} label="Pendências comigo" value={myCharges.length} tone="orange" />
+          </section>
 
           <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.75fr)]">
             <Card className="overflow-hidden">
-              <div className="border-b border-slate-100 p-5">
-                <h2 className="text-lg font-semibold text-slate-900">Tarefas atribuídas</h2>
-                <p className="mt-0.5 text-sm text-slate-500">Checklists e tarefas gerais ligados ao seu usuário.</p>
-              </div>
+              <CardHeader
+                title="Tarefas atribuídas"
+                subtitle="Tarefas gerais ligadas diretamente ao seu usuário."
+                className="border-b border-slate-100"
+              />
               {myTasks.length === 0 ? (
-                <p className="px-5 py-8 text-center text-sm text-slate-400">Nenhuma tarefa direta para você.</p>
+                <EmptyState icon={CheckCircle2} title="Nenhuma tarefa direta para você" className="py-8 sm:py-8" />
               ) : (
-                <ul className="divide-y divide-slate-50">
+                <ul className="divide-y divide-slate-100">
                   {myTasks.map(({ project, task }) => (
                     <li key={task.id}>
-                      <Link to={`/projetos/${project.id}`} className="block px-5 py-4 hover:bg-slate-50">
-                        <div className="font-semibold text-slate-800">{task.title}</div>
-                        <div className="mt-1 text-sm text-slate-500">{project.clientName}</div>
-                        {task.dueDate && (
-                          <div className="mt-1 text-xs text-slate-400">
-                            {formatDate(task.dueDate)} · {relativeDeadlineLabel(task.dueDate)}
-                          </div>
-                        )}
+                      <Link
+                        to={`/projetos/${project.id}`}
+                        className="group flex items-start justify-between gap-3 px-4 py-4 transition-colors hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none sm:px-5"
+                      >
+                        <div className="min-w-0">
+                          <div className="font-semibold text-slate-800">{task.title}</div>
+                          <div className="mt-1 text-sm text-slate-600">{project.clientName}</div>
+                          {task.dueDate && (
+                            <div className="mt-1.5 text-xs font-medium text-slate-500">
+                              {formatDate(task.dueDate)} · {relativeDeadlineLabel(task.dueDate)}
+                            </div>
+                          )}
+                        </div>
+                        <ArrowUpRight className="mt-0.5 size-4 shrink-0 text-slate-300 transition-colors group-hover:text-brand-600" aria-hidden />
                       </Link>
                     </li>
                   ))}
@@ -100,25 +124,37 @@ export function MinhaVisaoPage() {
             </Card>
 
             <Card className="overflow-hidden">
-              <div className="border-b border-slate-100 p-5">
-                <h2 className="text-lg font-semibold text-slate-900">Projetos no seu radar</h2>
-                <p className="mt-0.5 text-sm text-slate-500">Colaboração, ownership ou fase atribuída.</p>
-              </div>
+              <CardHeader
+                title="Projetos no seu radar"
+                subtitle="Colaboração, responsabilidade ou fase atribuída."
+                className="border-b border-slate-100"
+              />
               {myProjects.length === 0 ? (
-                <p className="px-5 py-8 text-center text-sm text-slate-400">Nenhum projeto vinculado diretamente.</p>
+                <EmptyState icon={FolderKanban} title="Nenhum projeto vinculado diretamente" className="py-8 sm:py-8" />
               ) : (
-                <ul className="divide-y divide-slate-50">
+                <ul className="divide-y divide-slate-100">
                   {myProjects.map((project) => (
                     <li key={project.id}>
-                      <Link to={`/projetos/${project.id}`} className="block px-5 py-4 hover:bg-slate-50">
+                      <Link
+                        to={`/projetos/${project.id}`}
+                        className="group block px-4 py-4 transition-colors hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none sm:px-5"
+                      >
                         <div className="flex items-center justify-between gap-3">
-                          <div className="font-semibold text-slate-800">{project.clientName}</div>
-                          <span className="text-xs font-semibold text-slate-400">{project.progress}%</span>
+                          <div className="min-w-0 truncate font-semibold text-slate-800">{project.clientName}</div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <Badge meta={RISK_META[project.risk]} withDot />
+                            <span className="text-xs font-semibold text-slate-500 tabular-nums">{project.progress}%</span>
+                          </div>
                         </div>
                         <div className="mt-2">
-                          <ProgressBar value={project.progress} />
+                          <ProgressBar value={project.progress} label={`Progresso de ${project.clientName}`} />
                         </div>
-                        {project.nextAction && <div className="mt-2 text-xs text-slate-500">{project.nextAction}</div>}
+                        {project.nextAction && (
+                          <div className="mt-2 flex items-start justify-between gap-3 text-xs text-slate-600">
+                            <span><span className="font-semibold text-slate-700">Próxima ação:</span> {project.nextAction}</span>
+                            <ArrowUpRight className="size-4 shrink-0 text-slate-300 transition-colors group-hover:text-brand-600" aria-hidden />
+                          </div>
+                        )}
                       </Link>
                     </li>
                   ))}
@@ -132,14 +168,35 @@ export function MinhaVisaoPage() {
   )
 }
 
-function Metric({ icon: Icon, label, value }: { icon: typeof UserRoundCheck; label: string; value: number }) {
+type TomMetrica = 'brand' | 'blue' | 'amber' | 'orange'
+
+const TOM_METRICA: Record<TomMetrica, string> = {
+  brand: 'bg-brand-50 text-brand-600',
+  blue: 'bg-blue-50 text-blue-600',
+  amber: 'bg-amber-50 text-amber-600',
+  orange: 'bg-orange-50 text-orange-600',
+}
+
+function Metric({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: typeof UserRoundCheck
+  label: string
+  value: number
+  tone: TomMetrica
+}) {
   return (
-    <Card className="p-5">
-      <div className="mb-3 flex size-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+    <Card className="flex min-h-24 items-center gap-4 p-4 sm:p-5">
+      <div className={cn('flex size-11 shrink-0 items-center justify-center rounded-xl', TOM_METRICA[tone])}>
         <Icon className="size-5" />
       </div>
-      <div className="text-3xl font-bold tracking-tight text-slate-900">{value}</div>
-      <div className="mt-0.5 text-sm text-slate-500">{label}</div>
+      <div>
+        <div className="text-2xl font-bold tracking-tight text-slate-900 tabular-nums sm:text-3xl">{value}</div>
+        <div className="text-sm text-slate-600">{label}</div>
+      </div>
     </Card>
   )
 }

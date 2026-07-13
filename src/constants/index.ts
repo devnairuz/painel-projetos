@@ -78,7 +78,7 @@ export const PHASE_STATUS_META: Record<PhaseStatus, EnumMeta> = {
 export const TRAVA_META: Record<TravaLevel, EnumMeta & { hint: string }> = {
   trava_inicio: { label: 'Bloqueia início', badge: 'bg-red-50 text-red-700 border-red-200', dot: '#dc2626', hint: 'Precisa estar 100% antes de entrar na esteira' },
   trava_golive: { label: 'Segura go-live', badge: 'bg-amber-50 text-amber-700 border-amber-200', dot: '#d97706', hint: 'Pode desenvolver, mas não publica sem resolver' },
-  placeholder: { label: 'Placeholder', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: '#059669', hint: 'Não bloqueia; segue com conteúdo provisório' },
+  placeholder: { label: 'Não bloqueia', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: '#059669', hint: 'Segue com conteúdo provisório sem bloquear o fluxo' },
 }
 
 export const BOARD_STATUS_META: Record<BoardStatus, EnumMeta> = {

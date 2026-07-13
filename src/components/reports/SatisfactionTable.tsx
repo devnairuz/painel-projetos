@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
+import { MessageSquareText } from 'lucide-react'
 import type { Project } from '@/types'
 import { surveyAverages, fmtScore } from '@/constants/satisfaction'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { cn } from '@/utils/cn'
 
 interface SatisfactionTableProps {
@@ -34,18 +36,28 @@ export function SatisfactionTable({ projects, getOrgName }: SatisfactionTablePro
 
   if (rows.length === 0) {
     return (
-      <p className="px-6 py-10 text-center text-sm text-slate-500">
-        Nenhuma pesquisa de satisfação respondida ainda.
-      </p>
+      <EmptyState
+        icon={MessageSquareText}
+        title="Nenhuma resposta de satisfação"
+        description="As avaliações respondidas pelos clientes aparecerão nesta tabela."
+      />
     )
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div
+      className="overflow-x-auto focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 focus-visible:outline-none"
+      role="region"
+      aria-label="Resultados da pesquisa de satisfação por projeto"
+      aria-describedby="orientacao-tabela-satisfacao"
+      tabIndex={0}
+    >
+      <p id="orientacao-tabela-satisfacao" className="sr-only">Role horizontalmente para consultar todas as notas.</p>
       <table className="w-full min-w-[1100px] border-collapse text-sm">
+        <caption className="sr-only">Notas e médias de satisfação dos projetos avaliados</caption>
         <thead>
-          <tr className="border-b border-slate-200 text-left">
-            <Th className="sticky left-0 bg-white">Cliente</Th>
+          <tr className="border-b border-slate-200 bg-slate-50/70 text-left">
+            <Th className="sticky left-0 z-10 border-r border-slate-200 bg-slate-50">Cliente</Th>
             <Th>Empresa</Th>
             {SCORE_COLS.map((c) => (
               <Th key={c.label} className={cn('text-center', c.avg && 'bg-brand-50 text-brand-800')}>
@@ -74,8 +86,10 @@ export function SatisfactionTable({ projects, getOrgName }: SatisfactionTablePro
               { value: tecnologia, avg: true },
             ]
             return (
-              <tr key={project.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60">
-                <Td className="sticky left-0 bg-white font-medium text-slate-800">{project.clientName}</Td>
+              <tr key={project.id} className="group border-b border-slate-100 last:border-0 hover:bg-slate-50/70">
+                <Td className="sticky left-0 z-10 border-r border-slate-100 bg-white font-medium text-slate-800 group-hover:bg-slate-50">
+                  {project.clientName}
+                </Td>
                 <Td className="text-slate-600">{getOrgName(project.organizationId)}</Td>
                 {cells.map((cell, i) => (
                   <Td
@@ -109,8 +123,9 @@ export function SatisfactionTable({ projects, getOrgName }: SatisfactionTablePro
 function Th({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <th
+      scope="col"
       className={cn(
-        'px-3 py-2.5 text-[11px] font-semibold tracking-wide text-slate-500 uppercase',
+        'px-3 py-3 text-[11px] leading-tight font-semibold tracking-wide text-slate-600 uppercase',
         className,
       )}
     >
@@ -120,5 +135,5 @@ function Th({ children, className }: { children: ReactNode; className?: string }
 }
 
 function Td({ children, className }: { children: ReactNode; className?: string }) {
-  return <td className={cn('px-3 py-2.5 align-top', className)}>{children}</td>
+  return <td className={cn('px-3 py-3 align-top', className)}>{children}</td>
 }

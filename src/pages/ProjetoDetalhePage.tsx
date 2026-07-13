@@ -1,6 +1,19 @@
-import { useState, useEffect, type ReactNode } from 'react'
+import { useId, useState, useEffect, type ReactNode } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, FolderKanban, Flag, Pencil, Check, Trash2, CalendarRange, Settings, ChevronDown, Sparkles } from 'lucide-react'
+import {
+  ArrowLeft,
+  FolderKanban,
+  Flag,
+  Pencil,
+  Check,
+  Trash2,
+  CalendarRange,
+  Settings,
+  ChevronDown,
+  Sparkles,
+  ListChecks,
+  Columns3,
+} from 'lucide-react'
 import { useProject } from '@/hooks/useProjects'
 import { useLookups } from '@/hooks/useLookups'
 import { useCompanyAuth } from '@/hooks/useCompanyAuth'
@@ -182,6 +195,7 @@ export function ProjetoDetalhePage() {
       const updated = await toggleChecklistItem(project!.id, phaseId, itemId)
       setProject(updated) // reconcilia com o servidor
     } catch {
+      notify('Não foi possível atualizar o item. Os dados foram recarregados.', 'error')
       reload()
     }
   }
@@ -192,6 +206,7 @@ export function ProjetoDetalhePage() {
       const updated = await setChecklistBoardStatus(project!.id, phaseId, itemId, boardStatus)
       setProject(updated)
     } catch {
+      notify('Não foi possível mover o card. Os dados foram recarregados.', 'error')
       reload()
     }
   }
@@ -247,6 +262,7 @@ export function ProjetoDetalhePage() {
       const updated = await setChecklistOwner(project!.id, phaseId, itemId, ownerId)
       setProject(updateChecklistOwnerLocally(updated, phaseId, itemId, ownerId))
     } catch {
+      notify('Não foi possível alterar o responsável. Os dados foram recarregados.', 'error')
       reload()
     }
   }
@@ -300,29 +316,22 @@ export function ProjetoDetalhePage() {
   return (
     <>
       {/* Voltar + ações rápidas */}
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <button
           onClick={() => navigate('/projetos')}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-800"
+          className="inline-flex w-fit items-center gap-1.5 rounded-lg text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
           <ArrowLeft className="size-4" /> Projetos
         </button>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setOperationOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
-            title="Abrir operação"
-          >
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+          <Button variant="secondary" onClick={() => setOperationOpen(true)} title="Abrir operação">
             <Settings className="size-4" />
-            <span className="hidden sm:inline">Operação</span>
-          </button>
-          <button
-            onClick={() => setGanttOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
-          >
+            <span>Operação</span>
+          </Button>
+          <Button variant="secondary" onClick={() => setGanttOpen(true)}>
             <CalendarRange className="size-4 text-brand-600" />
-            <span className="hidden sm:inline">Cronograma (Gantt)</span>
-          </button>
+            <span>Cronograma</span>
+          </Button>
         </div>
       </div>
 
@@ -368,16 +377,21 @@ export function ProjetoDetalhePage() {
       </Modal>
 
       {/* Cabeçalho do projeto */}
-      <Card className="mb-5 p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+      <Card className="mb-5 overflow-hidden">
+        <div className="grid gap-6 p-5 md:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(25rem,30rem)] lg:items-start">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="min-w-0 text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">
                 {project.clientName}
               </h1>
-              <span className="text-sm font-medium text-slate-400">{project.code}</span>
+              <span className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold tracking-wide text-slate-600">
+                {project.code}
+              </span>
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
+            <p className="mt-1.5 max-w-2xl text-sm leading-6 text-slate-500">
+              Acompanhe o avanço, os bloqueios e as próximas decisões do projeto em um só lugar.
+            </p>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
               <Badge meta={PLATFORM_META[project.platform as Platform]} withDot />
               <Badge meta={TYPE_META[project.type as ProjectType]} withDot />
               <Badge meta={RISK_META[project.risk]} withDot />
@@ -389,13 +403,11 @@ export function ProjetoDetalhePage() {
             </div>
           </div>
 
-          <div className="flex items-start gap-6">
-            <div>
-              <div className="mb-1 text-[11px] font-semibold tracking-wide text-slate-400 uppercase">
-                Status
-              </div>
+          <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+              <div className="mb-1.5 text-xs font-semibold tracking-wide text-slate-500 uppercase">Status</div>
               <Select
-                className="w-52"
+                className="w-full"
                 options={STATUS_OPTIONS}
                 value={project.status}
                 onChange={(e) => handleStatusChange(e.target.value as ProjectStatus)}
@@ -404,52 +416,56 @@ export function ProjetoDetalhePage() {
                 <button
                   type="button"
                   onClick={() => handleStatusChange(statusSuggested)}
-                  className="mt-1.5 inline-flex items-center gap-1 rounded-lg border border-brand-200 bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-100"
+                  className="mt-1.5 inline-flex items-center gap-1 rounded-lg border border-brand-200 bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-100 focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1 focus-visible:outline-none"
                   title="Aplicar o status que o estado das etapas sugere"
                 >
                   <Sparkles className="size-3" />
-                  Sugerido: {STATUS_META[statusSuggested].label} · aplicar
+                  Aplicar: {STATUS_META[statusSuggested].label}
                 </button>
               )}
             </div>
-            <Metric icon={Flag} label="Go live" value={formatDate(project.goLiveDate)} hint={relativeDeadlineLabel(project.goLiveDate)} />
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+              <Metric icon={Flag} label="Go live" value={formatDate(project.goLiveDate)} hint={relativeDeadlineLabel(project.goLiveDate)} />
+            </div>
           </div>
         </div>
 
         {/* Progresso */}
-        <div className="mt-6">
+        <div className="border-t border-slate-100 bg-slate-50/60 px-5 py-4 md:px-6">
           <div className="mb-1.5 flex items-center justify-between text-sm">
             <span className="font-medium text-slate-600">Avanço geral</span>
             <span className="font-semibold text-slate-900">{project.progress}%</span>
           </div>
           <ProgressBar value={project.progress} />
         </div>
-
       </Card>
 
       <div>
         {/* Fases */}
         <div className="min-w-0">
-          <Card className="p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
+          <Card className="p-4 sm:p-5">
+            <div className="mb-4 flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
                 <h2 className="text-lg font-semibold text-slate-900">Etapas do projeto</h2>
-                <span className="text-sm text-slate-400">
+                <span className="text-sm text-slate-500">
                   {project.phases.filter((p) => p.status === 'concluida').length}/{project.phases.length} concluídas
                 </span>
               </div>
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                <div className="inline-flex h-9 rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+                <div role="tablist" aria-label="Visualização das etapas" className="inline-flex h-10 w-full rounded-xl border border-slate-200 bg-slate-50 p-0.5 sm:w-auto">
                   <button
                     type="button"
                     onClick={() => setViewMode('checklist')}
+                    role="tab"
+                    aria-selected={viewMode === 'checklist'}
                     className={cn(
-                      'h-8 rounded-md px-3 text-sm font-medium transition-colors',
+                      'inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:outline-none sm:flex-none',
                       viewMode === 'checklist'
                         ? 'bg-white text-slate-900 shadow-sm'
                         : 'text-slate-500 hover:text-slate-800',
                     )}
                   >
+                    <ListChecks className="size-4" />
                     Checklist
                   </button>
                   <button
@@ -458,80 +474,94 @@ export function ProjetoDetalhePage() {
                       setEditPhases(false)
                       setViewMode('kanban')
                     }}
+                    role="tab"
+                    aria-selected={viewMode === 'kanban'}
                     className={cn(
-                      'h-8 rounded-md px-3 text-sm font-medium transition-colors',
+                      'inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:outline-none sm:flex-none',
                       viewMode === 'kanban'
                         ? 'bg-white text-slate-900 shadow-sm'
                         : 'text-slate-500 hover:text-slate-800',
                     )}
                   >
+                    <Columns3 className="size-4" />
                     Kanban
                   </button>
                 </div>
                 {viewMode === 'checklist' && (
-                  <button
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => setEditPhases((v) => !v)}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                    aria-pressed={editPhases}
+                    className="w-full sm:w-auto"
                   >
                     {editPhases ? <Check className="size-4" /> : <Pencil className="size-4" />}
                     {editPhases ? 'Concluir edição' : 'Editar etapas'}
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
 
             <GateBanner gate={gate} />
 
-            {viewMode === 'kanban' ? (
-              <PhaseKanban
-                phases={project.phases.slice().sort((a, b) => a.order - b.order)}
-                onSetBoardStatus={handleSetBoardStatus}
-              />
-            ) : editPhases ? (
-              <PhaseManager
-                phases={project.phases.slice().sort((a, b) => a.order - b.order)}
-                team={team ?? []}
-                onAdd={handleAddPhase}
-                onRename={handleRenamePhase}
-                onRemove={handleRemovePhase}
-                onUpdateSettings={handleUpdatePhaseSettings}
-                onAddItem={handleAddItem}
-                onRenameItem={handleRenameItem}
-                onRemoveItem={handleRemoveItem}
-              />
-            ) : (
-              <div className="space-y-5">
-                {groupByStage(project.phases).map((group) => (
-                  <div key={group.stage}>
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className={cn('text-xs font-bold tracking-wide uppercase', group.meta.accent)}>
-                        {group.meta.label}
-                      </span>
-                      <span className="text-xs text-slate-400">{group.meta.description}</span>
-                      <span className="h-px flex-1 bg-slate-100" />
-                    </div>
-                    <div className="space-y-2.5">
-                      {group.phases.map((phase) => (
-                        <PhaseCard
-                          key={phase.id}
-                          phase={phase}
-                          owner={getMember(phase.ownerId)}
-                          defaultOpen={phase.id === phaseNow?.id}
-                          onToggleItem={handleToggle}
-                          onApprove={handleApprove}
-                          onToggleResponsibility={handleToggleResponsibility}
-                          onUpdateItemOwner={handleUpdateItemOwner}
-                          onAddComment={handleAddComment}
-                          onUpdateDates={handleUpdateDates}
-                          currentUser={{ id: companyUser?.id, name: companyUser?.name }}
-                          users={mentionUsers ?? []}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div role="tabpanel" className="min-w-0">
+              {viewMode === 'kanban' ? (
+                <PhaseKanban
+                  phases={project.phases.slice().sort((a, b) => a.order - b.order)}
+                  onSetBoardStatus={handleSetBoardStatus}
+                />
+              ) : editPhases ? (
+                <PhaseManager
+                  phases={project.phases.slice().sort((a, b) => a.order - b.order)}
+                  team={team ?? []}
+                  onAdd={handleAddPhase}
+                  onRename={handleRenamePhase}
+                  onRemove={handleRemovePhase}
+                  onUpdateSettings={handleUpdatePhaseSettings}
+                  onAddItem={handleAddItem}
+                  onRenameItem={handleRenameItem}
+                  onRemoveItem={handleRemoveItem}
+                />
+              ) : (
+                <div className="space-y-6">
+                  {groupByStage(project.phases).map((group) => (
+                    <section key={group.stage} aria-labelledby={`jornada-${group.stage}`}>
+                      <div className="mb-2.5 flex flex-col gap-1 rounded-xl bg-slate-50 px-3 py-2.5 sm:flex-row sm:items-center sm:gap-2">
+                        <span
+                          id={`jornada-${group.stage}`}
+                          className={cn('text-xs font-bold tracking-wide uppercase', group.meta.accent)}
+                        >
+                          {group.meta.label}
+                        </span>
+                        <span className="text-xs text-slate-500">{group.meta.description}</span>
+                        <span className="hidden h-px flex-1 bg-slate-200 sm:block" />
+                        <span className="text-xs font-medium text-slate-500">
+                          {group.phases.filter((phase) => phase.status === 'concluida').length}/{group.phases.length}
+                        </span>
+                      </div>
+                      <div className="space-y-2.5">
+                        {group.phases.map((phase) => (
+                          <PhaseCard
+                            key={phase.id}
+                            phase={phase}
+                            owner={getMember(phase.ownerId)}
+                            defaultOpen={phase.id === phaseNow?.id}
+                            onToggleItem={handleToggle}
+                            onApprove={handleApprove}
+                            onToggleResponsibility={handleToggleResponsibility}
+                            onUpdateItemOwner={handleUpdateItemOwner}
+                            onAddComment={handleAddComment}
+                            onUpdateDates={handleUpdateDates}
+                            currentUser={{ id: companyUser?.id, name: companyUser?.name }}
+                            users={mentionUsers ?? []}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              )}
+            </div>
           </Card>
         </div>
       </div>
@@ -542,12 +572,15 @@ export function ProjetoDetalhePage() {
 /** Agrupa o setup (acesso do cliente, finalização, exclusão) recolhível. */
 function ConfigSection({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false)
+  const idConteudo = useId()
   return (
     <div className="space-y-5">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase transition-colors hover:text-slate-600"
+        aria-expanded={open}
+        aria-controls={idConteudo}
+        className="flex w-full items-center justify-between rounded-lg px-1 py-1 text-xs font-semibold tracking-wider text-slate-500 uppercase transition-colors hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:outline-none"
       >
         <span className="flex items-center gap-1.5">
           <Settings className="size-3.5" />
@@ -555,7 +588,7 @@ function ConfigSection({ children }: { children: ReactNode }) {
         </span>
         <ChevronDown className={cn('size-4 transition-transform', open && 'rotate-180')} />
       </button>
-      {open && <div className="space-y-5">{children}</div>}
+      {open && <div id={idConteudo} className="space-y-5">{children}</div>}
     </div>
   )
 }
@@ -568,13 +601,16 @@ function ProjectSettingsCard({
   onDelete: () => void
 }) {
   const [open, setOpen] = useState(false)
+  const idConteudo = useId()
 
   return (
     <Card className="overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="flex w-full items-center justify-between gap-3 p-5 text-left hover:bg-slate-50"
+        aria-expanded={open}
+        aria-controls={idConteudo}
+        className="flex w-full items-center justify-between gap-3 p-5 text-left hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-inset focus-visible:outline-none"
       >
         <span className="flex min-w-0 items-center gap-2">
           <Settings className="size-5 shrink-0 text-slate-500" />
@@ -587,7 +623,7 @@ function ProjectSettingsCard({
       </button>
 
       {open && (
-        <div className="border-t border-slate-100 p-5">
+        <div id={idConteudo} className="border-t border-slate-100 p-5">
           <div className="rounded-lg border border-red-100 bg-red-50/60 p-4">
             <h3 className="text-sm font-semibold text-red-900">Excluir projeto</h3>
             <p className="mt-1 text-sm text-red-700">

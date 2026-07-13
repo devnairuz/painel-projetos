@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react'
-import { GripVertical, Trash2, Plus, Check, ChevronDown, Eye, EyeOff, UserCheck, Star } from 'lucide-react'
+import { useId, useState, type FormEvent } from 'react'
+import { Trash2, Plus, Check, ChevronDown, Eye, EyeOff, UserCheck, Star } from 'lucide-react'
 import type { ChecklistItem, Phase, TeamMember } from '@/types'
 import type { PhaseSettingsPatch } from '@/services/projectsService'
 import { Button } from '@/components/ui/Button'
@@ -54,14 +54,15 @@ export function PhaseManager({
         />
       ))}
 
-      <form onSubmit={handleAdd} className="flex items-center gap-2 pt-2">
+      <form onSubmit={handleAdd} className="flex flex-col gap-2 pt-3 sm:flex-row sm:items-center">
         <input
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           placeholder="Nova etapa…"
+          aria-label="Nome da nova etapa"
           className="h-10 flex-1 rounded-xl border border-slate-200 px-3 text-sm text-slate-700 focus:border-brand-400 focus:ring-2 focus:ring-brand-100 focus:outline-none"
         />
-        <Button type="submit">
+        <Button type="submit" className="sm:shrink-0">
           <Plus className="size-4" />
           Adicionar etapa
         </Button>
@@ -92,6 +93,7 @@ function PhaseRow({
   const [value, setValue] = useState(phase.name)
   const [points, setPoints] = useState(String(phase.points ?? 0))
   const [open, setOpen] = useState(false)
+  const idChecklist = useId()
   const dirty = value.trim() !== phase.name && value.trim().length > 0
   const visible = phase.clientVisible !== false
   const requires = !!phase.requiresApproval
@@ -105,11 +107,12 @@ function PhaseRow({
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white">
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
       {/* Linha 1: nome */}
-      <div className="flex items-center gap-2 px-3 pt-2">
-        <GripVertical className="size-4 shrink-0 text-slate-300" />
-        <span className="w-6 shrink-0 text-center text-xs font-semibold text-slate-400">{phase.order}</span>
+      <div className="flex flex-wrap items-center gap-2 px-3 pt-3 sm:flex-nowrap">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-600">
+          {phase.order}
+        </span>
         <input
           value={value}
           onChange={(e) => setValue(e.target.value)}
@@ -120,16 +123,19 @@ function PhaseRow({
               commitName()
             }
           }}
-          className="h-9 flex-1 rounded-lg border border-transparent bg-transparent px-2 text-sm font-medium text-slate-800 hover:border-slate-200 focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 focus:outline-none"
+          aria-label={`Nome da etapa ${phase.order}`}
+          className="h-9 min-w-44 flex-1 rounded-lg border border-transparent bg-transparent px-2 text-sm font-medium text-slate-800 hover:border-slate-200 focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 focus:outline-none"
         />
         {dirty && (
-          <button onClick={commitName} className="text-brand-600 hover:text-brand-700" title="Salvar nome" aria-label="Salvar nome">
+          <button onClick={commitName} className="flex size-9 items-center justify-center rounded-lg text-brand-600 hover:bg-brand-50 hover:text-brand-700 focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:outline-none" title="Salvar nome" aria-label="Salvar nome">
             <Check className="size-4" />
           </button>
         )}
         <button
           onClick={() => setOpen((o) => !o)}
-          className="flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100"
+          aria-expanded={open}
+          aria-controls={idChecklist}
+          className="flex h-9 items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-slate-600 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:outline-none"
           title="Itens do checklist"
         >
           {phase.checklist.length} {phase.checklist.length === 1 ? 'item' : 'itens'}
@@ -139,7 +145,7 @@ function PhaseRow({
           onClick={() => {
             if (window.confirm(`Remover a etapa "${phase.name}"?`)) onRemove(phase.id)
           }}
-          className="text-slate-400 transition-colors hover:text-red-500"
+          className="flex size-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:outline-none"
           title="Remover etapa"
           aria-label={`Remover etapa ${phase.name}`}
         >
@@ -148,12 +154,13 @@ function PhaseRow({
       </div>
 
       {/* Linha 2: configurações */}
-      <div className="flex flex-wrap items-center gap-2 px-3 pb-2 pl-11">
+      <div className="flex flex-wrap items-center gap-2 px-3 py-3 sm:pl-12">
         {/* Visível ao cliente */}
         <button
           onClick={() => onUpdateSettings(phase.id, { clientVisible: !visible })}
+          aria-pressed={visible}
           className={cn(
-            'inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-medium transition-colors',
+            'inline-flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:outline-none',
             visible
               ? 'border-brand-200 bg-brand-50 text-brand-700'
               : 'border-slate-200 bg-slate-50 text-slate-500',
@@ -167,8 +174,9 @@ function PhaseRow({
         {/* Exige aprovação */}
         <button
           onClick={() => onUpdateSettings(phase.id, { requiresApproval: !requires })}
+          aria-pressed={requires}
           className={cn(
-            'inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-medium transition-colors',
+            'inline-flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:outline-none',
             requires
               ? 'border-amber-200 bg-amber-50 text-amber-700'
               : 'border-slate-200 bg-slate-50 text-slate-500',
@@ -180,8 +188,9 @@ function PhaseRow({
         </button>
 
         {/* Pontos */}
-        <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600">
+        <label className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 px-2.5 text-xs text-slate-600">
           <Star className="size-3.5 text-amber-500" />
+          <span className="sr-only">Pontos da etapa</span>
           <input
             type="number"
             min={0}
@@ -197,14 +206,14 @@ function PhaseRow({
             className="w-12 bg-transparent text-right outline-none"
           />
           pts
-        </div>
+        </label>
 
         {/* Responsável */}
         <select
           value={phase.ownerId ?? ''}
           onChange={(e) => onUpdateSettings(phase.id, { ownerId: e.target.value })}
-          className="h-7 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-600 focus:border-brand-400 focus:outline-none"
-          title="Responsável pela etapa"
+          className="h-9 min-w-40 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-700 focus:border-brand-400 focus:ring-2 focus:ring-brand-100 focus:outline-none"
+          aria-label={`Responsável pela etapa ${phase.name}`}
         >
           <option value="">Sem responsável</option>
           {team.map((m) => (
@@ -217,7 +226,7 @@ function PhaseRow({
 
       {/* Checklist editável */}
       {open && (
-        <div className="border-t border-slate-100 bg-slate-50/60 px-3 py-3 pl-12">
+        <div id={idChecklist} className="border-t border-slate-100 bg-slate-50/60 px-3 py-3 sm:pl-12">
           <ChecklistEditor
             phaseId={phase.id}
             items={phase.checklist}
@@ -255,7 +264,11 @@ function ChecklistEditor({
 
   return (
     <div className="space-y-1.5">
-      {items.length === 0 && <p className="text-xs text-slate-400">Nenhum item ainda — adicione abaixo.</p>}
+      {items.length === 0 && (
+        <p className="rounded-lg border border-dashed border-slate-200 bg-white px-3 py-4 text-center text-sm text-slate-500">
+          Nenhum item ainda — adicione o primeiro abaixo.
+        </p>
+      )}
       {items.map((item) => (
         <ItemRow
           key={item.id}
@@ -265,14 +278,15 @@ function ChecklistEditor({
         />
       ))}
 
-      <form onSubmit={handleAdd} className="flex items-center gap-2 pt-1">
+      <form onSubmit={handleAdd} className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center">
         <input
           value={newItem}
           onChange={(e) => setNewItem(e.target.value)}
           placeholder="Novo item do checklist…"
+          aria-label="Nome do novo item do checklist"
           className="h-9 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-700 focus:border-brand-400 focus:ring-2 focus:ring-brand-100 focus:outline-none"
         />
-        <Button type="submit" size="sm">
+        <Button type="submit" size="sm" className="sm:shrink-0">
           <Plus className="size-3.5" />
           Item
         </Button>
@@ -298,7 +312,7 @@ function ItemRow({
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 rounded-lg px-1 transition-colors hover:bg-white">
       <span className={cn('size-2 shrink-0 rounded-full', item.done ? 'bg-brand-500' : 'bg-slate-300')} />
       <input
         value={value}
@@ -310,14 +324,15 @@ function ItemRow({
             commit()
           }
         }}
-        className="h-8 flex-1 rounded-lg border border-transparent bg-transparent px-2 text-sm text-slate-700 hover:border-slate-200 focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 focus:outline-none"
+        aria-label={`Nome do item ${item.label}`}
+        className="h-9 min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 text-sm text-slate-700 hover:border-slate-200 focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 focus:outline-none"
       />
       {dirty && (
-        <button onClick={commit} className="text-brand-600 hover:text-brand-700" title="Salvar" aria-label="Salvar item">
+        <button onClick={commit} className="flex size-9 shrink-0 items-center justify-center rounded-lg text-brand-600 hover:bg-brand-50 hover:text-brand-700 focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:outline-none" title="Salvar" aria-label="Salvar item">
           <Check className="size-3.5" />
         </button>
       )}
-      <button onClick={onRemove} className="text-slate-400 transition-colors hover:text-red-500" title="Remover item" aria-label={`Remover item ${item.label}`}>
+      <button onClick={onRemove} className="flex size-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:outline-none" title="Remover item" aria-label={`Remover item ${item.label}`}>
         <Trash2 className="size-3.5" />
       </button>
     </div>

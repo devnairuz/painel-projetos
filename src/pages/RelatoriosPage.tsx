@@ -1,8 +1,9 @@
 import { useMemo, useState, useEffect } from 'react'
-import { BarChart3, ClipboardCopy, Download, ShieldCheck, Star, Timer, Upload, TrendingUp } from 'lucide-react'
+import { BarChart3, ClipboardCopy, Download, FolderKanban, ShieldCheck, Star, Timer, Upload, TrendingUp } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { Card } from '@/components/ui/Card'
+import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useProjects } from '@/hooks/useProjects'
 import { useLookups } from '@/hooks/useLookups'
@@ -13,10 +14,17 @@ import { buildMonthlyReport, type ReportSeries } from '@/utils/reports'
 import { useReportTargets, type ReportTargets } from '@/hooks/useReportTargets'
 import { SATISFACTION_EXPORT_HEADERS, satisfactionExportRow } from '@/constants/satisfaction'
 import { toCsv, downloadCsv } from '@/utils/csv'
-import type { Project } from '@/types'
+import { STATUS_META } from '@/constants'
+import type { DeadlineConfidence, Project, ProjectStatus } from '@/types'
 import { cn } from '@/utils/cn'
 
 const ACCENT = { finalizado: '#52d09e', goLive: '#61b6e8' }
+
+const CONFIANCA_PRAZO_LABEL: Record<DeadlineConfidence, string> = {
+  no_prazo: 'No prazo',
+  atencao: 'Atenção',
+  atrasado: 'Atrasado',
+}
 
 export function RelatoriosPage() {
   const { data: projects, loading } = useProjects()
@@ -109,26 +117,41 @@ export function RelatoriosPage() {
       />
 
       {loading ? (
-        <Skeleton className="h-80 rounded-2xl" />
+        <div className="space-y-5" aria-label="Carregando relatórios">
+          <Skeleton className="h-[34rem] w-full rounded-2xl lg:h-96" />
+          <Skeleton className="h-72 w-full rounded-2xl" />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
+          </div>
+        </div>
+      ) : list.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={FolderKanban}
+            title="Ainda não há dados para o relatório"
+            description="Os indicadores serão calculados assim que os primeiros projetos forem cadastrados."
+          />
+        </Card>
       ) : (
         <>
           {/* ── Acompanhamento de Projetos ── */}
           <Card className="overflow-hidden border-0 p-0">
-            <div className="bg-gradient-to-b from-navy-900 to-navy-950 px-6 py-6">
-              <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div className="bg-gradient-to-b from-navy-900 to-navy-950 px-4 py-5 sm:px-6 sm:py-6">
+              <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <h2 className="flex items-center gap-2 text-lg font-bold tracking-wide text-white uppercase">
                   <TrendingUp className="size-5 text-brand-300" />
                   Acompanhamento de Projetos
                 </h2>
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto lg:justify-end">
                   <MetasEditor targets={targets} onChange={setTargets} />
-                  <div className="flex items-center gap-1 rounded-lg border border-white/15 bg-white/5 p-0.5">
+                  <div className="flex items-center gap-1 self-start rounded-lg border border-white/15 bg-white/5 p-0.5" role="group" aria-label="Período do relatório">
                     {[6, 12].map((m) => (
                       <button
                         key={m}
                         onClick={() => setMonths(m)}
+                        aria-pressed={months === m}
                         className={cn(
-                          'rounded-md px-2.5 py-1 text-xs font-semibold transition-colors',
+                          'min-h-8 rounded-md px-3 py-1 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:outline-none',
                           months === m ? 'bg-white/90 text-navy-900' : 'text-slate-300 hover:text-white',
                         )}
                       >
@@ -139,7 +162,7 @@ export function RelatoriosPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                 <ChartBox series={report.finalizado} accent={ACCENT.finalizado} />
                 <ChartBox series={report.goLive} accent={ACCENT.goLive} />
               </div>
@@ -148,7 +171,7 @@ export function RelatoriosPage() {
 
           {/* ── Pesquisa de Satisfação (Média NPS) ── */}
           <Card className="mt-5 overflow-hidden">
-            <div className="flex items-center gap-2 bg-gradient-to-r from-navy-900 to-navy-800 px-6 py-4 text-white">
+            <div className="flex items-center gap-2 bg-gradient-to-r from-navy-900 to-navy-800 px-4 py-4 text-white sm:px-6">
               <Star className="size-5 text-brand-300" />
               <h2 className="text-lg font-bold tracking-wide uppercase">Média NPS — Projetos</h2>
             </div>
@@ -156,29 +179,35 @@ export function RelatoriosPage() {
           </Card>
 
           {/* ── Indicadores operacionais ── */}
-          <div className="mt-5 grid grid-cols-2 gap-4 lg:grid-cols-3">
-            <Metric icon={BarChart3} label="Projetos ativos" value={active.length} />
-            <Metric icon={Star} label="NPS médio" value={avgNps || '-'} />
-            <Metric icon={Timer} label="Horas usadas" value={`${usedHours}/${estimatedHours || 0}h`} />
-            <Metric icon={Upload} label="Escopos recebidos" value={`${scopeReceived}/${list.length}`} />
-            <Metric icon={ShieldCheck} label="Segurança" value={`${securityDone}/${securityTotal || 0}`} />
-            <Metric icon={BarChart3} label="Pendências abertas" value={openCharges.length} />
-          </div>
+          <section className="mt-6" aria-labelledby="titulo-indicadores-operacionais">
+            <div className="mb-3">
+              <h2 id="titulo-indicadores-operacionais" className="text-lg font-semibold text-slate-900">Indicadores operacionais</h2>
+              <p className="mt-0.5 text-sm text-slate-500">Leitura consolidada da carteira de projetos.</p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <Metric icon={BarChart3} label="Projetos ativos" value={active.length} />
+              <Metric icon={Star} label="NPS médio" value={avgNps || '-'} />
+              <Metric icon={Timer} label="Horas usadas" value={`${usedHours}/${estimatedHours || 0}h`} />
+              <Metric icon={Upload} label="Escopos recebidos" value={`${scopeReceived}/${list.length}`} />
+              <Metric icon={ShieldCheck} label="Itens de segurança" value={`${securityDone}/${securityTotal || 0}`} />
+              <Metric icon={BarChart3} label="Pendências abertas" value={openCharges.length} />
+            </div>
+          </section>
 
           <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
-            <Card className="p-5">
-              <h2 className="text-lg font-semibold text-slate-900">Distribuição de status</h2>
-              <div className="mt-4 space-y-2">
+            <Card className="overflow-hidden">
+              <CardHeader title="Distribuição de status" subtitle="Situação atual de todos os projetos." className="border-b border-slate-100" />
+              <div className="space-y-3 p-5">
                 {Object.entries(groupBy(list, (project) => project.status)).map(([status, count]) => (
-                  <Bar key={status} label={status} value={count} total={list.length || 1} />
+                  <Bar key={status} label={STATUS_META[status as ProjectStatus].label} value={count} total={list.length || 1} />
                 ))}
               </div>
             </Card>
-            <Card className="p-5">
-              <h2 className="text-lg font-semibold text-slate-900">Confiança de prazo</h2>
-              <div className="mt-4 space-y-2">
+            <Card className="overflow-hidden">
+              <CardHeader title="Confiança de prazo" subtitle="Percepção registrada no tracking dos projetos." className="border-b border-slate-100" />
+              <div className="space-y-3 p-5">
                 {Object.entries(groupBy(list, (project) => project.tracking?.deadlineConfidence ?? 'no_prazo')).map(([status, count]) => (
-                  <Bar key={status} label={status} value={count} total={list.length || 1} />
+                  <Bar key={status} label={CONFIANCA_PRAZO_LABEL[status as DeadlineConfidence]} value={count} total={list.length || 1} />
                 ))}
               </div>
             </Card>
@@ -192,8 +221,12 @@ export function RelatoriosPage() {
 /** Editor inline das metas (Objetivo) de cada série. */
 function MetasEditor({ targets, onChange }: { targets: ReportTargets; onChange: (next: ReportTargets) => void }) {
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1">
-      <span className="text-[11px] font-semibold tracking-wide text-slate-400 uppercase">Metas</span>
+    <div
+      className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 sm:w-auto"
+      role="group"
+      aria-label="Metas do relatório"
+    >
+      <span className="text-[11px] font-semibold tracking-wide text-slate-300 uppercase">Metas</span>
       <TargetInput
         label="Finalizado"
         value={targets.finalizado}
@@ -223,7 +256,7 @@ function TargetInput({ label, value, onCommit }: { label: string; value: number;
   }
 
   return (
-    <label className="flex items-center gap-1 text-[11px] text-slate-300" title={`Meta de ${label}`}>
+    <label className="flex items-center gap-1 text-[11px] text-slate-200" title={`Meta de ${label}`}>
       {label}
       <input
         type="number"
@@ -233,9 +266,10 @@ function TargetInput({ label, value, onCommit }: { label: string; value: number;
         onChange={(e) => setText(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-        className="w-12 rounded-md border border-white/15 bg-white/10 px-1.5 py-0.5 text-center text-xs font-semibold text-white outline-none focus:border-brand-300"
+        aria-label={`Meta de ${label} em porcentagem`}
+        className="h-7 w-14 rounded-md border border-white/20 bg-white/10 px-1.5 text-center text-xs font-semibold text-white outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-300/30"
       />
-      <span className="text-slate-400">%</span>
+      <span className="text-slate-300">%</span>
     </label>
   )
 }
@@ -244,8 +278,8 @@ function TargetInput({ label, value, onCommit }: { label: string; value: number;
 function ChartBox({ series, accent }: { series: ReportSeries; accent: string }) {
   const onTarget = series.latest !== null && series.latest >= series.target
   return (
-    <div className="rounded-xl border border-dashed border-white/20 bg-white/[0.03] p-4">
-      <div className="mb-1 flex items-center justify-between gap-2">
+    <section className="rounded-xl border border-white/15 bg-white/[0.04] p-3 sm:p-4" aria-label={series.label}>
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-slate-100">{series.label}</h3>
         <span
           className={cn(
@@ -261,12 +295,12 @@ function ChartBox({ series, accent }: { series: ReportSeries; accent: string }) 
         </span>
       </div>
       <TrackingChart series={series} accent={accent} />
-      <div className="mt-2 flex flex-wrap items-center justify-center gap-4 text-[11px] text-slate-300">
+      <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] text-slate-300">
         <LegendItem label={`% ${series.label.split(' ')[0]}`} color={accent} />
         <LegendItem label="Objetivo" color="#7cc4f0" />
         <LegendItem label="Média Móvel" color="rgba(255,255,255,0.85)" dashed />
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -299,25 +333,35 @@ function groupBy(projects: Project[], fn: (project: Project) => string): Record<
 
 function Metric({ icon: Icon, label, value }: { icon: typeof BarChart3; label: string; value: number | string }) {
   return (
-    <Card className="p-5">
-      <div className="mb-3 flex size-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+    <Card className="flex min-h-24 items-center gap-4 p-4 sm:p-5">
+      <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
         <Icon className="size-5" />
       </div>
-      <div className="text-3xl font-bold tracking-tight text-slate-900">{value}</div>
-      <div className="mt-0.5 text-sm text-slate-500">{label}</div>
+      <div className="min-w-0">
+        <div className="truncate text-2xl font-bold tracking-tight text-slate-900 tabular-nums sm:text-3xl">{value}</div>
+        <div className="text-sm leading-snug text-slate-600">{label}</div>
+      </div>
     </Card>
   )
 }
 
 function Bar({ label, value, total }: { label: string; value: number; total: number }) {
+  const percentage = Math.round((value / total) * 100)
   return (
     <div>
       <div className="mb-1 flex items-center justify-between text-sm">
-        <span className="font-medium text-slate-600">{label.replaceAll('_', ' ')}</span>
-        <span className="text-slate-400">{value}</span>
+        <span className="font-medium text-slate-700">{label}</span>
+        <span className="text-xs font-semibold text-slate-500 tabular-nums">{value} · {percentage}%</span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-        <div className="h-full rounded-full bg-brand-500" style={{ width: `${(value / total) * 100}%` }} />
+      <div
+        className="h-2 overflow-hidden rounded-full bg-slate-100"
+        role="progressbar"
+        aria-label={label}
+        aria-valuenow={value}
+        aria-valuemin={0}
+        aria-valuemax={total}
+      >
+        <div className="h-full rounded-full bg-brand-500" style={{ width: `${percentage}%` }} />
       </div>
     </div>
   )

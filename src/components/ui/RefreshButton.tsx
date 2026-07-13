@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { RefreshCw } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
 import { notifyChange } from '@/services/store'
 import { cn } from '@/utils/cn'
 
@@ -24,28 +25,34 @@ export function RefreshButton({ compact = false, className }: RefreshButtonProps
 
   if (compact) {
     return (
-      <button
+      <Button
+        type="button"
+        variant="ghost"
         onClick={handle}
-        title="Atualizar"
-        aria-label="Atualizar"
-        className={cn('rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700', className)}
+        title="Atualizar dados"
+        aria-label={spinning ? 'Atualizando dados' : 'Atualizar dados'}
+        aria-busy={spinning}
+        className={cn('size-10 px-0 text-slate-600', className)}
       >
-        <RefreshCw className={cn('size-4', spinning && 'animate-spin')} />
-      </button>
+        <RefreshCw aria-hidden="true" className={cn('size-4', spinning && 'animate-spin')} />
+      </Button>
     )
   }
 
   return (
-    <button
+    <Button
+      type="button"
+      variant="secondary"
+      size="sm"
       onClick={handle}
-      title="Atualizar"
+      title="Atualizar dados"
+      aria-busy={spinning}
       className={cn(
-        'inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50',
         className,
       )}
     >
-      <RefreshCw className={cn('size-4', spinning && 'animate-spin')} />
+      <RefreshCw aria-hidden="true" className={cn('size-4', spinning && 'animate-spin')} />
       Atualizar
-    </button>
+    </Button>
   )
 }

@@ -35,6 +35,14 @@ export interface UpdateEntry {
 /** Atualizações em ordem cronológica decrescente (mais recente primeiro). */
 export const UPDATES: UpdateEntry[] = [
   {
+    id: '2026-07-13-interface-interna',
+    date: '2026-07-13',
+    category: 'melhoria',
+    title: 'Interface interna mais clara',
+    description:
+      'Navegação, páginas e detalhe do projeto ganharam hierarquia e responsividade. O Kanban agora evidencia fase, responsabilidade e trava, enquanto o gate separa a liberação da esteira e da publicação.',
+  },
+  {
     id: '2026-07-13-acessos-projeto',
     date: '2026-07-13',
     category: 'novidade',

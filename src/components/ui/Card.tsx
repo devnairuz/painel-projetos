@@ -1,19 +1,19 @@
-import type { ReactNode } from 'react'
+import type { HTMLAttributes, ReactNode } from 'react'
 import { cn } from '@/utils/cn'
 
-interface CardProps {
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode
-  className?: string
 }
 
 /** Card branco com cantos arredondados e sombra suave — base do layout. */
-export function Card({ children, className }: CardProps) {
+export function Card({ children, className, ...props }: CardProps) {
   return (
     <div
       className={cn(
-        'rounded-2xl border border-slate-200/70 bg-white shadow-sm shadow-slate-200/50',
+        'rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-950/5',
         className,
       )}
+      {...props}
     >
       {children}
     </div>
@@ -29,12 +29,17 @@ interface CardHeaderProps {
 
 export function CardHeader({ title, subtitle, action, className }: CardHeaderProps) {
   return (
-    <div className={cn('flex items-start justify-between gap-4 p-5', className)}>
-      <div>
-        <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-        {subtitle && <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>}
+    <div
+      className={cn(
+        'flex flex-col gap-3 border-b border-slate-100 p-5 sm:flex-row sm:items-start sm:justify-between sm:gap-5',
+        className,
+      )}
+    >
+      <div className="min-w-0">
+        <h2 className="text-lg leading-tight font-semibold text-slate-900">{title}</h2>
+        {subtitle && <p className="mt-1 text-sm leading-5 text-slate-600">{subtitle}</p>}
       </div>
-      {action}
+      {action && <div className="flex shrink-0 flex-wrap items-center gap-2">{action}</div>}
     </div>
   )
 }

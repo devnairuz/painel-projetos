@@ -40,20 +40,59 @@ body,
   height: 100%;
 }
 
+html {
+  color-scheme: light;
+}
+
 body {
   margin: 0;
+  min-width: 320px;
   background: radial-gradient(circle at top, #ffffff 0%, #f1f4f8 50%, #e8ecf3 100%);
   background-attachment: fixed;
   color: #1b2331;
   font-family: var(--font-sans);
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  isolation: isolate;
+}
+
+::selection {
+  background: #a8e9cd;
+  color: #00175d;
+}
+
+button,
+a,
+select,
+input,
+textarea {
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Scrollbar discreta */
 * {
   scrollbar-width: thin;
   scrollbar-color: #cbd3df transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 9999px;
+  background: #cbd3df;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }
 
 /* Loader de pontos pulsantes — espelha o "infinite-loader" do suporte-nairuz. */
@@ -74,7 +113,37 @@ body {
   animation: nz-pulse-dots 1.2s infinite ease-in-out;
 }
 @keyframes nz-pulse-dots {
-  0% { opacity: 0.4; transform: translateX(0); }
-  50% { opacity: 1; transform: translateX(2px); }
-  100% { opacity: 0.4; transform: translateX(0); }
+  0% {
+    opacity: 0.4;
+    transform: translateX(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(2px);
+  }
+  100% {
+    opacity: 0.4;
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 767px) {
+  body {
+    background-attachment: scroll;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  body {
+    background-attachment: scroll;
+  }
 }

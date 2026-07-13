@@ -1,13 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { ExternalLink, LogOut, Menu, X } from 'lucide-react'
 import { NAV_ITEMS } from '@/constants/nav'
 import { useProjects } from '@/hooks/useProjects'
 import { useCompanyAuth } from '@/hooks/useCompanyAuth'
 import { Avatar } from '@/components/ui/Avatar'
+import { Logo } from '@/components/layout/Logo'
 import { NotificationBell } from '@/components/layout/NotificationBell'
 import { cn } from '@/utils/cn'
-import { Logo } from './Logo'
 
 /**
  * Barra de navegação no topo, exclusiva para mobile. Mantém o conteúdo com
@@ -16,23 +16,55 @@ import { Logo } from './Logo'
  */
 export function MobileTopNav() {
   const [open, setOpen] = useState(false)
+  const menuId = useId()
+  const menuRef = useRef<HTMLElement>(null)
+  const toggleRef = useRef<HTMLButtonElement>(null)
   const { data: projects } = useProjects()
   const projectCount = projects?.length ?? 0
   const { user, logout } = useCompanyAuth()
 
+  useEffect(() => {
+    if (!open) return
+    const frame = window.requestAnimationFrame(() => {
+      menuRef.current?.querySelector<HTMLElement>('a, button')?.focus()
+    })
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('keydown', handleKeyDown)
+      toggleRef.current?.focus()
+    }
+  }, [open])
+
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200 bg-surface md:hidden">
-      <div className="flex items-center justify-between px-4 py-2.5">
-        <Logo tone="dark" />
+    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 shadow-sm shadow-slate-950/5 backdrop-blur md:hidden">
+      <div className="flex min-h-16 items-center justify-between px-4">
+        <NavLink
+          to="/"
+          aria-label="Ir para o Dashboard"
+          className="rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:outline-none"
+        >
+          <Logo tone="dark" />
+        </NavLink>
         <div className="flex items-center gap-1">
           <NotificationBell />
           <button
+            ref={toggleRef}
+            type="button"
             onClick={() => setOpen((o) => !o)}
             aria-label={open ? 'Fechar menu' : 'Abrir menu'}
             aria-expanded={open}
-            className="flex size-10 items-center justify-center rounded-xl text-navy-900 transition-colors hover:bg-slate-100"
+            aria-controls={menuId}
+            className="flex size-11 cursor-pointer items-center justify-center rounded-xl text-navy-900 transition-colors hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none"
           >
-            {open ? <X className="size-6" /> : <Menu className="size-6" />}
+            {open ? (
+              <X aria-hidden="true" className="size-6" />
+            ) : (
+              <Menu aria-hidden="true" className="size-6" />
+            )}
           </button>
         </div>
       </div>
@@ -40,15 +72,22 @@ export function MobileTopNav() {
       {open && (
         <>
           {/* Backdrop para fechar ao tocar fora */}
-          <button
-            aria-hidden
-            tabIndex={-1}
+          <div
+            aria-hidden="true"
             onClick={() => setOpen(false)}
-            className="fixed inset-0 top-[57px] z-30 bg-black/30"
+            className="fixed inset-0 top-16 z-30 bg-slate-950/40 backdrop-blur-[1px]"
           />
 
           {/* Painel deslizante com a navegação */}
-          <nav className="absolute inset-x-0 top-full z-40 max-h-[80vh] space-y-1 overflow-y-auto border-b border-slate-200 bg-gradient-to-b from-navy-900 to-navy-950 px-3 py-3 text-slate-200 shadow-xl">
+          <nav
+            ref={menuRef}
+            id={menuId}
+            aria-label="Navegação principal"
+            className="absolute inset-x-0 top-full z-40 max-h-[calc(100dvh-4rem)] space-y-1 overflow-y-auto border-b border-white/10 bg-gradient-to-b from-navy-900 to-navy-950 px-3 py-4 text-slate-200 shadow-2xl shadow-slate-950/30"
+          >
+            <p className="px-3 pb-2 text-[10px] font-semibold tracking-[0.16em] text-slate-400 uppercase">
+              Navegação
+            </p>
             {NAV_ITEMS.filter((item) => !item.adminOnly || user?.role === 'admin').map((item) => {
               const Icon = item.icon
               const badgeValue = item.badge === 'projects' ? projectCount : undefined
@@ -60,14 +99,15 @@ export function MobileTopNav() {
                   onClick={() => setOpen(false)}
                   className={({ isActive }) =>
                     cn(
-                      'group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors',
+                      'group relative flex min-h-12 items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors',
+                      'focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-900 focus-visible:outline-none',
                       isActive
-                        ? 'bg-white/10 text-white shadow-sm'
-                        : 'text-slate-300/80 hover:bg-white/5 hover:text-white',
+                        ? 'bg-white/12 text-white shadow-sm ring-1 ring-white/10 before:absolute before:left-0 before:h-5 before:w-1 before:rounded-r-full before:bg-brand-400'
+                        : 'text-slate-300 hover:bg-white/6 hover:text-white',
                     )
                   }
                 >
-                  <Icon className="size-5 shrink-0" />
+                  <Icon aria-hidden="true" className="size-5 shrink-0" />
                   <span className="flex-1 truncate">{item.label}</span>
                   {badgeValue !== undefined && badgeValue > 0 && (
                     <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold text-white">
@@ -75,8 +115,8 @@ export function MobileTopNav() {
                     </span>
                   )}
                   {item.soon && (
-                    <span className="rounded-full bg-white/5 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">
-                      em breve
+                    <span className="rounded-full border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-medium text-slate-300">
+                      Em breve
                     </span>
                   )}
                 </NavLink>
@@ -88,14 +128,15 @@ export function MobileTopNav() {
               href="/cliente/login"
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-300/70 transition-colors hover:bg-white/5 hover:text-white"
+              className="flex min-h-12 items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-300 transition-colors hover:bg-white/6 hover:text-white focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-900 focus-visible:outline-none"
             >
-              <ExternalLink className="size-5 shrink-0" />
+              <ExternalLink aria-hidden="true" className="size-5 shrink-0" />
               <span className="flex-1 truncate">Portal do cliente</span>
+              <span className="sr-only">(abre em uma nova aba)</span>
             </a>
 
             {/* Rodapé / usuário logado */}
-            <div className="mt-1 flex items-center gap-3 border-t border-white/10 px-2 pt-3">
+            <div className="mt-2 flex items-center gap-3 border-t border-white/10 px-2 pt-4 pb-1">
               <Avatar name={user?.name ?? 'Nairuz'} color="#14b885" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-white">{user?.name ?? 'Usuário'}</p>
@@ -104,12 +145,16 @@ export function MobileTopNav() {
                 </p>
               </div>
               <button
-                onClick={logout}
-                title="Sair"
-                aria-label="Sair"
-                className="text-slate-400 transition-colors hover:text-white"
+                type="button"
+                onClick={() => {
+                  setOpen(false)
+                  logout()
+                }}
+                title="Sair da conta"
+                aria-label="Sair da conta"
+                className="flex size-11 cursor-pointer items-center justify-center rounded-xl text-slate-300 transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:outline-none"
               >
-                <LogOut className="size-5" />
+                <LogOut aria-hidden="true" className="size-5" />
               </button>
             </div>
           </nav>

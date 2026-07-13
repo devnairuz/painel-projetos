@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useId, useMemo } from 'react'
 import type { ReportSeries, MonthPoint } from '@/utils/reports'
 
 interface TrackingChartProps {
@@ -48,6 +48,9 @@ function segments(points: MonthPoint[], pick: (p: MonthPoint) => number | null) 
 export function TrackingChart({ series, accent = '#52d09e' }: TrackingChartProps) {
   const { points, target } = series
   const n = points.length
+  const id = useId()
+  const tituloId = `${id}-titulo`
+  const descricaoId = `${id}-descricao`
 
   const top = niceMax(useMemo(
     () => [
@@ -76,7 +79,16 @@ export function TrackingChart({ series, accent = '#52d09e' }: TrackingChartProps
     .filter(({ p }) => p.value !== null) as { p: MonthPoint & { value: number }; i: number }[]
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label={series.label}>
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      className="h-auto w-full"
+      role="img"
+      aria-labelledby={`${tituloId} ${descricaoId}`}
+    >
+      <title id={tituloId}>{series.label}</title>
+      <desc id={descricaoId}>
+        Evolução mensal de {series.label.toLowerCase()}, com objetivo de {target}% e média móvel.
+      </desc>
       {/* Grade + eixo Y */}
       {ticks.map((t) => (
         <g key={t}>
@@ -120,6 +132,19 @@ export function TrackingChart({ series, accent = '#52d09e' }: TrackingChartProps
           </text>
         </g>
       ))}
+
+      {valuePoints.length === 0 && (
+        <text
+          x={PAD.left + INNER_W / 2}
+          y={PAD.top + INNER_H / 2}
+          textAnchor="middle"
+          fontSize={12}
+          fontWeight={600}
+          fill={COLOR.axis}
+        >
+          Sem dados no período
+        </text>
+      )}
     </svg>
   )
 }

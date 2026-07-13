@@ -4,8 +4,8 @@ import { NAV_ITEMS } from '@/constants/nav'
 import { useProjects } from '@/hooks/useProjects'
 import { useCompanyAuth } from '@/hooks/useCompanyAuth'
 import { Avatar } from '@/components/ui/Avatar'
+import { Logo } from '@/components/layout/Logo'
 import { cn } from '@/utils/cn'
-import { Logo } from './Logo'
 
 interface SidebarProps {
   collapsed: boolean
@@ -20,27 +20,54 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   return (
     <aside
+      aria-label="Menu lateral"
       className={cn(
-        'relative z-40 flex h-screen flex-col bg-gradient-to-b from-navy-900 to-navy-950 text-slate-200 transition-all duration-300',
-        collapsed ? 'w-20' : 'w-64',
+        'relative z-40 flex h-dvh shrink-0 flex-col border-r border-white/10 bg-gradient-to-b from-navy-900 to-navy-950 text-slate-200 shadow-xl shadow-navy-950/10 transition-[width] duration-300',
+        collapsed ? 'w-[4.75rem]' : 'w-[17rem]',
       )}
     >
       {/* Cabeçalho / logo */}
-      <div className="flex items-center justify-between px-5 pt-6 pb-5">
-        <Logo collapsed={collapsed} />
+      <div
+        className={cn(
+          'flex min-h-20 items-center border-b border-white/8 px-5',
+          collapsed && 'justify-center px-3',
+        )}
+      >
+        <NavLink
+          to="/"
+          aria-label="Ir para o Dashboard"
+          className="rounded-lg focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-900 focus-visible:outline-none"
+        >
+          <Logo collapsed={collapsed} />
+        </NavLink>
       </div>
 
       {/* Botão de colapsar */}
       <button
+        type="button"
         onClick={onToggle}
         aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
-        className="absolute -right-3 top-7 flex size-7 items-center justify-center rounded-full bg-accent-500 text-white shadow-md transition-transform hover:scale-105"
+        aria-expanded={!collapsed}
+        aria-controls="navegacao-lateral"
+        className="absolute top-6 -right-4 z-10 flex size-8 cursor-pointer items-center justify-center rounded-full border-2 border-surface bg-accent-500 text-white shadow-md transition-[background-color,transform] hover:scale-105 hover:bg-navy-800 focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:outline-none"
       >
-        <ChevronLeft className={cn('size-4 transition-transform', collapsed && 'rotate-180')} />
+        <ChevronLeft
+          aria-hidden="true"
+          className={cn('size-4 transition-transform', collapsed && 'rotate-180')}
+        />
       </button>
 
       {/* Navegação */}
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
+      <nav
+        id="navegacao-lateral"
+        aria-label="Navegação principal"
+        className="flex-1 space-y-1 overflow-y-auto px-3 py-4"
+      >
+        {!collapsed && (
+          <p className="px-3 pb-2 text-[10px] font-semibold tracking-[0.16em] text-slate-400 uppercase">
+            Navegação
+          </p>
+        )}
         {NAV_ITEMS.filter((item) => !item.adminOnly || user?.role === 'admin').map((item) => {
           const Icon = item.icon
           const badgeValue = item.badge === 'projects' ? projectCount : undefined
@@ -51,16 +78,17 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               end={item.to === '/'}
               className={({ isActive }) =>
                 cn(
-                  'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                  'group relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-[color,background-color,box-shadow]',
+                  'focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-900 focus-visible:outline-none',
                   isActive
-                    ? 'bg-white/10 text-white shadow-sm'
-                    : 'text-slate-300/80 hover:bg-white/5 hover:text-white',
-                  collapsed && 'justify-center',
+                    ? 'bg-white/12 text-white shadow-sm ring-1 ring-white/10 before:absolute before:left-0 before:h-5 before:w-1 before:rounded-r-full before:bg-brand-400'
+                    : 'text-slate-300 hover:bg-white/6 hover:text-white',
+                  collapsed && 'justify-center px-2',
                 )
               }
               title={collapsed ? item.label : undefined}
             >
-              <Icon className="size-5 shrink-0" />
+              <Icon aria-hidden="true" className="size-5 shrink-0" />
               {!collapsed && (
                 <>
                   <span className="flex-1 truncate">{item.label}</span>
@@ -70,8 +98,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                     </span>
                   )}
                   {item.soon && (
-                    <span className="rounded-full bg-white/5 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">
-                      em breve
+                    <span className="rounded-full border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-medium text-slate-300">
+                      Em breve
                     </span>
                   )}
                 </>
@@ -82,25 +110,37 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </nav>
 
       {/* Atalho: portal do cliente */}
-      <div className="px-3 pb-1">
+      <div className="border-t border-white/8 px-3 pt-3 pb-2">
+        {!collapsed && (
+          <p className="px-3 pb-1.5 text-[10px] font-semibold tracking-[0.16em] text-slate-400 uppercase">
+            Atalhos
+          </p>
+        )}
         <a
           href="/cliente/login"
           target="_blank"
           rel="noreferrer"
           className={cn(
-            'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-300/70 transition-colors hover:bg-white/5 hover:text-white',
-            collapsed && 'justify-center',
+            'flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-white/6 hover:text-white',
+            'focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-navy-900 focus-visible:outline-none',
+            collapsed && 'justify-center px-2',
           )}
-          title="Abrir portal do cliente"
+          title={collapsed ? 'Abrir portal do cliente' : undefined}
         >
-          <ExternalLink className="size-5 shrink-0" />
+          <ExternalLink aria-hidden="true" className="size-5 shrink-0" />
           {!collapsed && <span className="flex-1 truncate">Portal do cliente</span>}
+          {!collapsed && <span className="sr-only">(abre em uma nova aba)</span>}
         </a>
       </div>
 
       {/* Rodapé / usuário logado */}
       <div className="border-t border-white/10 p-3">
-        <div className={cn('flex items-center gap-3 rounded-xl px-2 py-2', collapsed && 'justify-center')}>
+        <div
+          className={cn(
+            'flex items-center gap-3 rounded-xl bg-white/[0.04] px-2 py-2',
+            collapsed && 'flex-col justify-center gap-1.5 px-1',
+          )}
+        >
           <Avatar name={user?.name ?? 'Nairuz'} color="#14b885" />
           {!collapsed && (
             <div className="min-w-0 flex-1">
@@ -110,16 +150,15 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               </p>
             </div>
           )}
-          {!collapsed && (
-            <button
-              onClick={logout}
-              title="Sair"
-              aria-label="Sair"
-              className="text-slate-400 transition-colors hover:text-white"
-            >
-              <LogOut className="size-4" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={logout}
+            title="Sair da conta"
+            aria-label="Sair da conta"
+            className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:outline-none"
+          >
+            <LogOut aria-hidden="true" className="size-4" />
+          </button>
         </div>
       </div>
     </aside>

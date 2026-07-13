@@ -13,13 +13,17 @@ export function Badge({ meta, withDot = false, className }: BadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap',
+        'inline-flex min-h-6 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs leading-5 font-medium whitespace-nowrap',
         meta.badge,
         className,
       )}
     >
       {withDot && meta.dot && (
-        <span className="size-1.5 rounded-full" style={{ backgroundColor: meta.dot }} />
+        <span
+          aria-hidden="true"
+          className="size-1.5 shrink-0 rounded-full"
+          style={{ backgroundColor: meta.dot }}
+        />
       )}
       {meta.label}
     </span>

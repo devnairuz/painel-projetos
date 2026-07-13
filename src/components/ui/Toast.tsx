@@ -2,6 +2,8 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -22,14 +24,40 @@ interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | null>(null)
 
-const KIND_STYLE: Record<ToastKind, { icon: typeof Info; ring: string; iconColor: string }> = {
-  success: { icon: CheckCircle2, ring: 'border-emerald-200', iconColor: 'text-emerald-500' },
-  info: { icon: Info, ring: 'border-sky-200', iconColor: 'text-sky-500' },
-  error: { icon: AlertTriangle, ring: 'border-red-200', iconColor: 'text-red-500' },
+const KIND_STYLE: Record<
+  ToastKind,
+  { icon: typeof Info; border: string; iconColor: string; iconBackground: string }
+> = {
+  success: {
+    icon: CheckCircle2,
+    border: 'border-emerald-200',
+    iconColor: 'text-emerald-700',
+    iconBackground: 'bg-emerald-50',
+  },
+  info: {
+    icon: Info,
+    border: 'border-sky-200',
+    iconColor: 'text-sky-700',
+    iconBackground: 'bg-sky-50',
+  },
+  error: {
+    icon: AlertTriangle,
+    border: 'border-red-200',
+    iconColor: 'text-red-700',
+    iconBackground: 'bg-red-50',
+  },
 }
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
+  const timers = useRef<number[]>([])
+
+  useEffect(
+    () => () => {
+      timers.current.forEach((timer) => window.clearTimeout(timer))
+    },
+    [],
+  )
 
   const remove = useCallback((id: number) => {
     setToasts((list) => list.filter((t) => t.id !== id))
@@ -38,8 +66,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const notify = useCallback(
     (message: string, kind: ToastKind = 'success') => {
       const id = Date.now() + Math.random()
-      setToasts((list) => [...list, { id, kind, message }])
-      setTimeout(() => remove(id), 3500)
+      setToasts((list) => [...list, { id, kind, message }].slice(-4))
+      const timer = window.setTimeout(() => {
+        remove(id)
+        timers.current = timers.current.filter((activeTimer) => activeTimer !== timer)
+      }, 4000)
+      timers.current.push(timer)
     },
     [remove],
   )
@@ -47,31 +79,49 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ notify }}>
       {children}
-      <div className="pointer-events-none fixed right-4 bottom-4 z-50 flex w-80 flex-col gap-2">
+      <section
+        aria-label="Notificações do sistema"
+        aria-live="polite"
+        className="pointer-events-none fixed inset-x-4 bottom-4 z-[70] flex flex-col gap-2 sm:right-4 sm:left-auto sm:w-96"
+      >
         {toasts.map((t) => {
           const style = KIND_STYLE[t.kind]
           const Icon = style.icon
           return (
             <div
               key={t.id}
+              role={t.kind === 'error' ? 'alert' : undefined}
+              aria-atomic="true"
               className={cn(
-                'pointer-events-auto flex items-start gap-3 rounded-xl border bg-white p-3 shadow-lg shadow-slate-300/40',
-                style.ring,
+                'pointer-events-auto flex items-start gap-3 rounded-2xl border bg-white p-3.5 shadow-xl shadow-slate-900/10',
+                style.border,
               )}
             >
-              <Icon className={cn('mt-0.5 size-5 shrink-0', style.iconColor)} />
-              <p className="flex-1 text-sm text-slate-700">{t.message}</p>
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'flex size-8 shrink-0 items-center justify-center rounded-xl',
+                  style.iconBackground,
+                  style.iconColor,
+                )}
+              >
+                <Icon className="size-4.5" />
+              </span>
+              <p className="min-w-0 flex-1 pt-1 text-sm leading-5 text-slate-700 break-words">
+                {t.message}
+              </p>
               <button
+                type="button"
                 onClick={() => remove(t.id)}
-                className="text-slate-400 transition-colors hover:text-slate-600"
-                aria-label="Fechar"
+                className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none"
+                aria-label="Fechar notificação"
               >
                 <X className="size-4" />
               </button>
             </div>
           )
         })}
-      </div>
+      </section>
     </ToastContext.Provider>
   )
 }

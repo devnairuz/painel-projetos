@@ -17,15 +17,20 @@ export function Logo({ collapsed = false, tone = 'light' }: LogoProps) {
   if (collapsed) {
     return (
       <div className="flex items-center justify-center">
-        <img src="/dinossairuz.png" alt="Nairuz" className="size-9 object-contain" />
+        <img
+          src="/dinossairuz.png"
+          alt="Nairuz"
+          className="size-9 object-contain"
+          draggable={false}
+        />
       </div>
     )
   }
   return (
     <div className="select-none">
-      <img src={wordmark} alt="nairuz" className="h-7 w-auto" />
+      <img src={wordmark} alt="Nairuz" className="h-7 w-auto" draggable={false} />
       <p className={cn('mt-1 text-[11px] font-medium tracking-wide', subtitle)}>
-        Merketing &amp; Tecnologia
+        Marketing &amp; Tecnologia
       </p>
     </div>
   )

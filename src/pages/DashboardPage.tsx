@@ -9,14 +9,16 @@ import {
   CheckCircle2,
   BellRing,
   Upload,
+  ArrowUpRight,
   type LucideIcon,
 } from 'lucide-react'
 import { useProjects } from '@/hooks/useProjects'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { Card } from '@/components/ui/Card'
+import { Card, CardHeader } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { STATUS_META, RISK_META } from '@/constants'
 import type { Project, ProjectStatus } from '@/types'
 import { isAtRisk } from '@/utils/projects'
@@ -60,15 +62,38 @@ export function DashboardPage() {
       />
 
       {loading ? (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 w-full rounded-2xl" />
-          ))}
+        <div className="space-y-6" aria-label="Carregando indicadores do dashboard">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Card key={i} className="flex items-center gap-4 p-4 sm:p-5">
+                <Skeleton className="size-11 shrink-0 rounded-xl" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-7 w-12" />
+                  <Skeleton className="h-3.5 w-28 max-w-full" />
+                </div>
+              </Card>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <Card key={i} className="overflow-hidden">
+                <div className="space-y-2 border-b border-slate-100 p-5">
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton className="h-3.5 w-56 max-w-full" />
+                </div>
+                <div className="space-y-4 p-5">
+                  {Array.from({ length: 3 }).map((__, j) => (
+                    <Skeleton key={j} className="h-10 w-full" />
+                  ))}
+                </div>
+              </Card>
+            ))}
+          </div>
         </div>
       ) : (
         <>
           {/* Cards de métrica */}
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <section aria-label="Indicadores operacionais" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard icon={FolderKanban} label="Projetos ativos" value={stats.active.length} tone="brand" />
             <StatCard icon={AlertTriangle} label="Em risco" value={stats.atRisk.length} tone="red" />
             <StatCard icon={Clock} label="Aguardando cliente" value={stats.waitingClient.length} tone="amber" />
@@ -77,10 +102,10 @@ export function DashboardPage() {
             <StatCard icon={CheckCircle2} label="Prontos para go live" value={stats.readyGoLive.length} tone="emerald" />
             <StatCard icon={BellRing} label="Pendências abertas" value={stats.openCharges.length} tone="amber" />
             <StatCard icon={Upload} label="Escopos pendentes" value={stats.scopePending.length} tone="blue" />
-          </div>
+          </section>
 
           {/* Listas */}
-          <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <section aria-label="Projetos que precisam de acompanhamento" className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
             <ProjectList
               title="Projetos em risco"
               subtitle="Bloqueios ou prazos críticos"
@@ -95,7 +120,7 @@ export function DashboardPage() {
               emptyLabel="Nenhum go live agendado para as próximas semanas."
               showDeadline
             />
-          </div>
+          </section>
         </>
       )}
     </>
@@ -125,12 +150,14 @@ function StatCard({
   tone: Tone
 }) {
   return (
-    <Card className="p-5">
-      <div className={cn('mb-3 flex size-10 items-center justify-center rounded-xl', TONE[tone].bg, TONE[tone].text)}>
+    <Card className="flex min-h-24 items-center gap-4 p-4 sm:p-5">
+      <div className={cn('flex size-11 shrink-0 items-center justify-center rounded-xl', TONE[tone].bg, TONE[tone].text)}>
         <Icon className="size-5" />
       </div>
-      <div className="text-3xl font-bold tracking-tight text-slate-900">{value}</div>
-      <div className="mt-0.5 text-sm text-slate-500">{label}</div>
+      <div className="min-w-0">
+        <div className="text-2xl font-bold tracking-tight text-slate-900 tabular-nums sm:text-3xl">{value}</div>
+        <div className="text-sm leading-snug text-slate-600">{label}</div>
+      </div>
     </Card>
   )
 }
@@ -152,35 +179,36 @@ function ProjectList({
 }) {
   return (
     <Card className="overflow-hidden">
-      <div className="border-b border-slate-100 p-5">
-        <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-        <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>
-      </div>
+      <CardHeader title={title} subtitle={subtitle} className="border-b border-slate-100" />
       {projects.length === 0 ? (
-        <p className="px-5 py-8 text-center text-sm text-slate-400">{emptyLabel}</p>
+        <EmptyState icon={CheckCircle2} title={emptyLabel} className="py-8 sm:py-8" />
       ) : (
-        <ul className="divide-y divide-slate-50">
+        <ul className="divide-y divide-slate-100">
           {projects.map((p) => (
             <li key={p.id}>
               <Link
                 to={`/projetos/${p.id}`}
-                className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-slate-50/70"
+                className="group flex flex-col items-stretch gap-3 px-4 py-4 transition-colors hover:bg-slate-50/70 focus-visible:bg-slate-50 focus-visible:outline-none sm:flex-row sm:items-center sm:px-5"
               >
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-medium text-slate-800">{p.clientName}</div>
-                  <div className="mt-1 w-32">
-                    <ProgressBar value={p.progress} />
+                  <div className="mt-1.5 flex max-w-44 items-center gap-2">
+                    <ProgressBar value={p.progress} label={`Progresso de ${p.clientName}`} className="flex-1" />
+                    <span className="text-xs font-semibold text-slate-500 tabular-nums">{p.progress}%</span>
                   </div>
                 </div>
-                {showRisk && <Badge meta={RISK_META[p.risk]} withDot />}
-                {showDeadline ? (
-                  <div className="text-right">
-                    <div className="text-sm text-slate-700">{formatDate(p.goLiveDate)}</div>
-                    <div className="text-xs text-slate-400">{relativeDeadlineLabel(p.goLiveDate)}</div>
-                  </div>
-                ) : (
-                  <Badge meta={STATUS_META[p.status]} />
-                )}
+                <div className="flex w-full shrink-0 flex-wrap items-center justify-between gap-2 sm:w-auto sm:flex-nowrap sm:justify-start">
+                  {showRisk && <Badge meta={RISK_META[p.risk]} withDot />}
+                  {showDeadline ? (
+                    <div className="text-right">
+                      <div className="text-sm font-medium text-slate-700">{formatDate(p.goLiveDate)}</div>
+                      <div className="text-xs text-slate-500">{relativeDeadlineLabel(p.goLiveDate)}</div>
+                    </div>
+                  ) : (
+                    <Badge meta={STATUS_META[p.status]} />
+                  )}
+                  <ArrowUpRight className="hidden size-4 text-slate-300 transition-colors group-hover:text-brand-600 sm:block" aria-hidden />
+                </div>
               </Link>
             </li>
           ))}
