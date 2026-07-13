@@ -185,7 +185,7 @@ export function CompanyAuthPage() {
               <h1 className="text-xl font-bold text-slate-900">
                 {mode === 'login' ? 'Entrar' : 'Criar conta'}
               </h1>
-              <p className="mt-1 text-sm text-slate-500">Painel interno da Nairuz.</p>
+              <p className="mt-1 text-sm text-slate-500">Rastreio de Projetos da Nairuz.</p>
 
               <form onSubmit={mode === 'login' ? onLogin : onRegister} className="mt-6 space-y-4">
                 {mode === 'register' && (

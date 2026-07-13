@@ -43,7 +43,7 @@ export function AppShell() {
           <header className="sticky top-0 z-30 hidden min-h-14 items-center justify-between border-b border-slate-200 bg-white/85 px-6 backdrop-blur md:flex lg:px-10">
             <div>
               <p className="text-xs font-semibold tracking-wide text-navy-900 uppercase">
-                Portal de Implantação
+                Rastreio de Projetos
               </p>
               <p className="text-[11px] text-slate-500">Visão interna Nairuz</p>
             </div>

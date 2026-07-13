@@ -15,6 +15,41 @@ const {
 
 const norm = (s) => String(s || "").trim().toLowerCase();
 const nowIso = () => new Date().toISOString();
+const CATEGORIAS_LINK_UTIL = new Set(["geral", "planejamento", "design", "conteudo", "tecnico"]);
+
+function erroHttp(message, status = 400) {
+  const err = new Error(message);
+  err.status = status;
+  return err;
+}
+
+function normalizarUrlHttp(valor) {
+  const url = String(valor || "").trim();
+  try {
+    const analisada = new URL(url);
+    if (analisada.protocol !== "http:" && analisada.protocol !== "https:") throw new Error();
+  } catch {
+    throw erroHttp("Informe uma URL válida iniciada por http:// ou https://.");
+  }
+  return url;
+}
+
+function montarLinkUtil(input = {}) {
+  const titulo = String(input.titulo || "").trim();
+  if (!titulo) throw erroHttp("O título do link é obrigatório.");
+  const categoria = CATEGORIAS_LINK_UTIL.has(input.categoria) ? input.categoria : "geral";
+  const agora = nowIso();
+  return {
+    id: uid("link"),
+    titulo: titulo.slice(0, 140),
+    url: normalizarUrlHttp(input.url),
+    categoria,
+    descricao: String(input.descricao || "").trim().slice(0, 280) || undefined,
+    visivelCliente: input.visivelCliente === true,
+    criadoEm: agora,
+    atualizadoEm: agora
+  };
+}
 
 function cleanCommentAttachments(attachments = []) {
   if (!Array.isArray(attachments)) return [];
@@ -179,6 +214,7 @@ function normalizeProject(project) {
   };
   project.security.checklist = project.security.checklist || [];
   project.accesses = project.accesses || [];
+  project.linksUteis = project.linksUteis || [];
   syncTasksFromChecklist(project);
   return project;
 }
@@ -237,6 +273,10 @@ function toClientProject(project, clientEmail) {
     tasks: (project.tasks || []).filter((task) => !!task.clientResponsibility),
     charges: (project.charges || []).filter((charge) => charge.ownerSide === "cliente"),
     timeEntries: [],
+    accesses: [],
+    scopeFiles: [],
+    attachments: [],
+    linksUteis: (project.linksUteis || []).filter((link) => link.visivelCliente === true),
     security: undefined
   };
 }
@@ -307,6 +347,7 @@ async function createProject(input) {
     scopeFiles: [],
     timeEntries: [],
     attachments: [],
+    linksUteis: [],
     tracking: { scopeStatus: "pendente", estimatedHours: 0, usedHours: 0, deadlineConfidence: "no_prazo" },
     security: {
       checklist: DEFAULT_SECURITY_CHECKS.map((label, index) => ({ id: `sec-${index + 1}`, label, done: false }))
@@ -811,6 +852,49 @@ async function removeAccess(id, accessId) {
   });
 }
 
+/** Adiciona um atalho operacional. Links são internos, salvo opt-in explícito. */
+async function adicionarLinkUtil(id, input) {
+  const link = montarLinkUtil(input);
+  return mutateProject(id, (p) => {
+    p.linksUteis = p.linksUteis || [];
+    p.linksUteis.push(link);
+    p.updatedAt = nowIso();
+  });
+}
+
+/** Atualiza somente os campos enviados e reaplica as mesmas validações do cadastro. */
+async function atualizarLinkUtil(id, linkId, patch = {}) {
+  return mutateProject(id, (p) => {
+    const link = (p.linksUteis || []).find((item) => item.id === linkId);
+    if (!link) throw erroHttp("Link útil não encontrado.", 404);
+    if (patch.titulo !== undefined) {
+      const titulo = String(patch.titulo || "").trim();
+      if (!titulo) throw erroHttp("O título do link é obrigatório.");
+      link.titulo = titulo.slice(0, 140);
+    }
+    if (patch.url !== undefined) link.url = normalizarUrlHttp(patch.url);
+    if (patch.categoria !== undefined) {
+      if (!CATEGORIAS_LINK_UTIL.has(patch.categoria)) throw erroHttp("Categoria de link inválida.");
+      link.categoria = patch.categoria;
+    }
+    if (patch.descricao !== undefined) {
+      link.descricao = String(patch.descricao || "").trim().slice(0, 280) || undefined;
+    }
+    if (patch.visivelCliente !== undefined) link.visivelCliente = patch.visivelCliente === true;
+    link.atualizadoEm = nowIso();
+    p.updatedAt = link.atualizadoEm;
+  });
+}
+
+async function removerLinkUtil(id, linkId) {
+  return mutateProject(id, (p) => {
+    const quantidadeAnterior = (p.linksUteis || []).length;
+    p.linksUteis = (p.linksUteis || []).filter((item) => item.id !== linkId);
+    if (p.linksUteis.length === quantidadeAnterior) throw erroHttp("Link útil não encontrado.", 404);
+    p.updatedAt = nowIso();
+  });
+}
+
 module.exports = {
   listProjects,
   getProject,
@@ -847,5 +931,8 @@ module.exports = {
   updateSecurity,
   addAccess,
   updateAccess,
-  removeAccess
+  removeAccess,
+  adicionarLinkUtil,
+  atualizarLinkUtil,
+  removerLinkUtil
 };

@@ -33,6 +33,7 @@ const projectSchema = new mongoose.Schema(
     attachments: mongoose.Schema.Types.Mixed,
     tracking: mongoose.Schema.Types.Mixed,
     security: mongoose.Schema.Types.Mixed,
+    linksUteis: mongoose.Schema.Types.Mixed,
     templateNotes: String,
     history: mongoose.Schema.Types.Mixed,
     nps: mongoose.Schema.Types.Mixed,

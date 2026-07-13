@@ -1,5 +1,5 @@
 /**
- * Modelo de domínio do Portal de Implantação.
+ * Modelo de domínio do Rastreio de Projetos.
  *
  * Estes tipos espelham o futuro schema do Supabase. A camada de serviços
  * (src/services) hoje resolve tudo com mock + localStorage; quando o banco
@@ -316,6 +316,21 @@ export interface ProjectAccess {
   updatedAt?: string
 }
 
+/** Agrupamento dos atalhos operacionais de um projeto. */
+export type CategoriaLinkUtil = 'geral' | 'planejamento' | 'design' | 'conteudo' | 'tecnico'
+
+/** Link de referência do projeto. Interno por padrão; o cliente só recebe os marcados. */
+export interface LinkUtilProjeto {
+  id: string
+  titulo: string
+  url: string
+  categoria: CategoriaLinkUtil
+  descricao?: string
+  visivelCliente: boolean
+  criadoEm: string
+  atualizadoEm?: string
+}
+
 export interface Project {
   id: string
   /** Código curto e legível, ex: "PRJ-014". */
@@ -354,6 +369,8 @@ export interface Project {
   templateNotes?: string
   /** Acessos/credenciais dos painéis do projeto (interno). */
   accesses?: ProjectAccess[]
+  /** Atalhos para documentos, ferramentas e ambientes usados no projeto. */
+  linksUteis?: LinkUtilProjeto[]
   /** Produto/serviço — define o template de etapas usado na criação. */
   product?: Product
   /** Histórico estrutural visível ao cliente. */

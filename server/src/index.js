@@ -34,7 +34,7 @@ async function boot() {
 
   const app = createApp();
   app.listen(config.port, () => {
-    console.log(`[api] Portal de Implantação rodando em http://localhost:${config.port} (repo: ${useMongo ? "mongo" : "memory"})`);
+    console.log(`[api] Rastreio de Projetos rodando em http://localhost:${config.port} (repo: ${useMongo ? "mongo" : "memory"})`);
   });
 }
 

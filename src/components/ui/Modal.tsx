@@ -10,7 +10,7 @@ interface ModalProps {
   children: ReactNode
   footer?: ReactNode
   /** Largura máxima. */
-  size?: 'md' | 'lg'
+  size?: 'md' | 'lg' | 'xl'
 }
 
 /** Diálogo modal acessível: backdrop, fechar por Esc e clique fora. */
@@ -88,7 +88,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
         tabIndex={-1}
         className={cn(
           'flex max-h-[calc(100dvh-1rem)] w-full flex-col overflow-hidden rounded-2xl border border-white/60 bg-white shadow-2xl shadow-slate-950/25 outline-none sm:my-8 sm:max-h-[calc(100dvh-4rem)]',
-          size === 'lg' ? 'max-w-2xl' : 'max-w-lg',
+          size === 'xl' ? 'max-w-6xl' : size === 'lg' ? 'max-w-2xl' : 'max-w-lg',
         )}
       >
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:p-5">

@@ -164,4 +164,19 @@ router.delete("/:id/accesses/:accessId", h(async (req, res) => {
   return p ? res.json(p) : notFound(res);
 }));
 
+router.post("/:id/links-uteis", h(async (req, res) => {
+  const p = await svc.adicionarLinkUtil(req.params.id, req.body);
+  return p ? res.status(201).json(p) : notFound(res);
+}));
+
+router.patch("/:id/links-uteis/:linkId", h(async (req, res) => {
+  const p = await svc.atualizarLinkUtil(req.params.id, req.params.linkId, req.body);
+  return p ? res.json(p) : notFound(res);
+}));
+
+router.delete("/:id/links-uteis/:linkId", h(async (req, res) => {
+  const p = await svc.removerLinkUtil(req.params.id, req.params.linkId);
+  return p ? res.json(p) : notFound(res);
+}));
+
 module.exports = { router };

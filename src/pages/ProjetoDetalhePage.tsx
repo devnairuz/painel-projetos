@@ -1,4 +1,4 @@
-import { useId, useState, useEffect, type ReactNode } from 'react'
+import { useId, useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -13,6 +13,12 @@ import {
   Sparkles,
   ListChecks,
   Columns3,
+  LayoutDashboard,
+  UsersRound,
+  Link2,
+  SlidersHorizontal,
+  Clock3,
+  ExternalLink,
 } from 'lucide-react'
 import { useProject } from '@/hooks/useProjects'
 import { useLookups } from '@/hooks/useLookups'
@@ -38,6 +44,7 @@ import { CollaboratorsCard } from '@/components/projects/CollaboratorsCard'
 import { FinalizationConfigCard } from '@/components/projects/FinalizationConfigCard'
 import { ProjectTrackingCard } from '@/components/projects/ProjectTrackingCard'
 import { AcessosCard } from '@/components/projects/AcessosCard'
+import { LinksUteisCard } from '@/components/projects/LinksUteisCard'
 import { PLATFORM_META, STATUS_META, TYPE_META, RISK_META } from '@/constants'
 import { PRODUCT_META } from '@/constants/templates'
 import type { BoardStatus, CommentAttachment, Platform, Project, ProjectStatus, ProjectType, ProjectOwners } from '@/types'
@@ -70,6 +77,40 @@ import { cn } from '@/utils/cn'
 
 const STATUS_OPTIONS = Object.entries(STATUS_META).map(([value, m]) => ({ value, label: m.label }))
 
+type AbaOperacao = 'visao_geral' | 'equipe' | 'recursos' | 'governanca'
+
+const ABAS_OPERACAO = [
+  {
+    id: 'visao_geral',
+    label: 'Visão geral',
+    description: 'Leitura rápida do projeto',
+    icon: LayoutDashboard,
+  },
+  {
+    id: 'equipe',
+    label: 'Equipe',
+    description: 'Responsáveis e participantes',
+    icon: UsersRound,
+  },
+  {
+    id: 'recursos',
+    label: 'Links e acessos',
+    description: 'Atalhos e credenciais',
+    icon: Link2,
+  },
+  {
+    id: 'governanca',
+    label: 'Governança',
+    description: 'Tracking e configurações',
+    icon: SlidersHorizontal,
+  },
+] as const satisfies ReadonlyArray<{
+  id: AbaOperacao
+  label: string
+  description: string
+  icon: typeof LayoutDashboard
+}>
+
 export function ProjetoDetalhePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -83,6 +124,7 @@ export function ProjetoDetalhePage() {
   const [editPhases, setEditPhases] = useState(false)
   const [viewMode, setViewMode] = useState<'checklist' | 'kanban'>('checklist')
   const [operationOpen, setOperationOpen] = useState(false)
+  const [abaOperacao, setAbaOperacao] = useState<AbaOperacao>('visao_geral')
   const [ganttOpen, setGanttOpen] = useState(false)
 
   useEffect(() => {
@@ -122,6 +164,20 @@ export function ProjetoDetalhePage() {
     flow.shouldSuggestStatus && flow.suggestedStatus !== project.status
       ? flow.suggestedStatus
       : undefined
+  const responsaveisDefinidos = [
+    project.owners.csName || project.owners.csId,
+    project.owners.techLeadName || project.owners.techLeadId,
+    project.owners.designerName || project.owners.designerId,
+    project.owners.clientContact,
+  ].filter((responsavel): responsavel is string => !!responsavel)
+  const totalEquipe = new Set([...responsaveisDefinidos, ...(project.collaborators ?? [])]).size
+  const totalAcessos = project.accesses?.length ?? 0
+  const totalLinks = project.linksUteis?.length ?? 0
+  const statusEscopo = {
+    pendente: 'Escopo pendente',
+    recebido: 'Escopo recebido',
+    validado: 'Escopo validado',
+  }[project.tracking?.scopeStatus ?? 'pendente']
 
   /** Aplica o toggle localmente (preserva refs das fases não alteradas). */
   function toggleLocally(p: Project, phaseId: string, itemId: string): Project {
@@ -340,39 +396,168 @@ export function ProjetoDetalhePage() {
       <Modal
         open={operationOpen}
         onClose={() => setOperationOpen(false)}
-        title="Operação"
-        subtitle="Responsáveis, colaboradores, tracking e configurações do projeto."
-        size="lg"
+        title="Central de operação"
+        subtitle={`${project.clientName} · ${project.code}`}
+        size="xl"
       >
-        <div className="space-y-5">
-          <OwnersCard owners={project.owners} getMember={getMember} onChange={handleUpdateOwners} />
+        <div className="grid gap-5 lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start">
+          <aside className="space-y-3 lg:sticky lg:top-0">
+            <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-brand-900 p-4 text-white shadow-lg shadow-slate-950/10">
+              <div className="flex items-center justify-between gap-3">
+                <span className="rounded-lg bg-white/10 px-2 py-1 text-[11px] font-semibold tracking-wide text-brand-100 uppercase ring-1 ring-white/10">
+                  {STATUS_META[project.status].label}
+                </span>
+                <span className="text-sm font-semibold text-brand-100">{project.progress}%</span>
+              </div>
+              <p className="mt-4 text-sm font-semibold">{phaseNow?.name ?? 'Etapas concluídas'}</p>
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/15">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-brand-300 to-emerald-300 transition-[width]"
+                  style={{ width: `${project.progress}%` }}
+                />
+              </div>
+              <div className="mt-4 flex items-center gap-1.5 text-xs text-slate-300">
+                <Clock3 className="size-3.5" /> Atualizado em {formatDate(project.updatedAt)}
+              </div>
+            </div>
 
-          <CollaboratorsCard
-            collaborators={project.collaborators ?? []}
-            users={mentionUsers ?? []}
-            onChange={handleUpdateCollaborators}
-          />
+            <nav aria-label="Áreas da operação" className="grid grid-cols-2 gap-2 lg:grid-cols-1">
+              {ABAS_OPERACAO.map((aba) => {
+                const Icone = aba.icon
+                const ativa = abaOperacao === aba.id
+                return (
+                  <button
+                    key={aba.id}
+                    type="button"
+                    onClick={() => setAbaOperacao(aba.id)}
+                    aria-current={ativa ? 'page' : undefined}
+                    className={cn(
+                      'group flex min-h-16 items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-all focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:outline-none',
+                      ativa
+                        ? 'border-brand-200 bg-brand-50 text-brand-900 shadow-sm'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors',
+                        ativa ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-500 group-hover:text-slate-700',
+                      )}
+                    >
+                      <Icone className="size-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold">{aba.label}</span>
+                      <span className="hidden text-xs leading-4 text-slate-500 lg:block">{aba.description}</span>
+                    </span>
+                  </button>
+                )
+              })}
+            </nav>
+          </aside>
 
-          <ProjectTrackingCard project={project} onProjectChange={setProject} />
+          <section className="min-w-0">
+            {abaOperacao === 'visao_geral' && (
+              <div className="space-y-5">
+                <CabecalhoAreaOperacao
+                  titulo="Visão geral da operação"
+                  descricao="O essencial para entender o projeto e chegar rapidamente à área que precisa de atenção."
+                />
 
-          <AcessosCard project={project} onProjectChange={setProject} />
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  <ResumoOperacao
+                    icon={UsersRound}
+                    label="Equipe envolvida"
+                    value={`${totalEquipe} ${totalEquipe === 1 ? 'pessoa' : 'pessoas'}`}
+                    detail={`${responsaveisDefinidos.length} ${responsaveisDefinidos.length === 1 ? 'responsável definido' : 'responsáveis definidos'}`}
+                    onClick={() => setAbaOperacao('equipe')}
+                  />
+                  <ResumoOperacao
+                    icon={Link2}
+                    label="Recursos centralizados"
+                    value={`${totalLinks} links · ${totalAcessos} acessos`}
+                    detail="Atalhos e credenciais do projeto"
+                    onClick={() => setAbaOperacao('recursos')}
+                  />
+                  <ResumoOperacao
+                    icon={SlidersHorizontal}
+                    label="Acompanhamento"
+                    value={statusEscopo}
+                    detail={project.tracking?.deadlineConfidence === 'atrasado' ? 'Prazo requer atenção' : 'Prazo acompanhado pela equipe'}
+                    onClick={() => setAbaOperacao('governanca')}
+                  />
+                </div>
 
-          <Card className="p-5">
-            <h2 className="mb-1 text-lg font-semibold text-slate-900">Última atualização</h2>
-            <p className="text-sm text-slate-500">{formatDate(project.updatedAt)}</p>
-          </Card>
+                <Card className="overflow-hidden">
+                  <div className="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
+                    <h3 className="text-sm font-semibold text-slate-900">Próxima ação operacional</h3>
+                    <p className="mt-1 text-xs text-slate-500">Definida a partir do andamento atual do projeto.</p>
+                  </div>
+                  <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+                        <Sparkles className="size-5" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-900">
+                          {project.nextAction || phaseNow?.name || 'Revisar encerramento do projeto'}
+                        </p>
+                        <p className="mt-1 text-sm text-slate-500">
+                          Consulte as etapas para atualizar tarefas, travas e responsáveis.
+                        </p>
+                      </div>
+                    </div>
+                    <Button variant="secondary" onClick={() => setOperationOpen(false)}>
+                      Ver etapas <ExternalLink className="size-4" />
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+            )}
 
-          <ConfigSection>
-            <ClientAccessCard
-              projectId={project!.id}
-              emails={project.clientEmails}
-              onChanged={reload}
-            />
+            {abaOperacao === 'equipe' && (
+              <div className="space-y-5">
+                <CabecalhoAreaOperacao
+                  titulo="Equipe do projeto"
+                  descricao="Separe papéis de liderança das pessoas que precisam acompanhar as atualizações."
+                />
+                <OwnersCard owners={project.owners} getMember={getMember} onChange={handleUpdateOwners} />
+                <CollaboratorsCard
+                  collaborators={project.collaborators ?? []}
+                  users={mentionUsers ?? []}
+                  onChange={handleUpdateCollaborators}
+                />
+              </div>
+            )}
 
-            <FinalizationConfigCard project={project} onChanged={reload} />
+            {abaOperacao === 'recursos' && (
+              <div className="space-y-5">
+                <CabecalhoAreaOperacao
+                  titulo="Links e acessos"
+                  descricao="Centralize documentos, protótipos, painéis e credenciais sem misturar os dois tipos de informação."
+                />
+                <LinksUteisCard project={project} onProjectChange={setProject} />
+                <AcessosCard project={project} onProjectChange={setProject} />
+              </div>
+            )}
 
-            <ProjectSettingsCard project={project} onDelete={handleDelete} />
-          </ConfigSection>
+            {abaOperacao === 'governanca' && (
+              <div className="space-y-5">
+                <CabecalhoAreaOperacao
+                  titulo="Governança e configurações"
+                  descricao="Acompanhe escopo, prazo, acesso do cliente e regras de finalização em uma área administrativa."
+                />
+                <ProjectTrackingCard project={project} onProjectChange={setProject} />
+                <ClientAccessCard
+                  projectId={project.id}
+                  emails={project.clientEmails}
+                  onChanged={reload}
+                />
+                <FinalizationConfigCard project={project} onChanged={reload} />
+                <ProjectSettingsCard project={project} onDelete={handleDelete} />
+              </div>
+            )}
+          </section>
         </div>
       </Modal>
 
@@ -569,27 +754,44 @@ export function ProjetoDetalhePage() {
   )
 }
 
-/** Agrupa o setup (acesso do cliente, finalização, exclusão) recolhível. */
-function ConfigSection({ children }: { children: ReactNode }) {
-  const [open, setOpen] = useState(false)
-  const idConteudo = useId()
+function CabecalhoAreaOperacao({ titulo, descricao }: { titulo: string; descricao: string }) {
   return (
-    <div className="space-y-5">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-controls={idConteudo}
-        className="flex w-full items-center justify-between rounded-lg px-1 py-1 text-xs font-semibold tracking-wider text-slate-500 uppercase transition-colors hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:outline-none"
-      >
-        <span className="flex items-center gap-1.5">
-          <Settings className="size-3.5" />
-          Configuração
-        </span>
-        <ChevronDown className={cn('size-4 transition-transform', open && 'rotate-180')} />
-      </button>
-      {open && <div id={idConteudo} className="space-y-5">{children}</div>}
+    <div className="border-b border-slate-200 pb-4">
+      <h2 className="text-xl font-semibold tracking-tight text-slate-950">{titulo}</h2>
+      <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">{descricao}</p>
     </div>
+  )
+}
+
+function ResumoOperacao({
+  icon: Icone,
+  label,
+  value,
+  detail,
+  onClick,
+}: {
+  icon: typeof LayoutDashboard
+  label: string
+  value: string
+  detail: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:outline-none"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <span className="flex size-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition-colors group-hover:bg-brand-50 group-hover:text-brand-700">
+          <Icone className="size-4" />
+        </span>
+        <ExternalLink className="size-3.5 text-slate-300 transition-colors group-hover:text-brand-500" />
+      </div>
+      <span className="mt-4 block text-xs font-semibold tracking-wide text-slate-500 uppercase">{label}</span>
+      <span className="mt-1 block text-base font-semibold text-slate-900">{value}</span>
+      <span className="mt-1 block text-xs leading-5 text-slate-500">{detail}</span>
+    </button>
   )
 }
 

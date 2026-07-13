@@ -35,6 +35,14 @@ export interface UpdateEntry {
 /** Atualizações em ordem cronológica decrescente (mais recente primeiro). */
 export const UPDATES: UpdateEntry[] = [
   {
+    id: '2026-07-13-operacao-links-kanban',
+    date: '2026-07-13',
+    category: 'melhoria',
+    title: 'Operação centralizada e Kanban com foco',
+    description:
+      'A área de Operação foi reorganizada em visão geral, equipe, links e acessos e governança. Links úteis agora ficam agrupados e persistidos; o Kanban abre na etapa atual, oculta concluídos e oferece busca para reduzir o excesso de informação. A criação guiada também prepara o caminho para importar briefings em PDF com revisão humana.',
+  },
+  {
     id: '2026-07-13-interface-interna',
     date: '2026-07-13',
     category: 'melhoria',

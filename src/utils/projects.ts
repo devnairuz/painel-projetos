@@ -159,5 +159,6 @@ export function normalizeProjectCollections(project: Project): Project {
       ...project.security,
     },
     accesses: project.accesses ?? [],
+    linksUteis: project.linksUteis ?? [],
   }
 }

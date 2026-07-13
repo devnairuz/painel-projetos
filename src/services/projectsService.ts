@@ -2,6 +2,7 @@ import type {
   BoardStatus,
   ChecklistItem,
   CommentAttachment,
+  LinkUtilProjeto,
   Nps,
   Organization,
   Phase,
@@ -352,6 +353,7 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
         scopeFiles: [],
         timeEntries: [],
         attachments: [],
+        linksUteis: [],
         tracking: { scopeStatus: 'pendente', estimatedHours: 0, usedHours: 0, deadlineConfidence: 'no_prazo' },
         security: {
           checklist: [
@@ -909,6 +911,102 @@ export async function removeProjectAccess(id: string, accessId: string): Promise
         project.accesses = (project.accesses ?? []).filter((item) => item.id !== accessId)
         return project
       }),
+  )
+}
+
+function validarUrlLinkUtil(valor: string): string {
+  const url = valor.trim()
+  try {
+    const analisada = new URL(url)
+    if (analisada.protocol !== 'http:' && analisada.protocol !== 'https:') throw new Error()
+  } catch {
+    throw new Error('Informe uma URL válida iniciada por http:// ou https://.')
+  }
+  return url
+}
+
+const CATEGORIAS_LINK_UTIL = new Set<LinkUtilProjeto['categoria']>([
+  'geral',
+  'planejamento',
+  'design',
+  'conteudo',
+  'tecnico',
+])
+
+function validarCategoriaLinkUtil(valor: LinkUtilProjeto['categoria']): LinkUtilProjeto['categoria'] {
+  if (!CATEGORIAS_LINK_UTIL.has(valor)) throw new Error('Categoria de link inválida.')
+  return valor
+}
+
+export async function adicionarLinkUtil(
+  id: string,
+  input: Pick<LinkUtilProjeto, 'titulo' | 'url' | 'categoria'> &
+    Partial<Pick<LinkUtilProjeto, 'descricao' | 'visivelCliente'>>,
+): Promise<Project> {
+  const titulo = input.titulo.trim()
+  if (!titulo) throw new Error('O título do link é obrigatório.')
+  const url = validarUrlLinkUtil(input.url)
+  const categoria = validarCategoriaLinkUtil(input.categoria)
+
+  return mutate(
+    () => api.post<Project>(`${p(id)}/links-uteis`, { ...input, titulo, url, categoria }).then(hydrateProject),
+    () =>
+      updateLocalProject(id, (project) => {
+        const agora = new Date().toISOString()
+        project.linksUteis = [
+          ...(project.linksUteis ?? []),
+          {
+            id: uid('link'),
+            titulo,
+            url,
+            categoria,
+            descricao: input.descricao?.trim() || undefined,
+            visivelCliente: input.visivelCliente === true,
+            criadoEm: agora,
+            atualizadoEm: agora,
+          },
+        ]
+        return project
+      }),
+  )
+}
+
+export async function atualizarLinkUtil(
+  id: string,
+  linkId: string,
+  patch: Partial<Omit<LinkUtilProjeto, 'id' | 'criadoEm' | 'atualizadoEm'>>,
+): Promise<Project> {
+  const normalizado = {
+    ...patch,
+    ...(patch.titulo !== undefined ? { titulo: patch.titulo.trim() } : {}),
+    ...(patch.url !== undefined ? { url: validarUrlLinkUtil(patch.url) } : {}),
+    ...(patch.categoria !== undefined
+      ? { categoria: validarCategoriaLinkUtil(patch.categoria) }
+      : {}),
+    ...(patch.descricao !== undefined ? { descricao: patch.descricao.trim() || undefined } : {}),
+  }
+  if (normalizado.titulo === '') throw new Error('O título do link é obrigatório.')
+
+  return mutate(
+    () => api.patch<Project>(`${p(id)}/links-uteis/${linkId}`, normalizado).then(hydrateProject),
+    () =>
+      updateLocalProject(id, (project) => {
+        const link = (project.linksUteis ?? []).find((item) => item.id === linkId)
+        if (!link) throw new Error('Link útil não encontrado.')
+        Object.assign(link, normalizado, { atualizadoEm: new Date().toISOString() })
+        return project
+      }),
+  )
+}
+
+export async function removerLinkUtil(id: string, linkId: string): Promise<Project> {
+  return mutate(
+    () => api.del<Project>(`${p(id)}/links-uteis/${linkId}`).then(hydrateProject),
+    () =>
+      updateLocalProject(id, (project) => ({
+        ...project,
+        linksUteis: (project.linksUteis ?? []).filter((item) => item.id !== linkId),
+      })),
   )
 }
 
