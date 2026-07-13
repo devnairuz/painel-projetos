@@ -287,6 +287,35 @@ export interface ProjectSecurity {
   checklist: SecurityCheck[]
 }
 
+/** Tipo de acesso/credencial que o cliente precisa fornecer no projeto. */
+export type AccessKind =
+  | 'dominio' // painel de registro/host do domínio e DNS (Registro.br, Cloudflare…)
+  | 'plataforma' // painel admin da plataforma (VTEX, Wake, Mageshop…)
+  | 'hospedagem'
+  | 'gateway' // credenciais do gateway de pagamento (inclui troca Sandbox→Produção)
+  | 'outro'
+
+export type AccessStatus = 'pendente' | 'fornecido'
+
+/**
+ * Acesso/credencial de um painel do projeto (uso interno da Nairuz).
+ * ATENÇÃO: `senha` é guardada em texto puro por ora — endurecer depois (cifrar
+ * em repouso e restringir visibilidade). Nunca expor ao portal do cliente.
+ */
+export interface ProjectAccess {
+  id: string
+  kind: AccessKind
+  /** Nome do serviço/painel, ex.: "Registro.br". */
+  label?: string
+  /** URL do painel de acesso. */
+  url?: string
+  login?: string
+  senha?: string
+  status: AccessStatus
+  notes?: string
+  updatedAt?: string
+}
+
 export interface Project {
   id: string
   /** Código curto e legível, ex: "PRJ-014". */
@@ -323,6 +352,8 @@ export interface Project {
   tracking?: ProjectTracking
   security?: ProjectSecurity
   templateNotes?: string
+  /** Acessos/credenciais dos painéis do projeto (interno). */
+  accesses?: ProjectAccess[]
   /** Produto/serviço — define o template de etapas usado na criação. */
   product?: Product
   /** Histórico estrutural visível ao cliente. */

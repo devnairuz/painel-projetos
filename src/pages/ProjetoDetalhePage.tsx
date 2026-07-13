@@ -24,6 +24,7 @@ import { OwnersCard } from '@/components/projects/OwnersCard'
 import { CollaboratorsCard } from '@/components/projects/CollaboratorsCard'
 import { FinalizationConfigCard } from '@/components/projects/FinalizationConfigCard'
 import { ProjectTrackingCard } from '@/components/projects/ProjectTrackingCard'
+import { AcessosCard } from '@/components/projects/AcessosCard'
 import { PLATFORM_META, STATUS_META, TYPE_META, RISK_META } from '@/constants'
 import { PRODUCT_META } from '@/constants/templates'
 import type { BoardStatus, CommentAttachment, Platform, Project, ProjectStatus, ProjectType, ProjectOwners } from '@/types'
@@ -344,6 +345,8 @@ export function ProjetoDetalhePage() {
           />
 
           <ProjectTrackingCard project={project} onProjectChange={setProject} />
+
+          <AcessosCard project={project} onProjectChange={setProject} />
 
           <Card className="p-5">
             <h2 className="mb-1 text-lg font-semibold text-slate-900">Última atualização</h2>

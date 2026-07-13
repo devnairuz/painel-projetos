@@ -149,4 +149,19 @@ router.patch("/:id/security", h(async (req, res) => {
   return p ? res.json(p) : notFound(res);
 }));
 
+router.post("/:id/accesses", h(async (req, res) => {
+  const p = await svc.addAccess(req.params.id, req.body);
+  return p ? res.json(p) : notFound(res);
+}));
+
+router.patch("/:id/accesses/:accessId", h(async (req, res) => {
+  const p = await svc.updateAccess(req.params.id, req.params.accessId, req.body);
+  return p ? res.json(p) : notFound(res);
+}));
+
+router.delete("/:id/accesses/:accessId", h(async (req, res) => {
+  const p = await svc.removeAccess(req.params.id, req.params.accessId);
+  return p ? res.json(p) : notFound(res);
+}));
+
 module.exports = { router };

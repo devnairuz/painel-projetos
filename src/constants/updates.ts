@@ -35,6 +35,14 @@ export interface UpdateEntry {
 /** Atualizações em ordem cronológica decrescente (mais recente primeiro). */
 export const UPDATES: UpdateEntry[] = [
   {
+    id: '2026-07-13-acessos-projeto',
+    date: '2026-07-13',
+    category: 'novidade',
+    title: 'Acessos do projeto',
+    description:
+      'Cada projeto ganha um card de Acessos (interno): domínio/DNS, plataforma, hospedagem e gateway, com login, senha (oculta) e status pendente/fornecido — pra centralizar as credenciais que o cliente precisa liberar.',
+  },
+  {
     id: '2026-06-30-kanban-implantacao',
     date: '2026-06-30',
     category: 'novidade',

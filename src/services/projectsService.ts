@@ -6,6 +6,7 @@ import type {
   Organization,
   Phase,
   Project,
+  ProjectAccess,
   ProjectCharge,
   ProjectStatus,
   ProjectTask,
@@ -854,6 +855,60 @@ export async function updateProjectTracking(
   return mutate(
     () => api.patch<Project>(`${p(id)}/tracking`, tracking).then(hydrateProject),
     () => updateLocalProject(id, (project) => ({ ...project, tracking })),
+  )
+}
+
+export async function addProjectAccess(
+  id: string,
+  input: Partial<ProjectAccess> = {},
+): Promise<Project> {
+  return mutate(
+    () => api.post<Project>(`${p(id)}/accesses`, input).then(hydrateProject),
+    () =>
+      updateLocalProject(id, (project) => {
+        project.accesses = [
+          ...(project.accesses ?? []),
+          {
+            id: uid('acc'),
+            kind: input.kind ?? 'outro',
+            label: input.label,
+            url: input.url,
+            login: input.login,
+            senha: input.senha,
+            status: input.status ?? 'pendente',
+            notes: input.notes,
+            updatedAt: new Date().toISOString(),
+          },
+        ]
+        return project
+      }),
+  )
+}
+
+export async function updateProjectAccess(
+  id: string,
+  accessId: string,
+  patch: Partial<ProjectAccess>,
+): Promise<Project> {
+  return mutate(
+    () => api.patch<Project>(`${p(id)}/accesses/${accessId}`, patch).then(hydrateProject),
+    () =>
+      updateLocalProject(id, (project) => {
+        const access = (project.accesses ?? []).find((item) => item.id === accessId)
+        if (access) Object.assign(access, patch, { updatedAt: new Date().toISOString() })
+        return project
+      }),
+  )
+}
+
+export async function removeProjectAccess(id: string, accessId: string): Promise<Project> {
+  return mutate(
+    () => api.del<Project>(`${p(id)}/accesses/${accessId}`).then(hydrateProject),
+    () =>
+      updateLocalProject(id, (project) => {
+        project.accesses = (project.accesses ?? []).filter((item) => item.id !== accessId)
+        return project
+      }),
   )
 }
 

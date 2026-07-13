@@ -178,6 +178,7 @@ function normalizeProject(project) {
     ...(project.security || {})
   };
   project.security.checklist = project.security.checklist || [];
+  project.accesses = project.accesses || [];
   syncTasksFromChecklist(project);
   return project;
 }
@@ -258,6 +259,26 @@ async function createOrganization({ name, segment }) {
   return org;
 }
 
+// Acessos padrão semeados em todo projeto novo — os painéis que o cliente
+// precisa liberar na largada. Ver AccessKind no domínio do frontend.
+const DEFAULT_ACCESS_KINDS = ["dominio", "plataforma", "hospedagem", "gateway"];
+
+/** Monta um acesso a partir de um input parcial, normalizando os campos. */
+function makeAccess(input = {}) {
+  const str = (v) => (v == null ? undefined : String(v).trim() || undefined);
+  return {
+    id: uid("acc"),
+    kind: input.kind || "outro",
+    label: str(input.label),
+    url: str(input.url),
+    login: input.login == null ? undefined : String(input.login),
+    senha: input.senha == null ? undefined : String(input.senha),
+    status: input.status === "fornecido" ? "fornecido" : "pendente",
+    notes: str(input.notes),
+    updatedAt: nowIso()
+  };
+}
+
 async function createProject(input) {
   const repo = getRepo();
   const id = uid("prj");
@@ -290,6 +311,7 @@ async function createProject(input) {
     security: {
       checklist: DEFAULT_SECURITY_CHECKS.map((label, index) => ({ id: `sec-${index + 1}`, label, done: false }))
     },
+    accesses: DEFAULT_ACCESS_KINDS.map((kind) => makeAccess({ kind })),
     history: [makeHistory("projeto_criado", "Projeto criado")],
     nps: null,
     supportHours: { ...DEFAULT_SUPPORT_HOURS },
@@ -762,6 +784,33 @@ async function updateSecurity(id, checklist = []) {
   });
 }
 
+/** Adiciona um acesso ao projeto. */
+async function addAccess(id, input) {
+  return mutateProject(id, (p) => {
+    p.accesses = p.accesses || [];
+    p.accesses.push(makeAccess(input));
+  });
+}
+
+/** Atualiza os campos presentes em `patch` de um acesso. */
+async function updateAccess(id, accessId, patch = {}) {
+  return mutateProject(id, (p) => {
+    const acc = (p.accesses || []).find((a) => a.id === accessId);
+    if (!acc) return;
+    for (const f of ["kind", "label", "url", "login", "senha", "status", "notes"]) {
+      if (patch[f] !== undefined) acc[f] = patch[f];
+    }
+    acc.updatedAt = nowIso();
+  });
+}
+
+/** Remove um acesso do projeto. */
+async function removeAccess(id, accessId) {
+  return mutateProject(id, (p) => {
+    p.accesses = (p.accesses || []).filter((a) => a.id !== accessId);
+  });
+}
+
 module.exports = {
   listProjects,
   getProject,
@@ -795,5 +844,8 @@ module.exports = {
   updateCharge,
   updateTracking,
   addTimeEntry,
-  updateSecurity
+  updateSecurity,
+  addAccess,
+  updateAccess,
+  removeAccess
 };
