@@ -70,14 +70,16 @@
 3. IA mapeia respostas → JSON do projeto (fases + itens com trava/dono).
 4. Naira chama a API do painel e o projeto nasce com a Etapa 0 já preenchida.
 
-**Melhoria de backend recomendada (pequena):** permitir que `createProject`
-aceite um `phases` customizado no body, para a IA injetar a Etapa 0 numa única
-chamada em vez de várias.
+**Implementado no backend:** a automação não chama o `createProject` público
+diretamente. Ela cria uma importação idempotente, guarda o rascunho, exige
+revisão humana e então usa uma operação interna que aceita fases sanitizadas em
+uma única criação. O cadastro manual continua usando o template padrão.
 
-**Onde a Naira entra:** ela é a camada 2 (a ponte). Precisa de: acesso ao
-gatilho do Google Forms, a chamada de IA para o mapeamento, e um token da API do
-painel para criar o projeto. *(Confirmar o que é a Naira hoje — n8n? agente
-próprio? — para fechar como plugar.)*
+**Onde a Naira entra:** ela é a camada 2 (a ponte). O painel agora possui um
+adaptador HTTP para PDF e uma entrada máquina-a-máquina escopada para respostas
+de Google Forms. Falta fornecer o contrato privado da Naira (URL, autenticação,
+request/response e política de retenção) para ativar produção. Consulte
+`docs/integracao-naira.md`.
 
 ---
 

@@ -35,6 +35,22 @@ export interface UpdateEntry {
 /** Atualizações em ordem cronológica decrescente (mais recente primeiro). */
 export const UPDATES: UpdateEntry[] = [
   {
+    id: '2026-07-14-importacao-json-naira',
+    date: '2026-07-14',
+    category: 'melhoria',
+    title: 'Projetos a partir de JSON revisável',
+    description:
+      'A criação de projetos agora aceita o JSON estruturado gerado manualmente pela Naira, por texto colado ou arquivo. O painel valida e normaliza a entrada, remove dados sensíveis, apresenta gates, fontes, links e pendências para revisão e mantém a seleção humana da organização antes de criar o projeto.',
+  },
+  {
+    id: '2026-07-13-automacao-naira',
+    date: '2026-07-13',
+    category: 'melhoria',
+    title: 'Criação de projetos com Naira e revisão humana',
+    description:
+      'Briefings em PDF agora podem iniciar uma automação persistida: o painel acompanha o processamento da Naira, apresenta dados, evidências, etapas, links e pendências para revisão e só cria o projeto após confirmação humana. O fluxo inclui retomada, cancelamento, reprocessamento, idempotência e um simulador explícito para testes integrados.',
+  },
+  {
     id: '2026-07-13-operacao-links-kanban',
     date: '2026-07-13',
     category: 'melhoria',

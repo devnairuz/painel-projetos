@@ -3,6 +3,7 @@ const { config } = require("./config");
 const { createApp } = require("./app");
 const { initRepo } = require("./repos");
 const { connectMongo } = require("./db/mongo");
+const { retomarImportacoesPendentes } = require("./services/projectImportService");
 
 /** Tenta conectar no Mongo com algumas retentativas antes de desistir. */
 async function connectWithRetry(uri, attempts = 4, delayMs = 4000) {
@@ -31,6 +32,7 @@ async function boot() {
   }
 
   await initRepo({ useMongo });
+  await retomarImportacoesPendentes();
 
   const app = createApp();
   app.listen(config.port, () => {

@@ -1,16 +1,48 @@
-# React + Vite
+# Rastreio de Projetos
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Painel interno da Nairuz para acompanhar projetos, etapas, pendências, responsáveis, acessos e comunicação com o cliente. O frontend usa React, TypeScript, Vite e Tailwind; a API usa Express e MongoDB, com repositório em memória apenas para desenvolvimento e testes.
 
-Currently, two official plugins are available:
+## Rodar localmente
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Instale as dependências dos dois projetos:
 
-## React Compiler
+```powershell
+npm.cmd install
+npm.cmd --prefix server install
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Em dois terminais, inicie API e frontend:
 
-## Expanding the ESLint configuration
+```powershell
+npm.cmd run dev:api
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```powershell
+npm.cmd run dev
+```
+
+- Painel: `http://localhost:4321`
+- API: `http://localhost:4000`
+- Saúde da API: `http://localhost:4000/health`
+
+Copie as variáveis documentadas em `server/.env.example` para `server/.env`. Sem `MONGODB_URI`, dados do ambiente local não persistem após reiniciar a API.
+
+## Automação com a Naira
+
+O fluxo de criação aceita briefing em PDF, cria um trabalho persistido, envia o documento pelo adaptador da Naira, apresenta um rascunho para revisão humana e só então cria o projeto.
+
+Em desenvolvimento, o modo padrão é um simulador claramente identificado na interface. Ele percorre o fluxo completo sem se passar pela Naira real. Em produção, a automação permanece desabilitada até `NAIRA_MODE=http` e as credenciais privadas serem configuradas.
+
+O contrato, as variáveis, os exemplos de integração e as regras de segurança estão em [docs/integracao-naira.md](docs/integracao-naira.md).
+
+## Verificação
+
+```powershell
+npm.cmd run verify
+```
+
+O comando executa typecheck, lint, testes do servidor e build de produção.
+
+## Publicação
+
+Consulte [DEPLOY.md](DEPLOY.md) para publicar o frontend na Vercel e a API no Render com MongoDB Atlas.

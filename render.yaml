@@ -23,3 +23,16 @@ services:
         sync: false
       - key: MAIL_FROM
         sync: false
+      # Naira: disabled até a homologação receber o contrato/segredos reais.
+      - key: NAIRA_MODE
+        value: disabled
+      - key: NAIRA_BASE_URL
+        sync: false
+      - key: NAIRA_API_KEY
+        sync: false
+      - key: NAIRA_CALLBACK_URL
+        sync: false
+      - key: NAIRA_CALLBACK_SECRET
+        sync: false
+      - key: NAIRA_M2M_TOKEN
+        sync: false

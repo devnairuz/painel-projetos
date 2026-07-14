@@ -277,7 +277,8 @@ function toClientProject(project, clientEmail) {
     scopeFiles: [],
     attachments: [],
     linksUteis: (project.linksUteis || []).filter((link) => link.visivelCliente === true),
-    security: undefined
+    security: undefined,
+    importacaoOrigemId: undefined
   };
 }
 
@@ -319,15 +320,56 @@ function makeAccess(input = {}) {
   };
 }
 
-async function createProject(input) {
+async function proximoCodigoProjeto(repo) {
+  const sequencia = typeof repo.nextProjectSequence === "function"
+    ? await repo.nextProjectSequence()
+    : (await repo.countProjects()) + 1;
+  return `PRJ-${String(sequencia).padStart(3, "0")}`;
+}
+
+function fasesImportadas(projectId, fases) {
+  return (fases || []).slice(0, 30).map((fase, indice) => ({
+    id: uid("ph"),
+    projectId,
+    order: indice + 1,
+    name: String(fase.nome || "Etapa").trim().slice(0, 120),
+    status: "nao_iniciada",
+    checklist: (fase.checklist || fase.itens || []).slice(0, 50).map((item) => ({
+      id: uid("chk"),
+      label: String(item.titulo || "Item").trim().slice(0, 180),
+      done: false,
+      ownerId: undefined,
+      clientResponsibility: item.responsabilidadeCliente === true,
+      boardStatus: item.colunaKanban || item.statusBoard || (item.responsabilidadeCliente ? "responsabilidade_cliente" : "a_fazer"),
+      travaLevel: item.nivelTrava || undefined,
+      bloco: item.bloco || undefined,
+      comments: []
+    })),
+    clientApproved: false,
+    clientVisible: fase.visivelCliente === true,
+    requiresApproval: fase.exigeAprovacao === true,
+    points: 10
+  }));
+}
+
+async function montarProjetoNovo({ id, input, fases, linksUteis = [], pendencias = [], importacaoOrigemId }) {
   const repo = getRepo();
-  const id = uid("prj");
-  const phases = phasesFromTemplate(id, input.product);
-  const seqNumber = (await repo.countProjects()) + 1;
+  const phases = fases && fases.length ? fasesImportadas(id, fases) : phasesFromTemplate(id, input.product);
+  const charges = pendencias.slice(0, 50).map((item) => ({
+    id: uid("chg"),
+    projectId: id,
+    title: String(item.titulo || "Pendência").trim().slice(0, 180),
+    description: [item.descricao, item.campo ? `Campo de origem: ${item.campo}` : ""].filter(Boolean).join(" · ") || undefined,
+    ownerSide: "nairuz",
+    status: "aberta",
+    priority: item.obrigatoria ? "alto" : "medio",
+    dueDate: item.prazo || undefined,
+    createdAt: nowIso()
+  }));
   const project = {
     id,
-    code: `PRJ-${String(seqNumber).padStart(3, "0")}`,
-    clientName: input.clientName,
+    code: await proximoCodigoProjeto(repo),
+    clientName: String(input.clientName || "").trim().slice(0, 160),
     organizationId: input.organizationId,
     platform: input.platform,
     type: input.type,
@@ -337,23 +379,29 @@ async function createProject(input) {
     goLiveDate: input.goLiveDate || undefined,
     progress: 0,
     risk: "baixo",
-    nextAction: undefined,
+    nextAction: input.nextAction || undefined,
     updatedAt: new Date().toISOString(),
     owners: input.owners || {},
     phases,
     clientEmails: [],
     collaborators: [],
-    charges: [],
+    charges,
     scopeFiles: [],
     timeEntries: [],
     attachments: [],
-    linksUteis: [],
+    linksUteis: linksUteis.slice(0, 30).map(montarLinkUtil),
+    importacaoOrigemId: importacaoOrigemId || undefined,
+    templateNotes: input.templateNotes || undefined,
+    tasks: [],
     tracking: { scopeStatus: "pendente", estimatedHours: 0, usedHours: 0, deadlineConfidence: "no_prazo" },
     security: {
       checklist: DEFAULT_SECURITY_CHECKS.map((label, index) => ({ id: `sec-${index + 1}`, label, done: false }))
     },
     accesses: DEFAULT_ACCESS_KINDS.map((kind) => makeAccess({ kind })),
-    history: [makeHistory("projeto_criado", "Projeto criado")],
+    history: [makeHistory(
+      "projeto_criado",
+      importacaoOrigemId ? "Projeto criado a partir de briefing revisado pela Naira" : "Projeto criado"
+    )],
     nps: null,
     supportHours: { ...DEFAULT_SUPPORT_HOURS },
     finalization: JSON.parse(JSON.stringify(DEFAULT_FINALIZATION))
@@ -363,6 +411,16 @@ async function createProject(input) {
   project.currentPhaseId = cp ? cp.id : undefined;
   await repo.insertProject({ ...project, tasks: persistableTasks(project) });
   return project;
+}
+
+async function createProject(input) {
+  return montarProjetoNovo({ id: uid("prj"), input });
+}
+
+/** Cria o projeto somente após a revisão humana do rascunho da Naira. */
+async function createProjectFromImport({ id, input, fases, linksUteis, pendencias, importacaoOrigemId }) {
+  if (!id || !String(input.clientName || "").trim()) throw erroHttp("O projeto importado precisa de um cliente válido.");
+  return montarProjetoNovo({ id, input, fases, linksUteis, pendencias, importacaoOrigemId });
 }
 
 /** Exclui um projeto. */
@@ -904,6 +962,7 @@ module.exports = {
   listOrganizations,
   createOrganization,
   createProject,
+  createProjectFromImport,
   deleteProject,
   updateProjectStatus,
   addPhase,

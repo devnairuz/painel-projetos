@@ -5,6 +5,9 @@ let projects = [];
 let organizations = [];
 let users = [];
 let notifications = [];
+let projectImports = [];
+let projectImportFiles = new Map();
+let projectSequence = 0;
 
 const clone = (v) => JSON.parse(JSON.stringify(v));
 
@@ -13,6 +16,12 @@ const memoryRepo = {
   async init() {
     projects = seedProjects();
     organizations = clone(ORGANIZATIONS);
+    projectImports = [];
+    projectImportFiles = new Map();
+    projectSequence = projects.reduce((maior, projeto) => {
+      const numero = Number(String(projeto.code || "").match(/^PRJ-(\d+)$/)?.[1] || 0);
+      return Math.max(maior, numero);
+    }, 0);
     // usuários NÃO são semeados: o primeiro cadastro vira admin.
   },
   async listProjects() {
@@ -23,6 +32,11 @@ const memoryRepo = {
     return found ? clone(found) : null;
   },
   async insertProject(project) {
+    if (projects.some((item) => item.id === project.id || (project.code && item.code === project.code))) {
+      const erro = new Error("Projeto duplicado.");
+      erro.code = 11000;
+      throw erro;
+    }
     projects.unshift(clone(project));
   },
   async updateProject(project) {
@@ -31,6 +45,10 @@ const memoryRepo = {
   },
   async countProjects() {
     return projects.length;
+  },
+  async nextProjectSequence() {
+    projectSequence += 1;
+    return projectSequence;
   },
   async deleteProject(id) {
     projects = projects.filter((p) => p.id !== id);
@@ -88,6 +106,68 @@ const memoryRepo = {
     notifications.forEach((n) => {
       if (n.userId === userId) n.read = true;
     });
+  },
+  // ───── importações de projeto ─────
+  async listProjectImports() {
+    return projectImports
+      .slice()
+      .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm))
+      .map(clone);
+  },
+  async getProjectImport(id) {
+    const item = projectImports.find((importacao) => importacao.id === id);
+    return item ? clone(item) : null;
+  },
+  async findProjectImportByIdempotency(criadoPor, chave) {
+    const item = projectImports.find(
+      (importacao) => importacao.criadoPor === criadoPor && importacao.chaveIdempotencia === chave
+    );
+    return item ? clone(item) : null;
+  },
+  async insertProjectImport(importacao) {
+    if (projectImports.some((item) =>
+      item.id === importacao.id ||
+      (item.criadoPor === importacao.criadoPor && item.chaveIdempotencia === importacao.chaveIdempotencia)
+    )) {
+      const erro = new Error("Importação duplicada.");
+      erro.code = 11000;
+      throw erro;
+    }
+    projectImports.unshift(clone(importacao));
+    return clone(importacao);
+  },
+  async updateProjectImport(importacao, versaoEsperada) {
+    const indice = projectImports.findIndex((item) => item.id === importacao.id);
+    if (indice < 0) return null;
+    if (versaoEsperada !== undefined && projectImports[indice].versao !== versaoEsperada) return null;
+    projectImports[indice] = clone(importacao);
+    return clone(projectImports[indice]);
+  },
+  async putProjectImportFile(importId, arquivo) {
+    const existente = projectImportFiles.get(importId);
+    if (existente && new Date(existente.expiraEm).getTime() > Date.now()) {
+      return { ...existente, conteudo: Buffer.from(existente.conteudo) };
+    }
+    const armazenado = {
+      conteudo: Buffer.from(arquivo.conteudo),
+      mimeType: arquivo.mimeType,
+      tamanhoBytes: arquivo.tamanhoBytes,
+      expiraEm: new Date(arquivo.expiraEm).toISOString()
+    };
+    projectImportFiles.set(importId, armazenado);
+    return { ...armazenado, conteudo: Buffer.from(armazenado.conteudo) };
+  },
+  async getProjectImportFile(importId) {
+    const arquivo = projectImportFiles.get(importId);
+    if (!arquivo) return null;
+    if (new Date(arquivo.expiraEm).getTime() <= Date.now()) {
+      projectImportFiles.delete(importId);
+      return null;
+    }
+    return { ...arquivo, conteudo: Buffer.from(arquivo.conteudo) };
+  },
+  async deleteProjectImportFile(importId) {
+    projectImportFiles.delete(importId);
   }
 };
 

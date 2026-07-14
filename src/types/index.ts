@@ -383,6 +383,23 @@ export interface Project {
   finalization: FinalizationConfig
 }
 
+export type {
+  ArquivoImportacaoProjeto,
+  CampoExtraidoImportacao,
+  ConfirmacaoImportacaoProjeto,
+  ErroImportacaoProjeto,
+  FaseSugeridaImportacao,
+  FonteImportacaoProjeto,
+  ImportacaoProjeto,
+  ItemChecklistSugerido,
+  LinkUtilSugeridoImportacao,
+  PendenciaSugeridaImportacao,
+  ProvedorImportacaoProjeto,
+  RascunhoImportacaoProjeto,
+  StatusImportacaoProjeto,
+  StatusIntegracaoNaira,
+} from './importacaoProjeto'
+
 /**
  * Pesquisa de satisfação do cliente. `score` (NPS Geral / indicação) e `comment`
  * (Feedback Aberto) mantêm os nomes antigos para compatibilidade; os demais

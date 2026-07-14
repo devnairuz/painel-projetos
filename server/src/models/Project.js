@@ -7,7 +7,7 @@ const mongoose = require("mongoose");
 const projectSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true, index: true },
-    code: { type: String, index: true },
+    code: { type: String, index: true, unique: true, sparse: true },
     clientName: String,
     organizationId: String,
     platform: String,
@@ -34,6 +34,7 @@ const projectSchema = new mongoose.Schema(
     tracking: mongoose.Schema.Types.Mixed,
     security: mongoose.Schema.Types.Mixed,
     linksUteis: mongoose.Schema.Types.Mixed,
+    importacaoOrigemId: { type: String, index: true, sparse: true },
     templateNotes: String,
     history: mongoose.Schema.Types.Mixed,
     nps: mongoose.Schema.Types.Mixed,

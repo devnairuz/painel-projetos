@@ -1,12 +1,16 @@
 {
-  "name": "portal-implantacao-server",
+  "name": "rastreio-projetos-server",
   "version": "1.0.0",
   "private": true,
   "type": "commonjs",
   "main": "src/index.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "node --watch src/index.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "test": "node --test --test-concurrency=1 test/*.test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

@@ -52,6 +52,11 @@ Se a tela não mudou, abra em aba anônima ou use `Ctrl + F5`. Se ainda não mud
    - `JWT_SECRET` = uma frase longa e aleatória (pode reaproveitar a do `.env`)
    - `ALLOWED_ORIGINS` = a URL do frontend na Vercel (preencha depois do passo 3),
      ex.: `https://nairuz-portal.vercel.app`
+   - mantenha `NAIRA_MODE=disabled` até concluir a homologação descrita em
+     `docs/integracao-naira.md`;
+   - para ativar a automação real, configure `NAIRA_MODE=http`,
+     `NAIRA_BASE_URL`, `NAIRA_API_KEY`, `NAIRA_CALLBACK_URL`,
+     `NAIRA_CALLBACK_SECRET` e `NAIRA_M2M_TOKEN`.
 4. Deploy. Anote a URL da API, ex.: `https://nairuz-portal-api.onrender.com`.
 5. Teste: abrir `.../health` deve responder `{"status":"ok","repo":"mongo"}`.
    > Observação: no plano free o Render "dorme" após inatividade; a 1ª request
@@ -79,9 +84,17 @@ Se a tela não mudou, abra em aba anônima ou use `Ctrl + F5`. Se ainda não mud
 - [ ] Vercel: `VITE_API_URL` apontando pro Render
 - [ ] Render `ALLOWED_ORIGINS` = URL da Vercel
 - [ ] `/entrar` cria o primeiro admin
+- [ ] Naira: modo visível na interface confere com o ambiente (`mock` só em desenvolvimento)
+- [ ] Naira: PDF fictício percorre análise → revisão → criação sem duplicar projeto
+- [ ] Naira: callback usa HTTPS e assinatura HMAC válida
 
 ## Variáveis de ambiente (resumo)
 **API (Render):** `MONGODB_URI`, `JWT_SECRET`, `ALLOWED_ORIGINS`, `NODE_ENV=production`
 (opcional) `PORT` (o Render define sozinho), `SEED_DEMO=true` só se quiser dados de exemplo.
+
+**Automação Naira (API):** `NAIRA_MODE`, `NAIRA_BASE_URL`, `NAIRA_API_KEY`,
+`NAIRA_CALLBACK_URL`, `NAIRA_CALLBACK_SECRET`, `NAIRA_M2M_TOKEN`. Limite,
+timeout e retenção podem ser ajustados por `NAIRA_MAX_PDF_BYTES`,
+`NAIRA_TIMEOUT_MS` e `NAIRA_FILE_RETENTION_HOURS`.
 
 **Frontend (Vercel):** `VITE_API_URL`.
