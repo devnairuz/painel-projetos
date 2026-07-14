@@ -26,6 +26,7 @@ const projectImportSchema = new mongoose.Schema(
     status: { type: String, enum: STATUS_IMPORTACAO, required: true, index: true },
     versao: { type: Number, required: true, default: 1 },
     arquivo: mongoose.Schema.Types.Mixed,
+    documentos: mongoose.Schema.Types.Mixed,
     provedor: mongoose.Schema.Types.Mixed,
     rascunho: mongoose.Schema.Types.Mixed,
     campos: mongoose.Schema.Types.Mixed,

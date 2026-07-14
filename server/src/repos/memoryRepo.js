@@ -143,8 +143,11 @@ const memoryRepo = {
     projectImports[indice] = clone(importacao);
     return clone(projectImports[indice]);
   },
-  async putProjectImportFile(importId, arquivo) {
-    const existente = projectImportFiles.get(importId);
+  async putProjectImportFile(importId, tipoOuArquivo, arquivoInformado) {
+    const tipo = typeof tipoOuArquivo === "string" ? tipoOuArquivo : "briefing";
+    const arquivo = typeof tipoOuArquivo === "string" ? arquivoInformado : tipoOuArquivo;
+    const chave = `${importId}:${tipo}`;
+    const existente = projectImportFiles.get(chave);
     if (existente && new Date(existente.expiraEm).getTime() > Date.now()) {
       return { ...existente, conteudo: Buffer.from(existente.conteudo) };
     }
@@ -154,20 +157,27 @@ const memoryRepo = {
       tamanhoBytes: arquivo.tamanhoBytes,
       expiraEm: new Date(arquivo.expiraEm).toISOString()
     };
-    projectImportFiles.set(importId, armazenado);
+    projectImportFiles.set(chave, armazenado);
     return { ...armazenado, conteudo: Buffer.from(armazenado.conteudo) };
   },
-  async getProjectImportFile(importId) {
-    const arquivo = projectImportFiles.get(importId);
+  async getProjectImportFile(importId, tipo = "briefing") {
+    const chave = `${importId}:${tipo}`;
+    const arquivo = projectImportFiles.get(chave);
     if (!arquivo) return null;
     if (new Date(arquivo.expiraEm).getTime() <= Date.now()) {
-      projectImportFiles.delete(importId);
+      projectImportFiles.delete(chave);
       return null;
     }
     return { ...arquivo, conteudo: Buffer.from(arquivo.conteudo) };
   },
-  async deleteProjectImportFile(importId) {
-    projectImportFiles.delete(importId);
+  async deleteProjectImportFile(importId, tipo) {
+    if (tipo) {
+      projectImportFiles.delete(`${importId}:${tipo}`);
+      return;
+    }
+    for (const chave of projectImportFiles.keys()) {
+      if (chave.startsWith(`${importId}:`)) projectImportFiles.delete(chave);
+    }
   }
 };
 

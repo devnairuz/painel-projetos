@@ -30,6 +30,12 @@ export interface StatusIntegracaoNaira {
   provedor: 'naira'
   motivo?: string
   versaoContrato: string
+  contratoUpload?: {
+    formato: 'multipart/form-data'
+    partesDocumento: TipoDocumentoImportacao[]
+    parteManifesto: string
+    parteLegadaArquivoUnico: string
+  }
 }
 
 export interface ArquivoImportacaoProjeto {
@@ -39,6 +45,12 @@ export interface ArquivoImportacaoProjeto {
   sha256?: string
   armazenado?: boolean
   expiraEm?: string
+}
+
+export type TipoDocumentoImportacao = 'briefing' | 'escopo'
+
+export interface DocumentoImportacaoProjeto extends ArquivoImportacaoProjeto {
+  tipo: TipoDocumentoImportacao
 }
 
 export interface ProvedorImportacaoProjeto {
@@ -102,6 +114,7 @@ export interface RascunhoImportacaoProjeto {
     tipo?: ProjectType
     produto?: Product
     dataGoLive?: string
+    horasEstimadas?: number
     proximaAcao?: string
     resumoEscopo?: string
   }
@@ -120,6 +133,9 @@ export interface CampoExtraidoImportacao {
 
 export interface FonteImportacaoProjeto {
   id: string
+  /** Documento que originou a evidência. */
+  tipoDocumento?: TipoDocumentoImportacao
+  nomeDocumento?: string
   pagina?: number
   trecho?: string
   rotulo?: string
@@ -135,7 +151,10 @@ export interface ImportacaoProjeto {
   id: string
   status: StatusImportacaoProjeto
   versao: number
-  arquivo: ArquivoImportacaoProjeto
+  /** PDFs enviados no fluxo atual. Um único documento continua válido. */
+  documentos?: DocumentoImportacaoProjeto[]
+  /** Compatibilidade com importações JSON/M2M e registros anteriores. */
+  arquivo?: ArquivoImportacaoProjeto | null
   provedor: ProvedorImportacaoProjeto
   rascunho?: RascunhoImportacaoProjeto
   campos?: CampoExtraidoImportacao[]

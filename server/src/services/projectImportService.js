@@ -13,6 +13,9 @@ const STATUS_BOARD = new Set([
   "a_fazer", "responsabilidade_cliente", "em_andamento", "aguardando_cliente", "pendente_golive", "concluido"
 ]);
 const CATEGORIAS_LINK = new Set(["geral", "planejamento", "design", "conteudo", "tecnico"]);
+const TIPOS_DOCUMENTO = new Set(["briefing", "escopo"]);
+const ORDEM_DOCUMENTOS = { briefing: 0, escopo: 1 };
+const MAX_HORAS_ESTIMADAS = 10_000;
 const processamentosAtivos = new Set();
 
 function erroHttp(mensagem, status = 400, codigo = "invalid_request") {
@@ -214,6 +217,10 @@ function normalizarRascunho(valor = {}, { permitirGatesHumanos = false } = {}) {
   const tipoRecebido = texto(projetoOrigem.tipo ?? origem.type, 40).toLowerCase();
   const produtoRecebido = texto(projetoOrigem.produto ?? origem.product, 60).toLowerCase();
   const dataGoLive = texto(projetoOrigem.dataGoLive ?? origem.goLiveDate, 10);
+  const horasRecebidas = Number(projetoOrigem.horasEstimadas ?? projetoOrigem.estimatedHours ?? origem.estimatedHours);
+  const horasEstimadas = Number.isFinite(horasRecebidas)
+    ? Math.min(MAX_HORAS_ESTIMADAS, Math.max(0, Math.round(horasRecebidas * 100) / 100))
+    : undefined;
   const fases = lista(origem.fases ?? origem.phases, 30)
     .map((fase, indice) => normalizarFase(fase, indice, permitirGatesHumanos)).filter(Boolean);
   const linksUteis = lista(origem.linksUteis ?? origem.usefulLinks, 30)
@@ -243,6 +250,7 @@ function normalizarRascunho(valor = {}, { permitirGatesHumanos = false } = {}) {
       tipo: TIPOS.has(tipoRecebido) ? tipoRecebido : "implantacao",
       produto: PRODUTOS.has(produtoRecebido) ? produtoRecebido : "ecommerce",
       ...( /^\d{4}-\d{2}-\d{2}$/.test(dataGoLive) ? { dataGoLive } : {}),
+      ...(horasEstimadas !== undefined ? { horasEstimadas } : {}),
       ...(texto(projetoOrigem.proximaAcao ?? origem.nextAction, 280)
         ? { proximaAcao: redigir(projetoOrigem.proximaAcao ?? origem.nextAction, 280) }
         : {}),
@@ -279,17 +287,107 @@ function normalizarFontes(valor) {
   const fontes = lista(valor, 100).map((item, indice) => {
     if (!item || typeof item !== "object") return null;
     const pagina = Number(item.pagina ?? item.page);
+    const documentoRecebido = texto(item.tipoDocumento ?? item.documento ?? item.documentType, 30).toLowerCase();
+    const tipoDocumento = TIPOS_DOCUMENTO.has(documentoRecebido) ? documentoRecebido : undefined;
+    const nomeRecebido = item.nomeDocumento ?? item.documentName ?? item.sourceName
+      ?? (!tipoDocumento ? item.documento : undefined);
     return {
       id: idTemporario(item.id, `fonte-${indice + 1}`),
       ...(Number.isInteger(pagina) && pagina >= 1 && pagina <= 10000 ? { pagina } : {}),
       ...(texto(item.trecho ?? item.excerpt, 280) ? { trecho: redigir(item.trecho ?? item.excerpt, 280) } : {}),
       ...(texto(item.rotulo ?? item.label ?? item.campo ?? item.field, 160)
         ? { rotulo: redigir(item.rotulo ?? item.label ?? item.campo ?? item.field, 160) }
-        : {})
+        : {}),
+      ...(tipoDocumento ? { tipoDocumento } : {}),
+      ...(texto(nomeRecebido, 180) ? { nomeDocumento: redigir(nomeRecebido, 180) } : {})
     };
   }).filter(Boolean);
   garantirIdsUnicos(fontes, "id", "fonte");
   return fontes;
+}
+
+function enriquecerFontes(fontes, documentos = []) {
+  const porTipo = new Map(documentos.map((documento) => [documento.tipo, documento]));
+  return fontes.map((fonte) => {
+    const documento = fonte.tipoDocumento
+      ? porTipo.get(fonte.tipoDocumento)
+      : (documentos.length === 1 ? documentos[0] : undefined);
+    if (!documento) return fonte;
+    return {
+      ...fonte,
+      ...(fonte.tipoDocumento ? {} : { tipoDocumento: documento.tipo }),
+      // Quando o PDF foi enviado pelo painel, o manifesto é a fonte de verdade
+      // para o nome; o provedor não pode atribuir a evidência a outro arquivo.
+      nomeDocumento: documento.nomeOriginal
+    };
+  });
+}
+
+function filtrarFontesIncompativeis(fontes, documentos, restringirFontesAosDocumentos) {
+  if (!restringirFontesAosDocumentos) return { fontes, avisos: [] };
+  const tiposDeclarados = new Set(documentos.map((documento) => documento.tipo));
+  const incompativeis = fontes.filter(
+    (fonte) => fonte.tipoDocumento && !tiposDeclarados.has(fonte.tipoDocumento)
+  );
+  if (!incompativeis.length) return { fontes, avisos: [] };
+  const tipos = [...new Set(incompativeis.map((fonte) => fonte.tipoDocumento))].join(", ");
+  return {
+    fontes: fontes.filter((fonte) => !incompativeis.includes(fonte)),
+    avisos: [
+      `${incompativeis.length} fonte(s) foram descartadas porque indicavam documento não declarado: ${tipos}.`
+    ]
+  };
+}
+
+function filtrarReferenciasFontes(campos, fontes) {
+  const idsValidos = new Set(fontes.map((fonte) => fonte.id));
+  let removidas = 0;
+  const normalizados = campos.map((campo) => {
+    if (!campo.fonteIds?.length) return campo;
+    const fonteIds = campo.fonteIds.filter((id) => idsValidos.has(id));
+    removidas += campo.fonteIds.length - fonteIds.length;
+    const atualizado = { ...campo };
+    if (fonteIds.length) atualizado.fonteIds = fonteIds;
+    else delete atualizado.fonteIds;
+    return atualizado;
+  });
+  return {
+    campos: normalizados,
+    avisos: removidas
+      ? [`${removidas} referência(s) a fontes ausentes ou descartadas foram removidas.`]
+      : []
+  };
+}
+
+function aplicarPoliticaTravas(rascunho, campos, fontes, temEscopoConfiavel) {
+  const fontesEscopo = new Set(
+    fontes.filter((fonte) => fonte.tipoDocumento === "escopo").map((fonte) => fonte.id)
+  );
+  const camposPorNome = new Map(campos.map((campo) => [campo.campo, campo]));
+  let removidasSemEscopo = 0;
+  let removidasSemEvidencia = 0;
+  rascunho.fases.forEach((fase) => {
+    fase.checklist.forEach((item) => {
+      if (!item.nivelTrava) return;
+      const evidencia = camposPorNome.get(`gate.${item.idTemporario}`);
+      const possuiFonteEscopo = evidencia?.fonteIds?.some((id) => fontesEscopo.has(id)) === true;
+      const nivelConfirmado = evidencia?.valor === item.nivelTrava;
+      if (!temEscopoConfiavel) removidasSemEscopo += 1;
+      else if (!possuiFonteEscopo || !nivelConfirmado) removidasSemEvidencia += 1;
+      else return;
+      delete item.nivelTrava;
+    });
+  });
+  const avisos = [];
+  if (removidasSemEscopo) {
+    avisos.push(`${removidasSemEscopo} trava(s) foram removidas porque não há Escopo confiável na importação.`);
+  }
+  if (removidasSemEvidencia) {
+    avisos.push(
+      `${removidasSemEvidencia} trava(s) foram removidas porque gate.<idTemporario> não confirmou o mesmo nível com fonte de Escopo.`
+    );
+  }
+  return avisos;
 }
 
 function validarRascunho(rascunho, avisosExternos = [], segredoDetectado = false) {
@@ -315,17 +413,53 @@ function raizSaidaNaira(saida = {}) {
   return saida;
 }
 
-function normalizarSaidaNaira(saida = {}, { permitirGatesHumanos = false } = {}) {
+function normalizarSaidaNaira(saida = {}, {
+  permitirGatesHumanos = false,
+  documentos = [],
+  restringirFontesAosDocumentos = false
+} = {}) {
   const raiz = raizSaidaNaira(saida);
   const rascunho = normalizarRascunho(raiz.rascunho ?? raiz.draft ?? raiz, { permitirGatesHumanos });
   const validacaoExterna = raiz.validacao ?? raiz.validation ?? {};
+  const fontesEnriquecidas = enriquecerFontes(normalizarFontes(raiz.fontes ?? raiz.sources), documentos);
+  const triagemFontes = filtrarFontesIncompativeis(
+    fontesEnriquecidas,
+    documentos,
+    restringirFontesAosDocumentos
+  );
+  const referencias = filtrarReferenciasFontes(normalizarCampos(raiz.campos ?? raiz.fields), triagemFontes.fontes);
+  const tiposPresentes = restringirFontesAosDocumentos
+    ? new Set(documentos.map((documento) => documento.tipo))
+    : new Set([
+      ...documentos.map((documento) => documento.tipo),
+      ...triagemFontes.fontes.map((fonte) => fonte.tipoDocumento).filter(Boolean)
+    ]);
+  const avisosTravas = aplicarPoliticaTravas(
+    rascunho,
+    referencias.campos,
+    triagemFontes.fontes,
+    tiposPresentes.has("escopo")
+  );
+  const avisosDocumentos = [];
+  if (!tiposPresentes.has("briefing")) {
+    avisosDocumentos.push("Nenhum documento de briefing foi identificado; confirme o contexto na revisão.");
+  }
+  if (!tiposPresentes.has("escopo")) {
+    avisosDocumentos.push("Nenhum documento de escopo foi identificado; horas, prazos e limites contratuais não serão aplicados.");
+  }
   return {
     rascunho,
-    campos: normalizarCampos(raiz.campos ?? raiz.fields),
-    fontes: normalizarFontes(raiz.fontes ?? raiz.sources),
+    campos: referencias.campos,
+    fontes: triagemFontes.fontes,
     validacao: validarRascunho(
       rascunho,
-      validacaoExterna.avisos ?? validacaoExterna.alertas ?? validacaoExterna.warnings,
+      [
+        ...lista(validacaoExterna.avisos ?? validacaoExterna.alertas ?? validacaoExterna.warnings, 30),
+        ...triagemFontes.avisos,
+        ...referencias.avisos,
+        ...avisosTravas,
+        ...avisosDocumentos
+      ],
       conteudoTemSegredo(raiz)
     )
   };
@@ -338,8 +472,18 @@ function sanitizarPublico(importacao) {
     mimeType: importacao.arquivo.mimeType,
     tamanhoBytes: importacao.arquivo.tamanhoBytes,
     ...(importacao.arquivo.sha256 ? { sha256: importacao.arquivo.sha256 } : {}),
+    ...(importacao.arquivo.expiraEm ? { expiraEm: new Date(importacao.arquivo.expiraEm).toISOString() } : {}),
     armazenado: importacao.arquivo.armazenado === true
   } : null;
+  const documentos = documentosDaImportacao(importacao).map((documento) => ({
+    tipo: documento.tipo,
+    nomeOriginal: documento.nomeOriginal,
+    mimeType: documento.mimeType,
+    tamanhoBytes: documento.tamanhoBytes,
+    armazenado: documento.armazenado === true,
+    ...(documento.sha256 ? { sha256: documento.sha256 } : {}),
+    ...(documento.expiraEm ? { expiraEm: new Date(documento.expiraEm).toISOString() } : {})
+  }));
   const provedor = importacao.provedor ? {
     nome: importacao.provedor.nome || "naira",
     modo: importacao.provedor.modo,
@@ -352,6 +496,7 @@ function sanitizarPublico(importacao) {
     status: importacao.status,
     versao: importacao.versao,
     arquivo,
+    documentos,
     provedor,
     rascunho: importacao.rascunho || null,
     campos: importacao.campos || [],
@@ -384,8 +529,8 @@ function exigirAcesso(importacao, usuario) {
   if (!importacao || !podeAcessar(importacao, usuario)) throw erroHttp("Importação não encontrada.", 404, "import_not_found");
 }
 
-function normalizarMetadadosArquivo(body = {}) {
-  const nome = texto(body.nomeArquivo, 180)
+function normalizarMetadadosArquivo(body = {}, tipo = "briefing") {
+  const nome = texto(body.nomeOriginal ?? body.nomeArquivo, 180)
     .replace(/[\\/]/g, "-")
     .split("")
     .map((caractere) => {
@@ -400,13 +545,109 @@ function normalizarMetadadosArquivo(body = {}) {
   if (!Number.isInteger(tamanhoBytes) || tamanhoBytes <= 0 || tamanhoBytes > config.naira.maxPdfBytes) {
     throw erroHttp(`O PDF deve ter no máximo ${config.naira.maxPdfBytes} bytes.`, 413, "file_too_large");
   }
-  return { nomeOriginal: nome, mimeType, tamanhoBytes, armazenado: false };
+  return { tipo, nomeOriginal: nome, mimeType, tamanhoBytes, armazenado: false };
 }
 
 function mesmosMetadadosArquivo(primeiro, segundo) {
   return primeiro?.nomeOriginal === segundo?.nomeOriginal
     && primeiro?.mimeType === segundo?.mimeType
     && primeiro?.tamanhoBytes === segundo?.tamanhoBytes;
+}
+
+function documentosDaImportacao(importacao) {
+  if (Array.isArray(importacao?.documentos) && importacao.documentos.length) {
+    return importacao.documentos
+      .filter((documento) => TIPOS_DOCUMENTO.has(documento?.tipo))
+      .sort((a, b) => ORDEM_DOCUMENTOS[a.tipo] - ORDEM_DOCUMENTOS[b.tipo]);
+  }
+  if (importacao?.arquivo?.mimeType === "application/pdf") {
+    return [{ ...importacao.arquivo, tipo: "briefing" }];
+  }
+  return [];
+}
+
+function normalizarDocumentos(body = {}) {
+  if (body.documentos === undefined) return [normalizarMetadadosArquivo(body, "briefing")];
+  if (!Array.isArray(body.documentos) || body.documentos.length < 1 || body.documentos.length > 2) {
+    throw erroHttp("Declare entre um e dois documentos PDF.", 422, "invalid_documents");
+  }
+  const tipos = new Set();
+  const documentos = body.documentos.map((documento) => {
+    const tipo = texto(documento?.tipo, 30).toLowerCase();
+    if (!TIPOS_DOCUMENTO.has(tipo)) {
+      throw erroHttp("O tipo de documento deve ser briefing ou escopo.", 422, "invalid_document_type");
+    }
+    if (tipos.has(tipo)) {
+      throw erroHttp(`O documento ${tipo} foi declarado mais de uma vez.`, 422, "duplicate_document_type");
+    }
+    tipos.add(tipo);
+    return normalizarMetadadosArquivo(documento, tipo);
+  });
+  return documentos.sort((a, b) => ORDEM_DOCUMENTOS[a.tipo] - ORDEM_DOCUMENTOS[b.tipo]);
+}
+
+function mesmosDocumentos(primeiros, segundos) {
+  const a = [...primeiros].sort((x, y) => ORDEM_DOCUMENTOS[x.tipo] - ORDEM_DOCUMENTOS[y.tipo]);
+  const b = [...segundos].sort((x, y) => ORDEM_DOCUMENTOS[x.tipo] - ORDEM_DOCUMENTOS[y.tipo]);
+  return a.length === b.length && a.every((documento, indice) =>
+    documento.tipo === b[indice].tipo && mesmosMetadadosArquivo(documento, b[indice])
+  );
+}
+
+function todosDocumentosArmazenados(importacao) {
+  const documentos = documentosDaImportacao(importacao);
+  return documentos.length > 0 && documentos.every((documento) => documento.armazenado === true && documento.sha256);
+}
+
+function limparMetadadosArmazenamento(documento) {
+  const limpo = { ...documento, armazenado: false };
+  delete limpo.sha256;
+  delete limpo.expiraEm;
+  return limpo;
+}
+
+function sincronizarArquivoLegado(importacao) {
+  const briefing = documentosDaImportacao(importacao).find((documento) => documento.tipo === "briefing");
+  if (!briefing) {
+    importacao.arquivo = null;
+    return;
+  }
+  importacao.arquivo = { ...briefing };
+  delete importacao.arquivo.tipo;
+}
+
+async function reconciliarDisponibilidadeDocumentos(importacao, repo) {
+  const documentos = [];
+  for (const documento of documentosDaImportacao(importacao)) {
+    if (!documento.armazenado) {
+      documentos.push(documento);
+      continue;
+    }
+    const blob = await repo.getProjectImportFile(importacao.id, documento.tipo);
+    const hash = blob && crypto.createHash("sha256").update(blob.conteudo).digest("hex");
+    if (hash && documento.sha256 === hash) {
+      documentos.push(documento);
+      continue;
+    }
+    if (blob) await repo.deleteProjectImportFile(importacao.id, documento.tipo);
+    documentos.push(limparMetadadosArmazenamento(documento));
+  }
+  importacao.documentos = documentos;
+  sincronizarArquivoLegado(importacao);
+}
+
+function importacaoTemEscopo(importacao) {
+  const escopoDeclarado = documentosDaImportacao(importacao).some((documento) => documento.tipo === "escopo");
+  if (importacao.origem === "painel") return escopoDeclarado;
+  return escopoDeclarado || (importacao.fontes || []).some((fonte) => fonte.tipoDocumento === "escopo");
+}
+
+function opcoesNormalizacaoImportacao(importacao, adicionais = {}) {
+  return {
+    documentos: documentosDaImportacao(importacao),
+    restringirFontesAosDocumentos: importacao.origem === "painel",
+    ...adicionais
+  };
 }
 
 function normalizarChave(valor) {
@@ -425,11 +666,14 @@ async function criarImportacao(body, chaveIdempotencia, usuario) {
   }
   const repo = getRepo();
   const chave = normalizarChave(chaveIdempotencia);
-  const arquivo = normalizarMetadadosArquivo(body);
+  const documentos = normalizarDocumentos(body);
+  const briefing = documentos.find((documento) => documento.tipo === "briefing");
+  const arquivo = briefing ? { ...briefing } : null;
+  if (arquivo) delete arquivo.tipo;
   const existente = await repo.findProjectImportByIdempotency(usuario.id, chave);
   if (existente) {
-    if (!mesmosMetadadosArquivo(existente.arquivo, arquivo)) {
-      throw erroHttp("O Idempotency-Key já foi usado com outro arquivo.", 409, "idempotency_conflict");
+    if (!mesmosDocumentos(documentosDaImportacao(existente), documentos)) {
+      throw erroHttp("O Idempotency-Key já foi usado com outros documentos.", 409, "idempotency_conflict");
     }
     return { importacao: sanitizarPublico(existente), criada: false };
   }
@@ -442,6 +686,7 @@ async function criarImportacao(body, chaveIdempotencia, usuario) {
     status: "aguardando_arquivo",
     versao: 1,
     arquivo,
+    documentos,
     provedor: { nome: "naira", modo: config.naira.mode, tentativas: 0 },
     rascunho: null,
     campos: [],
@@ -460,8 +705,8 @@ async function criarImportacao(body, chaveIdempotencia, usuario) {
     if (erro && erro.code === 11000) {
       const concorrente = await repo.findProjectImportByIdempotency(usuario.id, chave);
       if (concorrente) {
-        if (!mesmosMetadadosArquivo(concorrente.arquivo, arquivo)) {
-          throw erroHttp("O Idempotency-Key já foi usado com outro arquivo.", 409, "idempotency_conflict");
+        if (!mesmosDocumentos(documentosDaImportacao(concorrente), documentos)) {
+          throw erroHttp("O Idempotency-Key já foi usado com outros documentos.", 409, "idempotency_conflict");
         }
         return { importacao: sanitizarPublico(concorrente), criada: false };
       }
@@ -496,18 +741,30 @@ function validarPdf(buffer, esperado) {
 
 async function processarComNaira(importacao, atorId) {
   const repo = getRepo();
-  const arquivo = await repo.getProjectImportFile(importacao.id);
-  if (!arquivo) {
+  const documentos = documentosDaImportacao(importacao);
+  const arquivos = await Promise.all(documentos.map(async (documento) => ({
+    ...documento,
+    conteudo: (await repo.getProjectImportFile(importacao.id, documento.tipo))?.conteudo
+  })));
+  const indisponivel = arquivos.find((arquivo) => !arquivo.conteudo);
+  if (indisponivel) {
     const versaoAnterior = importacao.versao;
     importacao.status = "falhou";
-    importacao.erro = { codigo: "file_expired", mensagem: "O PDF não está mais disponível. Inicie uma nova importação.", recuperavel: false };
+    importacao.erro = {
+      codigo: "file_expired",
+      mensagem: `O PDF de ${indisponivel.tipo} não está mais disponível. Inicie uma nova importação.`,
+      recuperavel: false
+    };
     incrementar(importacao);
-    auditar(importacao, "processamento_falhou", atorId, { codigo: "file_expired" });
+    auditar(importacao, "processamento_falhou", atorId, { codigo: "file_expired", tipo: indisponivel.tipo });
     const salva = await repo.updateProjectImport(importacao, versaoAnterior);
     return sanitizarPublico(salva || await repo.getProjectImport(importacao.id));
   }
-  const hashArquivo = crypto.createHash("sha256").update(arquivo.conteudo).digest("hex");
-  if (!importacao.arquivo?.sha256 || hashArquivo !== importacao.arquivo.sha256) {
+  const inconsistente = arquivos.find((arquivo) => {
+    const hash = crypto.createHash("sha256").update(arquivo.conteudo).digest("hex");
+    return !arquivo.sha256 || hash !== arquivo.sha256;
+  });
+  if (inconsistente) {
     const versaoAnterior = importacao.versao;
     importacao.status = "falhou";
     importacao.erro = {
@@ -516,7 +773,10 @@ async function processarComNaira(importacao, atorId) {
       recuperavel: false
     };
     incrementar(importacao);
-    auditar(importacao, "processamento_falhou", atorId, { codigo: "file_integrity_mismatch" });
+    auditar(importacao, "processamento_falhou", atorId, {
+      codigo: "file_integrity_mismatch",
+      tipo: inconsistente.tipo
+    });
     const salva = await repo.updateProjectImport(importacao, versaoAnterior);
     return sanitizarPublico(salva || await repo.getProjectImport(importacao.id));
   }
@@ -541,7 +801,7 @@ async function processarComNaira(importacao, atorId) {
   let resposta;
   let falha;
   try {
-    resposta = await nairaClient.analisar({ importacao, arquivo });
+    resposta = await nairaClient.analisar({ importacao, arquivos });
   } catch (erro) {
     falha = erro;
   }
@@ -564,7 +824,10 @@ async function processarComNaira(importacao, atorId) {
       incrementar(importacao);
       auditar(importacao, "processamento_naira_aceito", "naira");
     } else {
-      const normalizada = normalizarSaidaNaira(resposta.resultado);
+      const normalizada = normalizarSaidaNaira(resposta.resultado, {
+        documentos,
+        restringirFontesAosDocumentos: importacao.origem === "painel"
+      });
       Object.assign(importacao, normalizada);
       importacao.status = "aguardando_revisao";
       incrementar(importacao);
@@ -631,40 +894,101 @@ async function retomarImportacoesPendentes() {
   }
 }
 
-async function enviarArquivo(id, buffer, versao, usuario) {
+async function enviarArquivo(id, buffer, versao, usuario, tipoInformado = "briefing") {
   const repo = getRepo();
-  const importacao = await obterInterna(id, usuario);
+  const tipo = texto(tipoInformado, 30).toLowerCase();
+  if (!TIPOS_DOCUMENTO.has(tipo)) {
+    throw erroHttp("O tipo de documento deve ser briefing ou escopo.", 422, "invalid_document_type");
+  }
+  let importacao = await obterInterna(id, usuario);
+  let documento = documentosDaImportacao(importacao).find((item) => item.tipo === tipo);
+  if (!documento) {
+    throw erroHttp(`O documento ${tipo} não foi declarado nesta importação.`, 409, "document_not_declared");
+  }
+  validarPdf(buffer, documento.tamanhoBytes);
+  const hashSolicitado = crypto.createHash("sha256").update(buffer).digest("hex");
+
+  if (documento.armazenado && documento.sha256 !== hashSolicitado) {
+    throw erroHttp(`Outro PDF já foi enviado como ${tipo}.`, 409, "file_upload_conflict");
+  }
+  if (documento.armazenado) {
+    const blob = await repo.getProjectImportFile(importacao.id, tipo);
+    const hash = blob && crypto.createHash("sha256").update(blob.conteudo).digest("hex");
+    if (hash === documento.sha256) return sanitizarPublico(importacao);
+    if (blob) await repo.deleteProjectImportFile(importacao.id, tipo);
+    importacao.documentos = documentosDaImportacao(importacao).map((item) =>
+      item.tipo === tipo ? limparMetadadosArmazenamento(item) : item
+    );
+    sincronizarArquivoLegado(importacao);
+  }
+
+  // Se o blob sobreviveu a uma disputa de versão, o mesmo conteúdo pode
+  // reconciliar os metadados sem exigir um segundo armazenamento.
+  const blobAnterior = await repo.getProjectImportFile(importacao.id, tipo);
+  const hashAnterior = blobAnterior && crypto.createHash("sha256").update(blobAnterior.conteudo).digest("hex");
+  if (hashAnterior && hashAnterior !== hashSolicitado) {
+    throw erroHttp(`Outro PDF já foi enviado como ${tipo}.`, 409, "file_upload_conflict");
+  }
   exigirVersao(importacao, versao);
-  if (importacao.status !== "aguardando_arquivo") throw erroHttp("Esta importação não aceita mais arquivo.", 409, "invalid_status");
-  const versaoAnterior = importacao.versao;
-  validarPdf(buffer, importacao.arquivo.tamanhoBytes);
+  if (importacao.status === "falhou" && importacao.erro?.codigo === "file_expired") {
+    importacao.status = "aguardando_arquivo";
+    importacao.erro = null;
+  }
+  if (importacao.status !== "aguardando_arquivo") {
+    throw erroHttp("Esta importação não aceita mais arquivo.", 409, "invalid_status");
+  }
+
   const expiraEm = new Date(Date.now() + config.naira.fileRetentionMs).toISOString();
-  const arquivoArmazenado = await repo.putProjectImportFile(importacao.id, {
+  const arquivoArmazenado = await repo.putProjectImportFile(importacao.id, tipo, {
     conteudo: Buffer.from(buffer),
     mimeType: "application/pdf",
     tamanhoBytes: buffer.length,
     expiraEm
   });
-  const hashSolicitado = crypto.createHash("sha256").update(buffer).digest("hex");
   const hashArmazenado = arquivoArmazenado && crypto
     .createHash("sha256")
     .update(arquivoArmazenado.conteudo)
     .digest("hex");
   if (!hashArmazenado || hashArmazenado !== hashSolicitado) {
-    throw erroHttp("Outro PDF já foi enviado para esta importação.", 409, "file_upload_conflict");
+    throw erroHttp(`Outro PDF já foi enviado como ${tipo}.`, 409, "file_upload_conflict");
   }
-  importacao.arquivo = {
-    ...importacao.arquivo,
+
+  const metadadosArmazenados = {
     armazenado: true,
     sha256: hashSolicitado,
     expiraEm: new Date(arquivoArmazenado.expiraEm).toISOString()
   };
-  importacao.status = "na_fila";
+  const versaoAnterior = importacao.versao;
+  importacao.documentos = documentosDaImportacao(importacao).map((item) =>
+    item.tipo === tipo ? { ...item, ...metadadosArmazenados } : item
+  );
+  await reconciliarDisponibilidadeDocumentos(importacao, repo);
+  const pronta = todosDocumentosArmazenados(importacao);
+  importacao.status = pronta ? "na_fila" : "aguardando_arquivo";
   incrementar(importacao);
-  auditar(importacao, "arquivo_recebido", usuario.id, { tamanhoBytes: buffer.length });
-  await persistirVersionado(importacao, versaoAnterior);
-  agendarProcessamento(importacao.id, usuario.id);
-  return sanitizarPublico(importacao);
+  auditar(importacao, "arquivo_recebido", usuario.id, {
+    tipo,
+    tamanhoBytes: buffer.length,
+    documentosPendentes: importacao.documentos.filter((item) => !item.armazenado).map((item) => item.tipo)
+  });
+  const salva = await repo.updateProjectImport(importacao, versaoAnterior);
+  if (salva) {
+    if (pronta) agendarProcessamento(importacao.id, usuario.id);
+    return sanitizarPublico(salva);
+  }
+  const atual = await repo.getProjectImport(importacao.id);
+  exigirAcesso(atual, usuario);
+  const documentoAtual = documentosDaImportacao(atual).find((item) => item.tipo === tipo);
+  if (documentoAtual?.armazenado && documentoAtual.sha256 === hashSolicitado) {
+    const blob = await repo.getProjectImportFile(importacao.id, tipo);
+    const hash = blob && crypto.createHash("sha256").update(blob.conteudo).digest("hex");
+    if (hash === hashSolicitado) return sanitizarPublico(atual);
+  }
+  if (documentoAtual?.armazenado && documentoAtual.sha256 !== hashSolicitado) {
+    throw erroHttp(`Outro PDF já foi enviado como ${tipo}.`, 409, "file_upload_conflict");
+  }
+  if (atual.status === "cancelada") await repo.deleteProjectImportFile(importacao.id, tipo);
+  throw erroHttp("A importação foi alterada por outra operação. Atualize os dados e tente novamente.", 409, "version_conflict");
 }
 
 async function atualizarRascunho(id, body, usuario) {
@@ -675,8 +999,9 @@ async function atualizarRascunho(id, body, usuario) {
   const normalizada = normalizarSaidaNaira({
     rascunho: body.rascunho,
     campos: importacao.campos,
-    fontes: importacao.fontes
-  }, { permitirGatesHumanos: true });
+    fontes: importacao.fontes,
+    validacao: { avisos: importacao.validacao?.avisos ?? [] }
+  }, opcoesNormalizacaoImportacao(importacao, { permitirGatesHumanos: true }));
   Object.assign(importacao, normalizada);
   importacao.erro = null;
   incrementar(importacao);
@@ -769,8 +1094,9 @@ async function confirmar(id, body, usuario) {
     const normalizada = normalizarSaidaNaira({
       rascunho: body.rascunho,
       campos: importacao.campos,
-      fontes: importacao.fontes
-    }, { permitirGatesHumanos: true });
+      fontes: importacao.fontes,
+      validacao: { avisos: importacao.validacao?.avisos ?? [] }
+    }, opcoesNormalizacaoImportacao(importacao, { permitirGatesHumanos: true }));
     Object.assign(importacao, normalizada);
     auditar(importacao, "rascunho_revisado_na_confirmacao", usuario.id);
   }
@@ -788,6 +1114,7 @@ async function confirmar(id, body, usuario) {
 
   const rascunho = importacao.rascunho;
   const projetoId = idProjetoDaImportacao(importacao.id);
+  const temEscopo = importacaoTemEscopo(importacao);
   try {
     await projectService.createProjectFromImport({
       id: projetoId,
@@ -797,13 +1124,18 @@ async function confirmar(id, body, usuario) {
         platform: rascunho.projeto.plataforma,
         type: rascunho.projeto.tipo,
         product: rascunho.projeto.produto,
-        goLiveDate: rascunho.projeto.dataGoLive,
+        goLiveDate: temEscopo ? rascunho.projeto.dataGoLive : undefined,
         nextAction: rascunho.projeto.proximaAcao,
-        templateNotes: rascunho.projeto.resumoEscopo
+        templateNotes: temEscopo ? rascunho.projeto.resumoEscopo : undefined
       },
       fases: body.usarFasesSugeridas ? rascunho.fases : undefined,
       linksUteis: rascunho.linksUteis.filter((item) => item.revisado),
       pendencias: rascunho.pendencias.filter((item) => item.revisado),
+      tracking: {
+        scopeStatus: temEscopo ? "recebido" : "pendente",
+        estimatedHours: temEscopo ? (rascunho.projeto.horasEstimadas ?? 0) : 0,
+        usedHours: 0
+      },
       importacaoOrigemId: importacao.id
     });
   } catch (erro) {
@@ -838,7 +1170,10 @@ async function receberCallback(body) {
   const versaoAnterior = importacao.versao;
   const status = texto(body.status, 40).toLowerCase();
   if (["completed", "concluida", "success"].includes(status)) {
-    const normalizada = normalizarSaidaNaira(body.resultado ?? body.result ?? body.data);
+    const normalizada = normalizarSaidaNaira(
+      body.resultado ?? body.result ?? body.data,
+      opcoesNormalizacaoImportacao(importacao)
+    );
     Object.assign(importacao, normalizada);
     importacao.status = "aguardando_revisao";
     importacao.erro = null;

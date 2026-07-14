@@ -9,6 +9,27 @@ const Counter = require("../models/Counter");
 const { seedProjects, ORGANIZATIONS } = require("../data/seed");
 const { config } = require("../config");
 
+async function prepararIndicesArquivosImportacao() {
+  try {
+    // Registros da versão de arquivo único passam a representar o briefing.
+    await ProjectImportFile.updateMany(
+      { tipo: { $exists: false } },
+      { $set: { tipo: "briefing" } }
+    );
+    const indices = await ProjectImportFile.collection.indexes();
+    const indiceUnicoLegado = indices.find((indice) => {
+      const campos = Object.keys(indice.key || {});
+      return indice.unique === true && campos.length === 1 && campos[0] === "importId";
+    });
+    if (indiceUnicoLegado) await ProjectImportFile.collection.dropIndex(indiceUnicoLegado.name);
+  } catch (erro) {
+    // Banco novo (26) ou outra instância que já removeu o índice legado (27).
+    if (![26, 27].includes(erro?.code)
+      && !["NamespaceNotFound", "IndexNotFound"].includes(erro?.codeName)) throw erro;
+  }
+  await ProjectImportFile.syncIndexes();
+}
+
 function toPlain(doc) {
   if (!doc) return null;
   const obj = doc.toJSON ? doc.toJSON() : doc;
@@ -23,6 +44,7 @@ function toPlain(doc) {
 const mongoRepo = {
   kind: "mongo",
   async init() {
+    await prepararIndicesArquivosImportacao();
     // Em produção/Mongo, só semeia dados de exemplo se SEED_DEMO=true.
     if (config.seedDemo) {
       if ((await Project.countDocuments()) === 0) {
@@ -133,27 +155,37 @@ const mongoRepo = {
     if (!resultado.matchedCount) return null;
     return toPlain(await ProjectImport.findOne({ id: importacao.id }).lean());
   },
-  async putProjectImportFile(importId, arquivo) {
-    await ProjectImportFile.deleteOne({ importId, expiraEm: { $lte: new Date() } });
+  async putProjectImportFile(importId, tipoOuArquivo, arquivoInformado) {
+    const tipo = typeof tipoOuArquivo === "string" ? tipoOuArquivo : "briefing";
+    const arquivo = typeof tipoOuArquivo === "string" ? arquivoInformado : tipoOuArquivo;
+    await ProjectImportFile.deleteOne({ importId, tipo, expiraEm: { $lte: new Date() } });
     try {
       await ProjectImportFile.updateOne(
-        { importId },
-        { $setOnInsert: { ...arquivo, importId } },
+        { importId, tipo },
+        { $setOnInsert: { ...arquivo, importId, tipo } },
         { upsert: true }
       );
     } catch (erro) {
       // Dois uploads podem disputar o upsert; o índice único escolhe um blob.
       if (!erro || erro.code !== 11000) throw erro;
     }
-    const armazenado = await ProjectImportFile.findOne({ importId }).select("+conteudo").lean();
+    const armazenado = await ProjectImportFile.findOne({ importId, tipo }).select("+conteudo").lean();
     return armazenado ? { ...armazenado, conteudo: Buffer.from(armazenado.conteudo) } : null;
   },
-  async getProjectImportFile(importId) {
-    const arquivo = await ProjectImportFile.findOne({ importId }).select("+conteudo").lean();
+  async getProjectImportFile(importId, tipo = "briefing") {
+    const arquivo = await ProjectImportFile.findOne({ importId, tipo }).select("+conteudo").lean();
+    if (arquivo && new Date(arquivo.expiraEm).getTime() <= Date.now()) {
+      await ProjectImportFile.deleteOne({ _id: arquivo._id });
+      return null;
+    }
     return arquivo ? { ...arquivo, conteudo: Buffer.from(arquivo.conteudo) } : null;
   },
-  async deleteProjectImportFile(importId) {
-    await ProjectImportFile.deleteOne({ importId });
+  async deleteProjectImportFile(importId, tipo) {
+    if (tipo) {
+      await ProjectImportFile.deleteOne({ importId, tipo });
+      return;
+    }
+    await ProjectImportFile.deleteMany({ importId });
   }
 };
 

@@ -5,6 +5,7 @@ import type {
   RascunhoImportacaoProjeto,
   StatusIntegracaoNaira,
 } from '@/types'
+import type { TipoDocumentoImportacao } from '@/types/importacaoProjeto'
 
 const URL_API = import.meta.env.VITE_API_URL ?? 'http://localhost:4000'
 const CHAVE_TOKEN_EMPRESA = 'nairuz-portal:company-token'
@@ -138,14 +139,17 @@ export function obterImportacaoProjeto(id: string): Promise<ImportacaoProjeto> {
 }
 
 export function criarImportacaoProjeto(
-  arquivo: Pick<File, 'name' | 'type' | 'size'>,
+  documentos: Array<{ tipo: TipoDocumentoImportacao; arquivo: Pick<File, 'name' | 'type' | 'size'> }>,
   chaveIdempotencia: string,
 ): Promise<ImportacaoProjeto> {
   return requisitar('POST', '/api/project-imports', {
     corpo: {
-      nomeArquivo: arquivo.name,
-      mimeType: arquivo.type || 'application/pdf',
-      tamanhoBytes: arquivo.size,
+      documentos: documentos.map(({ tipo, arquivo }) => ({
+        tipo,
+        nomeArquivo: arquivo.name,
+        mimeType: arquivo.type || 'application/pdf',
+        tamanhoBytes: arquivo.size,
+      })),
     },
     headers: { 'Idempotency-Key': chaveIdempotencia },
   })
@@ -169,13 +173,18 @@ export function criarImportacaoJson(
 export async function enviarPdfImportacao(
   id: string,
   versao: number,
+  tipo: TipoDocumentoImportacao,
   arquivo: File,
 ): Promise<ImportacaoProjeto> {
   const bytes = await arquivo.arrayBuffer()
-  return requisitar('PUT', `/api/project-imports/${encodeURIComponent(id)}/file`, {
-    binario: bytes,
-    headers: { 'If-Match': String(versao) },
-  })
+  return requisitar(
+    'PUT',
+    `/api/project-imports/${encodeURIComponent(id)}/files/${encodeURIComponent(tipo)}`,
+    {
+      binario: bytes,
+      headers: { 'If-Match': String(versao) },
+    },
+  )
 }
 
 export function atualizarRascunhoImportacao(

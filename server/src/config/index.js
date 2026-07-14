@@ -46,7 +46,7 @@ const config = {
       1,
       168
     ) * 60 * 60 * 1000,
-    contractVersion: "2026-07-13"
+    contractVersion: "2026-07-14"
   }
 };
 

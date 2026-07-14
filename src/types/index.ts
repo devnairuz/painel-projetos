@@ -387,6 +387,7 @@ export type {
   ArquivoImportacaoProjeto,
   CampoExtraidoImportacao,
   ConfirmacaoImportacaoProjeto,
+  DocumentoImportacaoProjeto,
   ErroImportacaoProjeto,
   FaseSugeridaImportacao,
   FonteImportacaoProjeto,
@@ -398,6 +399,7 @@ export type {
   RascunhoImportacaoProjeto,
   StatusImportacaoProjeto,
   StatusIntegracaoNaira,
+  TipoDocumentoImportacao,
 } from './importacaoProjeto'
 
 /**

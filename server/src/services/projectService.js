@@ -352,7 +352,7 @@ function fasesImportadas(projectId, fases) {
   }));
 }
 
-async function montarProjetoNovo({ id, input, fases, linksUteis = [], pendencias = [], importacaoOrigemId }) {
+async function montarProjetoNovo({ id, input, fases, linksUteis = [], pendencias = [], tracking, importacaoOrigemId }) {
   const repo = getRepo();
   const phases = fases && fases.length ? fasesImportadas(id, fases) : phasesFromTemplate(id, input.product);
   const charges = pendencias.slice(0, 50).map((item) => ({
@@ -393,14 +393,20 @@ async function montarProjetoNovo({ id, input, fases, linksUteis = [], pendencias
     importacaoOrigemId: importacaoOrigemId || undefined,
     templateNotes: input.templateNotes || undefined,
     tasks: [],
-    tracking: { scopeStatus: "pendente", estimatedHours: 0, usedHours: 0, deadlineConfidence: "no_prazo" },
+    tracking: {
+      scopeStatus: tracking?.scopeStatus === "recebido" ? "recebido" : "pendente",
+      estimatedHours: Math.min(10_000, Math.max(0, Number(tracking?.estimatedHours) || 0)),
+      // Uma importação nunca inventa horas realizadas nem valida o escopo.
+      usedHours: 0,
+      deadlineConfidence: "no_prazo"
+    },
     security: {
       checklist: DEFAULT_SECURITY_CHECKS.map((label, index) => ({ id: `sec-${index + 1}`, label, done: false }))
     },
     accesses: DEFAULT_ACCESS_KINDS.map((kind) => makeAccess({ kind })),
     history: [makeHistory(
       "projeto_criado",
-      importacaoOrigemId ? "Projeto criado a partir de briefing revisado pela Naira" : "Projeto criado"
+      importacaoOrigemId ? "Projeto criado a partir de documentos revisados pela Naira" : "Projeto criado"
     )],
     nps: null,
     supportHours: { ...DEFAULT_SUPPORT_HOURS },
@@ -418,9 +424,9 @@ async function createProject(input) {
 }
 
 /** Cria o projeto somente após a revisão humana do rascunho da Naira. */
-async function createProjectFromImport({ id, input, fases, linksUteis, pendencias, importacaoOrigemId }) {
+async function createProjectFromImport({ id, input, fases, linksUteis, pendencias, tracking, importacaoOrigemId }) {
   if (!id || !String(input.clientName || "").trim()) throw erroHttp("O projeto importado precisa de um cliente válido.");
-  return montarProjetoNovo({ id, input, fases, linksUteis, pendencias, importacaoOrigemId });
+  return montarProjetoNovo({ id, input, fases, linksUteis, pendencias, tracking, importacaoOrigemId });
 }
 
 /** Exclui um projeto. */

@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   FileSearch,
   FileText,
+  GitCompareArrows,
   Info,
   Layers3,
   Link2,
@@ -27,6 +28,7 @@ import {
   Upload,
 } from 'lucide-react'
 import type {
+  FonteImportacaoProjeto,
   ImportacaoProjeto,
   Platform,
   Product,
@@ -35,6 +37,7 @@ import type {
   RascunhoImportacaoProjeto,
   StatusIntegracaoNaira,
 } from '@/types'
+import type { TipoDocumentoImportacao } from '@/types/importacaoProjeto'
 import { PLATFORM_META, TYPE_META } from '@/constants'
 import { PRODUCT_META, PRODUCT_TEMPLATES } from '@/constants/templates'
 import { useOrganizations } from '@/hooks/useProjects'
@@ -169,7 +172,12 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
 
   const [etapa, setEtapa] = useState<EtapaFluxo>(1)
   const [origem, setOrigem] = useState<OrigemCadastro>('guiado')
-  const [arquivoPdf, setArquivoPdf] = useState<File>()
+  const [documentosPdf, setDocumentosPdf] = useState<
+    Partial<Record<TipoDocumentoImportacao, File>>
+  >({})
+  const [errosDocumentosPdf, setErrosDocumentosPdf] = useState<
+    Partial<Record<TipoDocumentoImportacao, string>>
+  >({})
   const [erroPdf, setErroPdf] = useState<string>()
   const [conteudoJson, setConteudoJson] = useState('')
   const [erroJson, setErroJson] = useState<string>()
@@ -188,6 +196,7 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
   const chaveCriacaoImportacaoRef = useRef('')
   const chaveImportacaoJsonRef = useRef('')
   const chaveConfirmacaoRef = useRef<{ importacaoId: string; chave: string } | undefined>(undefined)
+  const importacoesCanceladasRef = useRef<Set<string>>(new Set())
 
   const [nomeCliente, setNomeCliente] = useState('')
   const [organizacaoId, setOrganizacaoId] = useState('')
@@ -196,6 +205,7 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
   const [tipo, setTipo] = useState<ProjectType>('implantacao')
   const [produto, setProduto] = useState<Product>('ecommerce')
   const [dataGoLive, setDataGoLive] = useState('')
+  const [horasEstimadas, setHorasEstimadas] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string>()
 
@@ -226,6 +236,10 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
   const bloqueios = importacao?.validacao?.bloqueios ?? []
   const avisos = importacao?.validacao?.avisos ?? []
   const origemAutomatizada = origem !== 'guiado'
+  const temEscopoImportacao = Boolean(
+    importacao?.documentos?.some((documento) => documento.tipo === 'escopo') ||
+      importacao?.fontes?.some((fonte) => fonte.tipoDocumento === 'escopo'),
+  )
   const tamanhoMaximoJson = integracao?.tamanhoMaximoJsonBytes ?? TAMANHO_MAXIMO_JSON_PADRAO
 
   useEffect(() => {
@@ -262,7 +276,7 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
     const consultar = async () => {
       try {
         const atualizada = await obterImportacaoProjeto(importacao.id)
-        if (!ativo) return
+        if (!ativo || importacoesCanceladasRef.current.has(atualizada.id)) return
         setImportacao(atualizada)
         setImportacoesRecentes((atuais) => [
           atualizada,
@@ -301,11 +315,18 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
     if (proximoRascunho.projeto.produto && proximoRascunho.projeto.produto in PRODUCT_META) {
       setProduto(proximoRascunho.projeto.produto)
     }
-    setDataGoLive(dataParaInput(proximoRascunho.projeto.dataGoLive))
+    setDataGoLive(
+      temEscopoImportacao ? dataParaInput(proximoRascunho.projeto.dataGoLive) : '',
+    )
+    setHorasEstimadas(
+      temEscopoImportacao && typeof proximoRascunho.projeto.horasEstimadas === 'number'
+        ? String(proximoRascunho.projeto.horasEstimadas)
+        : '',
+    )
     setUsarFasesSugeridas(proximoRascunho.fases.length > 0)
     setEtapa(2)
     rascunhoAplicadoRef.current = chaveAplicacao
-  }, [importacao])
+  }, [importacao, temEscopoImportacao])
 
   useEffect(() => {
     if (
@@ -337,7 +358,7 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
       setImportacoesRecentes(recentes)
       if (importacao) {
         const atualizada = await obterImportacaoProjeto(importacao.id)
-        setImportacao(atualizada)
+        if (!importacoesCanceladasRef.current.has(atualizada.id)) setImportacao(atualizada)
       }
       setErroIntegracao(undefined)
     } catch (erroDaAtualizacao) {
@@ -369,33 +390,58 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
     }
   }
 
-  function selecionarPdf(evento: ChangeEvent<HTMLInputElement>) {
+  function selecionarPdf(
+    tipoDocumento: TipoDocumentoImportacao,
+    evento: ChangeEvent<HTMLInputElement>,
+  ) {
     const arquivo = evento.target.files?.[0]
     setErroPdf(undefined)
+    setErrosDocumentosPdf((atuais) => ({ ...atuais, [tipoDocumento]: undefined }))
     if (!arquivo) {
-      setArquivoPdf(undefined)
-      chaveCriacaoImportacaoRef.current = ''
       return
     }
     const nomeValido = arquivo.name.toLocaleLowerCase('pt-BR').endsWith('.pdf')
     const tipoValido = !arquivo.type || arquivo.type === 'application/pdf'
     if (!nomeValido || !tipoValido) {
-      setArquivoPdf(undefined)
       chaveCriacaoImportacaoRef.current = ''
-      setErroPdf('Selecione um arquivo no formato PDF.')
+      setDocumentosPdf((atuais) => ({ ...atuais, [tipoDocumento]: undefined }))
+      setErrosDocumentosPdf((atuais) => ({
+        ...atuais,
+        [tipoDocumento]: `Selecione o ${tipoDocumento === 'briefing' ? 'Briefing' : 'Escopo'} no formato PDF.`,
+      }))
       evento.target.value = ''
       return
     }
     const limite = integracao?.tamanhoMaximoPdfBytes ?? TAMANHO_MAXIMO_PADRAO
-    if (arquivo.size > limite) {
-      setArquivoPdf(undefined)
+    if (!arquivo.size) {
       chaveCriacaoImportacaoRef.current = ''
-      setErroPdf(`O PDF ultrapassa o limite de ${Math.round(limite / 1024 / 1024)} MB deste ambiente.`)
+      setDocumentosPdf((atuais) => ({ ...atuais, [tipoDocumento]: undefined }))
+      setErrosDocumentosPdf((atuais) => ({
+        ...atuais,
+        [tipoDocumento]: 'O PDF selecionado está vazio.',
+      }))
       evento.target.value = ''
       return
     }
-    setArquivoPdf(arquivo)
+    if (arquivo.size > limite) {
+      chaveCriacaoImportacaoRef.current = ''
+      setDocumentosPdf((atuais) => ({ ...atuais, [tipoDocumento]: undefined }))
+      setErrosDocumentosPdf((atuais) => ({
+        ...atuais,
+        [tipoDocumento]: `O PDF ultrapassa o limite de ${Math.round(limite / 1024 / 1024)} MB deste ambiente.`,
+      }))
+      evento.target.value = ''
+      return
+    }
+    setDocumentosPdf((atuais) => ({ ...atuais, [tipoDocumento]: arquivo }))
     chaveCriacaoImportacaoRef.current = gerarChaveIdempotencia('criar-importacao')
+  }
+
+  function removerPdf(tipoDocumento: TipoDocumentoImportacao) {
+    setDocumentosPdf((atuais) => ({ ...atuais, [tipoDocumento]: undefined }))
+    setErrosDocumentosPdf((atuais) => ({ ...atuais, [tipoDocumento]: undefined }))
+    setErroPdf(undefined)
+    chaveCriacaoImportacaoRef.current = ''
   }
 
   function alterarConteudoJson(valor: string) {
@@ -472,37 +518,87 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
   }
 
   async function iniciarAnalise() {
-    if (!arquivoPdf) return
+    const selecionados = (['briefing', 'escopo'] as const)
+      .map((tipoDocumento) => ({ tipo: tipoDocumento, arquivo: documentosPdf[tipoDocumento] }))
+      .filter(
+        (item): item is { tipo: TipoDocumentoImportacao; arquivo: File } => Boolean(item.arquivo),
+      )
+    if (!selecionados.length) return
+    if (!chaveCriacaoImportacaoRef.current) {
+      chaveCriacaoImportacaoRef.current = gerarChaveIdempotencia('criar-importacao')
+    }
     setExecutandoAutomacao(true)
     setErroPdf(undefined)
     try {
-      const criada =
+      let atualizada =
         importacao?.status === 'aguardando_arquivo'
           ? importacao
           : await criarImportacaoProjeto(
-              arquivoPdf,
-              chaveCriacaoImportacaoRef.current || gerarChaveIdempotencia('criar-importacao'),
+              selecionados,
+              chaveCriacaoImportacaoRef.current,
             )
-      setImportacao(criada)
-      const enviada = await enviarPdfImportacao(criada.id, criada.versao, arquivoPdf)
-      setImportacao(enviada)
-      setImportacoesRecentes((atuais) => [enviada, ...atuais.filter((item) => item.id !== enviada.id)])
-      setArquivoPdf(undefined)
+      setImportacao(atualizada)
+
+      for (const documento of selecionados) {
+        const jaArmazenado = atualizada.documentos?.some(
+          (item) => item.tipo === documento.tipo && item.armazenado,
+        )
+        if (jaArmazenado) continue
+        atualizada = await enviarPdfImportacao(
+          atualizada.id,
+          atualizada.versao,
+          documento.tipo,
+          documento.arquivo,
+        )
+        setImportacao(atualizada)
+      }
+
+      setImportacoesRecentes((atuais) => [
+        atualizada,
+        ...atuais.filter((item) => item.id !== atualizada.id),
+      ])
+      setDocumentosPdf({})
+      setErrosDocumentosPdf({})
       chaveCriacaoImportacaoRef.current = ''
-      notify(integracao?.modo === 'mock' ? 'Simulação iniciada.' : 'PDF enviado para análise da Naira.')
+      notify(
+        integracao?.modo === 'mock'
+          ? 'Simulação iniciada.'
+          : selecionados.length === 2
+            ? 'Briefing e Escopo enviados para análise da Naira.'
+            : `${selecionados[0].tipo === 'briefing' ? 'Briefing' : 'Escopo'} enviado para análise da Naira.`,
+      )
     } catch (erroDoEnvio) {
-      setErroPdf(mensagemDoErro(erroDoEnvio, 'Não foi possível iniciar a análise do PDF.'))
+      setErroPdf(mensagemDoErro(erroDoEnvio, 'Não foi possível enviar os documentos para análise.'))
     } finally {
       setExecutandoAutomacao(false)
     }
   }
 
   async function retomarImportacao(item: ImportacaoProjeto) {
+    if (item.status === 'cancelada') {
+      setErro('Uma análise cancelada não pode ser retomada. Inicie uma nova importação.')
+      return
+    }
     setExecutandoAutomacao(true)
     setErro(undefined)
     try {
       const completa = await obterImportacaoProjeto(item.id)
-      setOrigem(completa.arquivo?.mimeType === 'application/json' ? 'json' : 'pdf')
+      if (completa.status === 'cancelada') {
+        setErro('Esta análise foi cancelada e não pode ser retomada. Inicie uma nova importação.')
+        return
+      }
+      if (importacao?.id !== completa.id) {
+        setDocumentosPdf({})
+        setErrosDocumentosPdf({})
+        setErroPdf(undefined)
+        chaveCriacaoImportacaoRef.current = ''
+        chaveConfirmacaoRef.current = undefined
+      }
+      setOrigem(
+        completa.origem === 'json_manual' || completa.arquivo?.mimeType === 'application/json'
+          ? 'json'
+          : 'pdf',
+      )
       setImportacao(completa)
       if (completa.status === 'aguardando_revisao') {
         rascunhoAplicadoRef.current = ''
@@ -541,9 +637,19 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
         importacao.versao,
         gerarChaveIdempotencia(`cancelar-${importacao.id}`),
       )
+      importacoesCanceladasRef.current.add(importacao.id)
       setImportacoesRecentes((atuais) => [cancelada, ...atuais.filter((item) => item.id !== cancelada.id)])
       setImportacao(undefined)
       setRascunhoNaira(undefined)
+      setDocumentosPdf({})
+      setErrosDocumentosPdf({})
+      setErroPdf(undefined)
+      setErro(undefined)
+      chaveCriacaoImportacaoRef.current = ''
+      chaveImportacaoJsonRef.current = ''
+      chaveConfirmacaoRef.current = undefined
+      rascunhoAplicadoRef.current = ''
+      aguardandoProjetoRef.current = false
       setEtapa(1)
     } catch (erroDoCancelamento) {
       setErro(mensagemDoErro(erroDoCancelamento, 'Não foi possível cancelar esta análise.'))
@@ -574,6 +680,13 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
       setErro('Selecione ou cadastre explicitamente a organização deste projeto.')
       return false
     }
+    if (origemAutomatizada && horasEstimadas) {
+      const horas = Number(horasEstimadas)
+      if (!Number.isFinite(horas) || horas <= 0 || horas > 10_000) {
+        setErro('Informe uma estimativa entre 0,5 e 10.000 horas ou deixe o campo vazio.')
+        return false
+      }
+    }
     setErro(undefined)
     return true
   }
@@ -589,6 +702,7 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
         tipo,
         produto,
         dataGoLive: dataGoLive || undefined,
+        horasEstimadas: horasEstimadas ? Number(horasEstimadas) : undefined,
       },
       linksUteis: rascunhoNaira.linksUteis?.map((link) => ({
         ...link,
@@ -705,7 +819,8 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
   function resetarFluxo() {
     setEtapa(1)
     setOrigem('guiado')
-    setArquivoPdf(undefined)
+    setDocumentosPdf({})
+    setErrosDocumentosPdf({})
     setErroPdf(undefined)
     setConteudoJson('')
     setErroJson(undefined)
@@ -719,6 +834,7 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
     setTipo('implantacao')
     setProduto('ecommerce')
     setDataGoLive('')
+    setHorasEstimadas('')
     setErro(undefined)
     setCriandoOrganizacao(false)
     setNomeOrganizacao('')
@@ -864,8 +980,8 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
                   ativo={origem === 'pdf'}
                   onClick={() => setOrigem('pdf')}
                   icon={<Sparkles className="size-5" />}
-                  titulo="Briefing com automação"
-                  descricao="Envie o PDF, acompanhe a Naira e revise cada sugestão."
+                  titulo="PDFs com automação"
+                  descricao="Envie Briefing, Escopo ou ambos e revise as sugestões da Naira."
                   selo="Naira + revisão humana"
                   destaque
                 />
@@ -894,18 +1010,15 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
                   integracao={integracao}
                   carregandoIntegracao={carregandoIntegracao}
                   erroIntegracao={erroIntegracao}
-                  arquivo={arquivoPdf}
-                  erroArquivo={erroPdf}
+                  documentos={documentosPdf}
+                  errosDocumentos={errosDocumentosPdf}
+                  erroEnvio={erroPdf}
                   importacao={importacao}
                   importacoesRecentes={importacoesRecentes}
                   carregandoRecentes={carregandoRecentes}
                   executando={executandoAutomacao}
                   onSelecionarArquivo={selecionarPdf}
-                  onRemoverArquivo={() => {
-                    setArquivoPdf(undefined)
-                    setErroPdf(undefined)
-                    chaveCriacaoImportacaoRef.current = ''
-                  }}
+                  onRemoverArquivo={removerPdf}
                   onIniciar={iniciarAnalise}
                   onRetomar={retomarImportacao}
                   onTentarNovamente={tentarNovamente}
@@ -952,7 +1065,41 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
                     <Campo label="Plataforma"><Select options={OPCOES_PLATAFORMA} value={plataforma} onChange={(evento) => setPlataforma(evento.target.value as Platform)} /></Campo>
                     <Campo label="Tipo de projeto"><Select options={OPCOES_TIPO} value={tipo} onChange={(evento) => setTipo(evento.target.value as ProjectType)} /></Campo>
                     <Campo label="Produto"><Select options={OPCOES_PRODUTO} value={produto} onChange={(evento) => setProduto(evento.target.value as Product)} /></Campo>
-                    <Campo label="Previsão de go live" dica="opcional"><input type="date" value={dataGoLive} onChange={(evento) => setDataGoLive(evento.target.value)} className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm text-slate-800 shadow-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none" /></Campo>
+                    <Campo
+                      label="Previsão de go live"
+                      dica={
+                        origemAutomatizada && !temEscopoImportacao
+                          ? 'exige Escopo identificado'
+                          : 'opcional'
+                      }
+                    >
+                      <input
+                        type="date"
+                        value={dataGoLive}
+                        onChange={(evento) => setDataGoLive(evento.target.value)}
+                        disabled={origemAutomatizada && !temEscopoImportacao}
+                        className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm text-slate-800 shadow-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                      />
+                    </Campo>
+                    {origemAutomatizada && (
+                      <Campo
+                        label="Horas estimadas"
+                        dica={temEscopoImportacao ? 'opcional' : 'exige Escopo identificado'}
+                      >
+                        <input
+                          type="number"
+                          min="0.5"
+                          max="10000"
+                          step="0.5"
+                          inputMode="decimal"
+                          value={horasEstimadas}
+                          onChange={(evento) => setHorasEstimadas(evento.target.value)}
+                          disabled={!temEscopoImportacao}
+                          placeholder="Ex.: 120"
+                          className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm text-slate-800 shadow-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                        />
+                      </Campo>
+                    )}
                   </div>
 
                   <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
@@ -1049,6 +1196,9 @@ export function NewProjectModal({ open, onClose, onCreated }: NewProjectModalPro
                       <ResumoLinha label="Tipo" value={TYPE_META[tipo].label} />
                       <ResumoLinha label="Produto" value={PRODUCT_META[produto].label} />
                       <ResumoLinha label="Go live" value={dataGoLive ? new Date(`${dataGoLive}T12:00:00`).toLocaleDateString('pt-BR') : 'Não definido'} />
+                      {origemAutomatizada && (
+                        <ResumoLinha label="Horas estimadas" value={horasEstimadas ? `${Number(horasEstimadas).toLocaleString('pt-BR')} h` : 'Não definido'} />
+                      )}
                     </dl>
                   </div>
                   {origemAutomatizada && (
@@ -1243,19 +1393,181 @@ function GrupoRevisao({ icon, titulo, itens, marcado, onChange, textoConfirmacao
   )
 }
 
+const META_COMPARACAO = {
+  contratado_confirmado: {
+    label: 'Contratado e alinhado',
+    classe: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  },
+  contratado_sem_detalhamento: {
+    label: 'Contratado, falta detalhar',
+    classe: 'bg-sky-50 text-sky-700 ring-sky-200',
+  },
+  excluido_confirmado: {
+    label: 'Excluído do contrato',
+    classe: 'bg-slate-100 text-slate-600 ring-slate-200',
+  },
+  conflito: {
+    label: 'Conflito',
+    classe: 'bg-red-50 text-red-700 ring-red-200',
+  },
+  potencial_extra: {
+    label: 'Possível extra',
+    classe: 'bg-amber-50 text-amber-800 ring-amber-200',
+  },
+} as const
+
+function EvidenciasVinculadas({
+  fonteIds,
+  fontes,
+}: {
+  fonteIds?: string[]
+  fontes: FonteImportacaoProjeto[]
+}) {
+  const idsUnicos = [...new Set(fonteIds ?? [])]
+  if (!idsUnicos.length) return null
+
+  const fontesPorId = new Map(fontes.map((fonte) => [fonte.id, fonte]))
+  const vinculadas = idsUnicos
+    .map((id) => fontesPorId.get(id))
+    .filter((fonte): fonte is FonteImportacaoProjeto => Boolean(fonte))
+  const referenciasAusentes = idsUnicos.length - vinculadas.length
+
+  if (!vinculadas.length) {
+    return (
+      <p className="mt-2 text-[11px] leading-4 text-amber-700">
+        As referências informadas para este item não estão disponíveis na resposta atual.
+      </p>
+    )
+  }
+
+  return (
+    <details className="mt-2 rounded-lg border border-violet-100 bg-white">
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 px-2.5 py-2 text-[11px] font-semibold text-violet-700 focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+        <Link2 className="size-3.5" />
+        {vinculadas.length} {vinculadas.length === 1 ? 'evidência vinculada' : 'evidências vinculadas'}
+      </summary>
+      <ul className="space-y-2 border-t border-violet-100 p-2.5">
+        {vinculadas.map((fonte) => {
+          const papel = fonte.tipoDocumento === 'briefing'
+            ? 'Briefing'
+            : fonte.tipoDocumento === 'escopo'
+              ? 'Escopo'
+              : 'Documento'
+          return (
+            <li key={fonte.id} className="rounded-lg bg-slate-50 p-2 text-[11px] leading-4 text-slate-600">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="rounded-full bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-violet-200">
+                  {papel}
+                </span>
+                <span className="font-semibold text-slate-700">
+                  {fonte.nomeDocumento ?? fonte.rotulo ?? 'Fonte identificada'}
+                </span>
+                {fonte.pagina && <span>· página {fonte.pagina}</span>}
+              </div>
+              {fonte.trecho && <blockquote className="mt-1 border-l-2 border-violet-200 pl-2 text-slate-600">{fonte.trecho}</blockquote>}
+            </li>
+          )
+        })}
+        {referenciasAusentes > 0 && (
+          <li className="text-[11px] leading-4 text-amber-700">
+            {referenciasAusentes} {referenciasAusentes === 1 ? 'referência não foi encontrada' : 'referências não foram encontradas'} na resposta atual.
+          </li>
+        )}
+      </ul>
+    </details>
+  )
+}
+
 function PainelEvidencias({ importacao }: { importacao: ImportacaoProjeto }) {
   const campos = importacao.campos ?? []
+  const comparacoes = campos.filter((campo) => campo.campo.startsWith('comparacao.'))
+  const camposGerais = campos.filter((campo) => !campo.campo.startsWith('comparacao.'))
   const fontes = importacao.fontes ?? []
   const confiancas = campos.map((campo) => confiancaComoPercentual(campo.confianca)).filter((valor): valor is number => valor !== undefined)
   const media = confiancas.length ? Math.round(confiancas.reduce((total, valor) => total + valor, 0) / confiancas.length) : undefined
   return (
     <aside className="space-y-4">
+      {comparacoes.length > 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                <GitCompareArrows className="size-4 text-violet-600" /> Matriz Escopo × Briefing
+              </div>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                O Escopo define o contrato; divergências e pedidos adicionais exigem revisão.
+              </p>
+            </div>
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+              {comparacoes.length} {comparacoes.length === 1 ? 'item' : 'itens'}
+            </span>
+          </div>
+          <ul className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
+            {comparacoes.map((campo, indice) => {
+              const status =
+                typeof campo.valor === 'string' && campo.valor in META_COMPARACAO
+                  ? META_COMPARACAO[campo.valor as keyof typeof META_COMPARACAO]
+                  : undefined
+              return (
+                <li
+                  key={`${campo.campo}-${indice}`}
+                  className="rounded-xl border border-slate-200 bg-slate-50/70 p-3"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <span className="text-xs font-semibold leading-5 text-slate-800">
+                      {campo.rotulo ?? campo.campo}
+                    </span>
+                    {status ? (
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${status.classe}`}
+                      >
+                        {status.label}
+                      </span>
+                    ) : (
+                      <span className="text-xs font-medium text-slate-600">
+                        {resumoValor(campo.valor)}
+                      </span>
+                    )}
+                  </div>
+                  <EvidenciasVinculadas fonteIds={campo.fonteIds} fontes={fontes} />
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
       <div className="rounded-2xl border border-violet-200 bg-violet-50/50 p-5">
         <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2 text-sm font-semibold text-violet-900"><Sparkles className="size-4" /> Evidências da automação</div>{media !== undefined && <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-violet-700 ring-1 ring-violet-200">Confiança média {media}%</span>}</div>
-        {campos.length > 0 ? <dl className="mt-4 space-y-3">{campos.slice(0, 8).map((campo) => { const confianca = confiancaComoPercentual(campo.confianca); return <div key={campo.campo} className="border-b border-violet-100 pb-3 last:border-0 last:pb-0"><dt className="flex items-center justify-between gap-3 text-xs font-medium text-violet-700"><span>{campo.rotulo ?? campo.campo}</span>{confianca !== undefined && <span>{confianca}%</span>}</dt><dd className="mt-1 truncate text-sm text-slate-800">{resumoValor(campo.valor)}</dd></div>})}</dl> : <p className="mt-3 text-xs leading-5 text-violet-800">O provedor não informou confiança por campo. Confirme os dados diretamente no formulário.</p>}
+        {camposGerais.length > 0 ? <dl className="mt-4 space-y-3">{camposGerais.slice(0, 8).map((campo) => { const confianca = confiancaComoPercentual(campo.confianca); return <div key={campo.campo} className="border-b border-violet-100 pb-3 last:border-0 last:pb-0"><dt className="flex items-center justify-between gap-3 text-xs font-medium text-violet-700"><span>{campo.rotulo ?? campo.campo}</span>{confianca !== undefined && <span>{confianca}%</span>}</dt><dd className="mt-1 truncate text-sm text-slate-800">{resumoValor(campo.valor)}</dd></div>})}</dl> : <p className="mt-3 text-xs leading-5 text-violet-800">O provedor não informou confiança para os dados cadastrais. Confirme-os diretamente no formulário.</p>}
       </div>
       {(importacao.validacao?.bloqueios.length || importacao.validacao?.avisos.length) ? <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4"><div className="flex items-center gap-2 text-sm font-semibold text-amber-900"><AlertTriangle className="size-4" /> Pontos de atenção</div><ul className="mt-2 space-y-1.5 text-xs leading-5 text-amber-800">{importacao.validacao.bloqueios.map((item) => <li key={item}>• {item}</li>)}{importacao.validacao.avisos.map((item) => <li key={item}>• {item}</li>)}</ul></div> : null}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4"><div className="flex items-center gap-2 text-sm font-semibold text-slate-900"><FileText className="size-4 text-slate-500" /> Fontes no documento</div>{fontes.length ? <ul className="mt-3 space-y-2">{fontes.slice(0, 6).map((fonte) => <li key={fonte.id} className="rounded-lg bg-slate-50 p-2.5 text-xs leading-5 text-slate-600"><span className="font-semibold text-slate-700">{fonte.rotulo ?? (fonte.pagina ? `Página ${fonte.pagina}` : 'Trecho identificado')}</span>{fonte.trecho && <span className="mt-0.5 block line-clamp-3">{fonte.trecho}</span>}</li>)}</ul> : <p className="mt-2 text-xs leading-5 text-slate-500">Nenhum trecho de origem foi devolvido pelo provedor.</p>}</div>
+      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-900"><FileText className="size-4 text-slate-500" /> Fontes nos documentos</div>
+        {fontes.length ? (
+          <ul className="mt-3 space-y-2">
+            {fontes.slice(0, 8).map((fonte) => {
+              const papel = fonte.tipoDocumento === 'briefing'
+                ? 'Briefing'
+                : fonte.tipoDocumento === 'escopo'
+                  ? 'Escopo'
+                  : undefined
+              return (
+                <li key={fonte.id} className="rounded-lg bg-slate-50 p-2.5 text-xs leading-5 text-slate-600">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {papel && <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-violet-200">{papel}</span>}
+                    <span className="font-semibold text-slate-700">{fonte.nomeDocumento ?? fonte.rotulo ?? 'Trecho identificado'}</span>
+                    {fonte.pagina && <span className="text-slate-500">· página {fonte.pagina}</span>}
+                  </div>
+                  {fonte.rotulo && fonte.rotulo !== fonte.nomeDocumento && <span className="mt-0.5 block text-slate-500">{fonte.rotulo}</span>}
+                  {fonte.trecho && <span className="mt-0.5 block line-clamp-3">{fonte.trecho}</span>}
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <p className="mt-2 text-xs leading-5 text-slate-500">Nenhum trecho de origem foi devolvido pelo provedor.</p>
+        )}
+      </div>
       <div className="flex gap-2 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-sky-800"><Info className="mt-0.5 size-4 shrink-0" />A confiança ajuda na revisão, mas não substitui a validação do escopo e da organização.</div>
     </aside>
   )

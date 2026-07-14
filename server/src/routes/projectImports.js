@@ -54,25 +54,37 @@ router.post("/", h(async (req, res) => {
   res.status(resultado.criada ? 201 : 200).json(resultado.importacao);
 }));
 
+const receberPdf = (tipoFixo) => h(async (req, res) => {
+  if (!req.is("application/pdf")) {
+    return res.status(415).json({
+      erro: { codigo: "invalid_media_type", mensagem: "Envie o PDF com Content-Type application/pdf." },
+      error: "invalid_media_type",
+      message: "Envie o PDF com Content-Type application/pdf."
+    });
+  }
+  const importacao = await svc.enviarArquivo(
+    req.params.id,
+    req.body,
+    req.header("if-match"),
+    req.authUser,
+    tipoFixo || req.params.tipo
+  );
+  res.status(202).json(importacao);
+});
+
+const pdfBruto = express.raw({ type: "application/pdf", limit: config.naira.maxPdfBytes });
+
+router.put(
+  "/:id/files/:tipo",
+  pdfBruto,
+  receberPdf()
+);
+
+// Compatibilidade: o endpoint de arquivo único sempre representa o briefing.
 router.put(
   "/:id/file",
-  express.raw({ type: "application/pdf", limit: config.naira.maxPdfBytes }),
-  h(async (req, res) => {
-    if (!req.is("application/pdf")) {
-      return res.status(415).json({
-        erro: { codigo: "invalid_media_type", mensagem: "Envie o PDF com Content-Type application/pdf." },
-        error: "invalid_media_type",
-        message: "Envie o PDF com Content-Type application/pdf."
-      });
-    }
-    const importacao = await svc.enviarArquivo(
-      req.params.id,
-      req.body,
-      req.header("if-match"),
-      req.authUser
-    );
-    res.status(202).json(importacao);
-  })
+  pdfBruto,
+  receberPdf("briefing")
 );
 
 router.patch("/:id/draft", h(async (req, res) => {

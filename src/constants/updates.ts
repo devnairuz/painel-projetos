@@ -35,6 +35,14 @@ export interface UpdateEntry {
 /** Atualizações em ordem cronológica decrescente (mais recente primeiro). */
 export const UPDATES: UpdateEntry[] = [
   {
+    id: '2026-07-14-briefing-escopo-naira',
+    date: '2026-07-14',
+    category: 'melhoria',
+    title: 'Briefing e Escopo analisados em conjunto',
+    description:
+      'A automação agora aceita Briefing, Escopo ou os dois PDFs, identifica a origem de cada evidência e preserva o Escopo como referência contratual. Divergências e solicitações extras viram pontos de revisão; horas e prazos dependem de Escopo identificado, e travas sem evidência contratual rastreável são removidas antes da criação.',
+  },
+  {
     id: '2026-07-14-importacao-json-naira',
     date: '2026-07-14',
     category: 'melhoria',
